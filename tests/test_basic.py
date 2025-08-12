@@ -1,5 +1,6 @@
 # tests/test_basic.py
 import numpy as np
+import pytest
 from sklearn.datasets import load_iris, make_regression
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
@@ -72,3 +73,8 @@ def test_decision_function_regression_fallback():
     expected = sh.estimator_.predict(Xs)
     df_scores = sh.decision_function(X[:5])
     assert np.allclose(df_scores, expected)
+
+
+def test_base_2d_rays_must_be_positive():
+    with pytest.raises(ValueError):
+        ModalBoundaryClustering(base_2d_rays=0)

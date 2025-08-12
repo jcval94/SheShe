@@ -293,6 +293,16 @@ class ModalBoundaryClustering(BaseEstimator):
         save_labels: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
     ):
+        """Inicializa el clusterizador.
+
+        Parameters
+        ----------
+        base_2d_rays : int, default=8
+            Número de rayos en 2D. Debe ser > 0.
+        """
+        if base_2d_rays <= 0:
+            raise ValueError("base_2d_rays debe ser > 0")
+
         self.base_estimator = base_estimator
         self.task = task
         self.base_2d_rays = base_2d_rays
