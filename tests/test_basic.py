@@ -131,6 +131,19 @@ def test_membership_matrix_no_directions():
     assert np.all(pred == base_pred)
 
 
+def test_base_2d_rays_zero_raises_in_3d():
+    iris = load_iris()
+    X, y = iris.data[:, :3], iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        base_2d_rays=0,
+        random_state=0,
+    )
+    with pytest.raises(ValueError, match="base_2d"):
+        sh.fit(X, y)
+
+
 def test_n_max_seeds_minimum():
     with pytest.raises(ValueError, match="n_max_seeds"):
         ModalBoundaryClustering(n_max_seeds=0)
