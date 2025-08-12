@@ -411,19 +411,41 @@ class ModalBoundaryClustering(BaseEstimator):
         according to ``direction``. Returns ``(radii, points, slopes)``.
         """
         d = center.shape[0]
-        T = float(self.scan_radius_factor * np.linalg.norm(X_std))
-        ts = np.linspace(0.0, T, self.scan_steps)
+        # base radius in units of std, kept for backward compatibility
+        T_base = float(self.scan_radius_factor * np.linalg.norm(X_std))
+        lo, hi = getattr(self, "bounds_", (None, None))
+        assert lo is not None and hi is not None, "bounds_ not initialized."
+
+        def tmax_in_bounds(c: np.ndarray, u: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> float:
+            tmax = np.inf
+            for k in range(d):
+                uk = u[k]
+                if abs(uk) < 1e-12:
+                    continue
+                tk = (hi[k] - c[k]) / uk if uk > 0 else (lo[k] - c[k]) / uk
+                if tk > 0:
+                    tmax = min(tmax, tk)
+            if not np.isfinite(tmax) or tmax <= 0:
+                return 1e-9
+            return float(tmax)
 
         radii = np.zeros(len(directions), dtype=float)
         pts = np.zeros((len(directions), d), dtype=float)
         slopes = np.zeros(len(directions), dtype=float)
 
         for i, u in enumerate(directions):
+            T_dir = min(T_base, tmax_in_bounds(center, u, lo, hi))
+            ts = np.linspace(0.0, T_dir, self.scan_steps)
+
             vals = np.array([f(center + t*u) for t in ts], dtype=float)
             r, m = find_inflection(ts, vals, self.direction)
-            radii[i] = r
-            pts[i] = center + r*u
-            slopes[i] = m
+
+            p = center + r*u
+            p = np.minimum(np.maximum(p, lo), hi)
+
+            radii[i] = float(r)
+            pts[i, :] = p
+            slopes[i] = float(m)
         return radii, pts, slopes
 
     def _build_norm_stats(self, X: np.ndarray, class_idx: Optional[int]) -> Dict[str, float]:
@@ -469,6 +491,7 @@ class ModalBoundaryClustering(BaseEstimator):
 
             self._fit_estimator(X, y)
             lo, hi = self._bounds_from_data(X)
+            self.bounds_ = (lo.copy(), hi.copy())  # store bounds for radial scans
             X_std = np.std(X, axis=0) + 1e-12
             dirs = generate_directions(self.n_features_in_, self.base_2d_rays, self.random_state, self.max_subspaces)
 
@@ -854,6 +877,8 @@ class ModalBoundaryClustering(BaseEstimator):
 
             plt.xlabel(f"feat {i}")
             plt.ylabel(f"feat {j}")
+            plt.xlim(xi.min(), xi.max())
+            plt.ylim(xj.min(), xj.max())
             plt.legend(loc="best")
             plt.tight_layout()
 
