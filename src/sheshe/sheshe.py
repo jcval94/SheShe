@@ -379,7 +379,7 @@ class ModalBoundaryClustering(BaseEstimator):
     def _find_maximum(self, X: np.ndarray, f, bounds: Tuple[np.ndarray, np.ndarray]) -> np.ndarray:
         seeds = self._choose_seeds(X, f, min(self.n_max_seeds, len(X)))
         if len(seeds) == 0:
-            return X[0]
+            raise ValueError("No seeds available to locate a maximum")
         best_x, best_v = seeds[0].copy(), f(seeds[0])
         for s in seeds:
             x_star = gradient_ascent(
@@ -443,6 +443,8 @@ class ModalBoundaryClustering(BaseEstimator):
         start = time.perf_counter()
         try:
             X = np.asarray(X, dtype=float)
+            if X.ndim != 2 or X.shape[0] == 0:
+                raise ValueError("X must be a 2D array with at least one sample")
             self.n_features_in_ = X.shape[1]
             self.feature_names_in_ = list(X.columns) if isinstance(X, pd.DataFrame) else None
 
