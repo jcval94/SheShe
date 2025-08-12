@@ -293,6 +293,9 @@ class ModalBoundaryClustering(BaseEstimator):
         save_labels: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
     ):
+        if n_max_seeds < 1:
+            raise ValueError("n_max_seeds debe ser >= 1")
+
         self.base_estimator = base_estimator
         self.task = task
         self.base_2d_rays = base_2d_rays
@@ -357,6 +360,8 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def _find_maximum(self, X: np.ndarray, f, bounds: Tuple[np.ndarray, np.ndarray]) -> np.ndarray:
         seeds = self._choose_seeds(X, f, min(self.n_max_seeds, len(X)))
+        if len(seeds) == 0:
+            return X[0]
         best_x, best_v = seeds[0].copy(), f(seeds[0])
         for s in seeds:
             x_star = gradient_ascent(
