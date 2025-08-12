@@ -196,6 +196,17 @@ cat benchmark/unsupervised_results.csv | head
 
 se generan los resultados dentro de `benchmark/`.
 
+Para los experimentos del manuscrito se incluye además
+[`paper_experiments.py`](experiments/paper_experiments.py), que compara con
+algoritmos **supervisados**, realiza estudios de *ablation* sobre
+`base_2d_rays` y `direction`, y analiza la sensibilidad a la dimensión y al
+ruido gaussiano. Ejecutando el script se obtienen tablas (`*.csv`) y figuras
+(`*.png`) reproducibles en `benchmark/`:
+
+```bash
+python experiments/paper_experiments.py
+```
+
 ---
 
 ## Parámetros clave
