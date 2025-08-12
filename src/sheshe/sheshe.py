@@ -233,9 +233,16 @@ def generate_directions(dim: int, base_2d: int, random_state: Optional[int] = 42
 
     # elige subespacios de tamaño 3 (o 2 si dim=4 y quieres más baratas)
     sub_dim = 3 if dim >= 3 else 2
-    combos = list(itertools.combinations(range(dim), sub_dim))
+    total_combos = math.comb(dim, sub_dim)
+    if max_subspaces >= total_combos:
+        combos = list(itertools.combinations(range(dim), sub_dim))
+    else:
+        combos = set()
+        while len(combos) < max_subspaces:
+            combo = tuple(sorted(rng.choice(dim, size=sub_dim, replace=False)))
+            combos.add(combo)
+        combos = list(combos)
     rng.shuffle(combos)
-    combos = combos[:max_subspaces]
 
     # nº de rays por subespacio
     if sub_dim == 3:
