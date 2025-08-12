@@ -208,6 +208,8 @@ def rays_count_auto(dim: int, base_2d: int = 8) -> int:
     if dim == 2:
         return int(base_2d)
     if dim == 3:
+        if base_2d <= 0:
+            raise ValueError("base_2d must be positive for dim == 3")
         theta = math.pi / base_2d  # ≈ 2D-like angular separation
         n = max(12, int(math.ceil(2.0 / max(1e-9, (1 - math.cos(theta))))))
         return min(64, n)  # cota superior razonable
