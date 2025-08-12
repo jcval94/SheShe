@@ -114,3 +114,18 @@ def test_membership_matrix_no_directions():
 def test_n_max_seeds_minimum():
     with pytest.raises(ValueError, match="n_max_seeds"):
         ModalBoundaryClustering(n_max_seeds=0)
+
+
+def test_fit_raises_when_y_none_classification():
+    X = np.random.randn(10, 3)
+    sh = ModalBoundaryClustering(task="classification")
+    with pytest.raises(ValueError, match="y cannot be None"):
+        sh.fit(X, None)
+
+
+def test_fit_raises_with_single_class():
+    X = np.random.randn(10, 3)
+    y = np.zeros(10)
+    sh = ModalBoundaryClustering(task="classification")
+    with pytest.raises(ValueError, match="at least two classes"):
+        sh.fit(X, y)
