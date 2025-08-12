@@ -13,7 +13,7 @@ Requires **Python >=3.9** and it is recommended to work inside a virtual
 environment.
 
 ```bash
-pip install -e .
+pip install sheshe
 ```
 
 Base dependencies: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`

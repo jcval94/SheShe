@@ -11,7 +11,7 @@ la **probabilidad por clase** (clasificación) o del **valor predicho** (regresi
 Requiere **Python >=3.9** y se recomienda el uso de un entorno virtual.
 
 ```bash
-pip install -e .
+pip install sheshe
 ```
 
 Dependencias base: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`
