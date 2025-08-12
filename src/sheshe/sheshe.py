@@ -758,6 +758,7 @@ class ModalBoundaryClustering(BaseEstimator):
 
         if self.task == "classification":
             assert y is not None, "y requerido para graficar clasificación."
+            assert len(y) == len(X), "X e y deben tener la misma longitud."
             palette = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3",
                        "#ff7f00", "#a65628", "#f781bf", "#999999"]
             class_colors = {c: palette[i % len(palette)] for i, c in enumerate(self.classes_)}

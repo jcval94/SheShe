@@ -1,5 +1,6 @@
 # tests/test_basic.py
 import numpy as np
+import pytest
 from sklearn.datasets import load_iris, make_regression
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
@@ -72,3 +73,16 @@ def test_decision_function_regression_fallback():
     expected = sh.estimator_.predict(Xs)
     df_scores = sh.decision_function(X[:5])
     assert np.allclose(df_scores, expected)
+
+
+def test_plot_pairs_y_length_mismatch():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    with pytest.raises(AssertionError):
+        sh.plot_pairs(X, y[:-1])
