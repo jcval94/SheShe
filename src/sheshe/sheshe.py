@@ -446,6 +446,13 @@ class ModalBoundaryClustering(BaseEstimator):
             self.n_features_in_ = X.shape[1]
             self.feature_names_in_ = list(X.columns) if isinstance(X, pd.DataFrame) else None
 
+            if self.task == "classification":
+                if y is None:
+                    raise ValueError("y cannot be None when task='classification'")
+                y_arr = np.asarray(y)
+                if np.unique(y_arr).size < 2:
+                    raise ValueError("y must contain at least two classes for classification")
+
             self._fit_estimator(X, y)
             lo, hi = self._bounds_from_data(X)
             X_std = np.std(X, axis=0) + 1e-12
