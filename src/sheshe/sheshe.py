@@ -486,6 +486,27 @@ class ModalBoundaryClustering(BaseEstimator):
         return self.predict(X)
 
     def _membership_matrix(self, X: np.ndarray) -> np.ndarray:
+        """Construye la matriz de pertenencia a las regiones descubiertas.
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            Muestras a evaluar en el espacio original.
+
+        Returns
+        -------
+        ndarray of shape (n_samples, n_regions)
+            Matriz binaria ``R`` donde ``R[i, k] = 1`` indica que la muestra
+            ``i`` cae dentro de la región ``k``.
+
+        Examples
+        --------
+        >>> from sklearn.datasets import load_iris
+        >>> X, y = load_iris(return_X_y=True)
+        >>> sh = ModalBoundaryClustering().fit(X, y)
+        >>> sh._membership_matrix(X).shape
+        (150, 3)
+        """
         X = np.asarray(X, dtype=float)
         n = len(X)
         R = np.zeros((n, len(self.regions_)), dtype=int)
@@ -640,6 +661,31 @@ class ModalBoundaryClustering(BaseEstimator):
         return joblib.load(filepath)
 
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
+        """Resume centros e inflexiones de cada región en un ``DataFrame``.
+
+        Parameters
+        ----------
+        feature_names : list of str, optional
+            Nombres de las características de longitud ``(n_features,)``.
+            Cuando es ``None`` se utilizan los nombres vistos durante el
+            ajuste o ``coord_i`` si no están disponibles.
+
+        Returns
+        -------
+        DataFrame
+            Tabla con una fila por centroide y punto de inflexión. Contiene
+            las columnas ``['Tipo', 'Distancia', 'Categoria', 'valor_real',
+            'valor_norm', 'pendiente']`` además de una columna por
+            característica.
+
+        Examples
+        --------
+        >>> from sklearn.datasets import load_iris
+        >>> X, y = load_iris(return_X_y=True)
+        >>> sh = ModalBoundaryClustering().fit(X, y)
+        >>> sh.interpretability_summary().head()
+           
+        """
         check_is_fitted(self, "regions_")
         d = self.n_features_in_
         if feature_names is None:
@@ -682,6 +728,32 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def _plot_single_pair_classif(self, X: np.ndarray, y: np.ndarray, pair: Tuple[int, int],
                                   class_colors: Dict[Any, str], grid_res: int = 200, alpha_surface: float = 0.6):
+        """Dibuja la superficie de probabilidad para un par de características.
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            Matriz de características.
+        y : ndarray of shape (n_samples,)
+            Etiquetas de clase.
+        pair : tuple of int
+            Índices ``(i, j)`` de las características a graficar.
+        class_colors : dict
+            Mapeo de clase a color para los puntos del diagrama.
+        grid_res : int, default=200
+            Resolución de la malla usada para la superficie.
+        alpha_surface : float, default=0.6
+            Transparencia de la superficie.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> sh = ModalBoundaryClustering().fit(X, y)
+        >>> sh._plot_single_pair_classif(X, y, (0, 1), {0: 'red', 1: 'blue'})
+        """
         i, j = pair
         xi, xj = X[:, i], X[:, j]
         xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
@@ -724,6 +796,28 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def _plot_single_pair_reg(self, X: np.ndarray, pair: Tuple[int, int],
                               grid_res: int = 200, alpha_surface: float = 0.6):
+        """Dibuja la superficie del valor predicho para un par de características.
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            Matriz de características.
+        pair : tuple of int
+            Índices ``(i, j)`` de las características a graficar.
+        grid_res : int, default=200
+            Resolución de la malla usada para la superficie.
+        alpha_surface : float, default=0.6
+            Transparencia de la superficie.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> sh = ModalBoundaryClustering(task="regression").fit(X, y)
+        >>> sh._plot_single_pair_reg(X, (0, 1))
+        """
         i, j = pair
         xi, xj = X[:, i], X[:, j]
         xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
@@ -758,7 +852,42 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def plot_pairs(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None,
                    max_pairs: Optional[int] = None):
-        """Genera figuras para todas las combinaciones 2D (o hasta max_pairs)."""
+        """Visualiza superficies 2D para pares de características.
+
+        Genera una figura por cada combinación ``(i, j)`` de características
+        hasta ``max_pairs``. En clasificación se muestra la probabilidad de
+        cada clase y en regresión el valor predicho.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Datos usados para fijar el rango de cada eje.
+        y : ndarray of shape (n_samples,), optional
+            Etiquetas reales; requerido cuando ``task='classification'``.
+        max_pairs : int, optional
+            Máximo número de combinaciones a graficar. Si es ``None`` se
+            generan todas las combinaciones posibles.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        Clasificación::
+
+            >>> from sklearn.datasets import load_iris
+            >>> X, y = load_iris(return_X_y=True)
+            >>> sh = ModalBoundaryClustering().fit(X, y)
+            >>> sh.plot_pairs(X, y, max_pairs=1)
+
+        Regresión::
+
+            >>> from sklearn.datasets import make_regression
+            >>> X, y = make_regression(n_samples=50, n_features=3, random_state=0)
+            >>> sh = ModalBoundaryClustering(task="regression").fit(X, y)
+            >>> sh.plot_pairs(X, max_pairs=1)
+        """
         check_is_fitted(self, "regions_")
         X = np.asarray(X, dtype=float)
         d = X.shape[1]
