@@ -546,6 +546,11 @@ class ModalBoundaryClustering(BaseEstimator):
         self._log(f"predict_proba completado en {runtime:.4f}s")
         return result
 
+    def score(self, X: Union[np.ndarray, pd.DataFrame], y: np.ndarray) -> float:
+        """Devuelve la métrica de sklearn delegando en el pipeline interno."""
+        check_is_fitted(self, "pipeline_")
+        return self.pipeline_.score(np.asarray(X, dtype=float), y)
+
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
         check_is_fitted(self, "regions_")
         d = self.n_features_in_
