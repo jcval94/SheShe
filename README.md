@@ -104,6 +104,34 @@ sh.plot_pairs(X, max_pairs=3)
 
 Para ejemplos más completos, consulta la carpeta `examples/`.
 
+### Visualización y guardado de gráficas
+
+El script [`examples/iris_visualization.py`](examples/iris_visualization.py) muestra
+cómo generar gráficas y almacenarlas en disco:
+
+```bash
+python examples/iris_visualization.py
+ls examples/images
+```
+
+Las imágenes se guardan en `examples/images/`.
+
+### Experimentos y benchmark
+
+Los experimentos de comparación con algoritmos **no supervisados** se encuentran
+en la carpeta [`experiments/`](experiments/). El script
+[`compare_unsupervised.py`](experiments/compare_unsupervised.py) evalúa cinco
+conjuntos de datos distintos, explora parámetros de **SheShe**, **KMeans** y
+**DBSCAN**, y almacena cuatro métricas (`ARI`, `homogeneity`, `completeness`,
+`v_measure`) junto con el tiempo de ejecución (`runtime_sec`).
+
+```bash
+python experiments/compare_unsupervised.py
+cat benchmark/unsupervised_results.csv | head
+```
+
+se generan los resultados dentro de `benchmark/`.
+
 ---
 
 ## Parámetros clave
