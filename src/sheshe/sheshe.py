@@ -352,8 +352,20 @@ class ModalBoundaryClustering(BaseEstimator):
         if self.task == "classification":
             if class_idx is None:
                 raise ValueError("class_idx required for classification.")
-            proba = self.estimator_.predict_proba(Xs)
-            return proba[:, class_idx]
+            if hasattr(self.estimator_, "predict_proba"):
+                proba = self.estimator_.predict_proba(Xs)
+                return proba[:, class_idx]
+            if hasattr(self.estimator_, "decision_function"):
+                scores = self.estimator_.decision_function(Xs)
+                if scores.ndim == 1:
+                    # binary case -> two classes
+                    if class_idx not in (0, 1):
+                        raise ValueError("class_idx must be 0 or 1 for binary decision_function")
+                    return scores if class_idx == 1 else -scores
+                return scores[:, class_idx]
+            raise NotImplementedError(
+                "Base estimator must implement predict_proba or decision_function"
+            )
         else:
             return self.estimator_.predict(Xs)
 
@@ -589,7 +601,13 @@ class ModalBoundaryClustering(BaseEstimator):
         return result
 
     def predict_proba(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
-        """Classification: class probabilities from the base estimator.
+        """Classification: class probabilities or decision scores.
+
+        For classification, this method returns ``predict_proba`` from the base
+        estimator when available. If ``predict_proba`` is absent but
+        ``decision_function`` exists, its output is returned instead (for binary
+        problems the two-class scores are stacked as ``[-s, s]``). If neither is
+        implemented a :class:`NotImplementedError` is raised.
 
         Regression: normalized value in ``[0, 1]``.
         """
@@ -598,7 +616,19 @@ class ModalBoundaryClustering(BaseEstimator):
             check_is_fitted(self, "regions_")
             Xs = self.scaler_.transform(np.asarray(X, dtype=float))
             if self.task == "classification":
-                result = self.estimator_.predict_proba(Xs)
+                if hasattr(self.estimator_, "predict_proba"):
+                    result = self.estimator_.predict_proba(Xs)
+                elif hasattr(self.estimator_, "decision_function"):
+                    scores = self.estimator_.decision_function(Xs)
+                    if scores.ndim == 1:
+                        scores = scores.reshape(-1, 1)
+                        result = np.column_stack([-scores, scores])
+                    else:
+                        result = scores
+                else:
+                    raise NotImplementedError(
+                        "Base estimator must implement predict_proba or decision_function"
+                    )
             else:
                 vals = self.estimator_.predict(Xs)
                 vmin = min(reg.peak_value_real for reg in self.regions_)

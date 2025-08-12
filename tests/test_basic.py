@@ -1,9 +1,10 @@
 # tests/test_basic.py
 import numpy as np
 import pytest
-from sklearn.datasets import load_iris, make_regression
+from sklearn.datasets import load_iris, make_regression, make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.svm import SVC
 from sheshe import ModalBoundaryClustering
 
 def test_import_and_fit():
@@ -86,6 +87,25 @@ def test_decision_function_regression_fallback():
     expected = sh.estimator_.predict(Xs)
     df_scores = sh.decision_function(X[:5])
     assert np.allclose(df_scores, expected)
+
+
+def test_predict_proba_and_value_without_predict_proba():
+    X, y = make_classification(n_samples=40, n_features=5, random_state=0)
+    sh = ModalBoundaryClustering(
+        base_estimator=SVC(kernel="linear"),
+        task="classification",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    Xs = sh.scaler_.transform(X[:5])
+    scores = sh.estimator_.decision_function(Xs)
+    proba = sh.predict_proba(X[:5])
+    expected = np.column_stack([-scores.reshape(-1, 1), scores.reshape(-1, 1)])
+    assert np.allclose(proba, expected)
+    val1 = sh._predict_value_real(X[:5], class_idx=1)
+    val0 = sh._predict_value_real(X[:5], class_idx=0)
+    assert np.allclose(val1, scores)
+    assert np.allclose(val0, -scores)
 
 
 def test_scan_steps_minimum():
