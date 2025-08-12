@@ -2,7 +2,7 @@
 import numpy as np
 from sklearn.datasets import load_iris, make_regression
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sheshe import ModalBoundaryClustering
 
 def test_import_and_fit():
@@ -30,3 +30,45 @@ def test_score_regression():
     sh.fit(X, y)
     score = sh.score(X, y)
     assert np.isfinite(score)
+
+
+def test_decision_function_classifier_and_fallback():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    # Estimador con decision_function
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    Xs = sh.scaler_.transform(X[:5])
+    expected = sh.estimator_.decision_function(Xs)
+    df_scores = sh.decision_function(X[:5])
+    assert np.allclose(df_scores, expected)
+
+    # Estimador sin decision_function → usa predict_proba
+    sh2 = ModalBoundaryClustering(
+        base_estimator=RandomForestClassifier(n_estimators=10, random_state=0),
+        task="classification",
+        random_state=0,
+    )
+    sh2.fit(X, y)
+    Xs2 = sh2.scaler_.transform(X[:5])
+    expected2 = sh2.estimator_.predict_proba(Xs2)
+    df_scores2 = sh2.decision_function(X[:5])
+    assert np.allclose(df_scores2, expected2)
+
+
+def test_decision_function_regression_fallback():
+    X, y = make_regression(n_samples=50, n_features=4, noise=0.1, random_state=0)
+    sh = ModalBoundaryClustering(
+        base_estimator=RandomForestRegressor(n_estimators=5, random_state=0),
+        task="regression",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    Xs = sh.scaler_.transform(X[:5])
+    expected = sh.estimator_.predict(Xs)
+    df_scores = sh.decision_function(X[:5])
+    assert np.allclose(df_scores, expected)
