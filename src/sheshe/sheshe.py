@@ -293,6 +293,9 @@ class ModalBoundaryClustering(BaseEstimator):
         save_labels: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
     ):
+        if scan_steps < 2:
+            raise ValueError("scan_steps must be at least 2")
+
         self.base_estimator = base_estimator
         self.task = task
         self.base_2d_rays = base_2d_rays
