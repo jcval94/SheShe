@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import joblib
+import warnings
 
 from sklearn.base import BaseEstimator, clone
 from sklearn.preprocessing import StandardScaler
@@ -516,9 +517,11 @@ class ModalBoundaryClustering(BaseEstimator):
         R = np.zeros((n, len(self.regions_)), dtype=int)
         for k, reg in enumerate(self.regions_):
             if reg.directions.size == 0:
-                raise ValueError(
-                    "Region con número de direcciones cero; revise base_2d_rays"
+                warnings.warn(
+                    "Región sin direcciones; se marca como fuera de la región",
+                    RuntimeWarning,
                 )
+                continue
             c = reg.center
             V = X - c
             norms = np.linalg.norm(V, axis=1) + 1e-12

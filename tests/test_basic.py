@@ -103,8 +103,12 @@ def test_membership_matrix_no_directions():
         random_state=0,
     )
     sh.fit(X, y)
-    with pytest.raises(ValueError, match="direcciones"):
-        sh.predict(X)
+    M = sh._membership_matrix(X)
+    assert M.shape == (X.shape[0], len(sh.regions_))
+    assert np.all(M == 0)
+    base_pred = sh.pipeline_.predict(X)
+    pred = sh.predict(X)
+    assert np.all(pred == base_pred)
 
 
 def test_n_max_seeds_minimum():
