@@ -48,6 +48,8 @@ reg = ModalBoundaryClustering(task="regression")
   - `valor_real` / `valor_norm`
   - `coord_0..coord_{d-1}` o nombres de features
 - `plot_pairs(X, y=None, max_pairs=None)` → gráficos 2D para todas las combinaciones de pares
+- `save(filepath)` → guarda la instancia entrenada con `joblib`
+- `ModalBoundaryClustering.load(filepath)` → recupera una instancia guardada
 
 ---
 
@@ -100,6 +102,20 @@ sh.fit(X, y)
 
 print(sh.interpretability_summary(diab.feature_names).head())
 sh.plot_pairs(X, max_pairs=3)
+```
+
+### Guardado y carga
+```python
+from pathlib import Path
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering(random_state=0).fit(X, y)
+path = Path("mbc_model.joblib")
+sh.save(path)
+sh2 = ModalBoundaryClustering.load(path)
+print((sh.predict(X[:5]) == sh2.predict(X[:5])).all())
 ```
 
 Para ejemplos más completos, consulta la carpeta `examples/`.

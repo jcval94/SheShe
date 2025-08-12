@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -271,6 +272,7 @@ class ModalBoundaryClustering(BaseEstimator):
       - `direction`: 'center_out' (default) o 'outside_in' para localizar la inflexión.
       - Pendiente en punto de inflexión (df/dt).
       - Ascenso con barreras en bordes.
+      - Métodos `save` y `load` para persistencia vía joblib.
     """
 
     def __init__(
@@ -536,6 +538,35 @@ class ModalBoundaryClustering(BaseEstimator):
         runtime = time.perf_counter() - start
         self._log(f"predict_proba completado en {runtime:.4f}s")
         return result
+
+    def save(self, filepath: Union[str, Path]) -> None:
+        """Guarda la instancia en ``filepath`` usando :mod:`joblib`.
+
+        Parameters
+        ----------
+        filepath:
+            Ruta donde almacenar el objeto serializado.
+        """
+        joblib.dump(self, filepath)
+
+    @classmethod
+    def load(cls, filepath: Union[str, Path]) -> "ModalBoundaryClustering":
+        """Carga una instancia previamente guardada con :meth:`save`.
+
+        Parameters
+        ----------
+        filepath:
+            Ruta al archivo generado por :meth:`save`.
+
+        Returns
+        -------
+        ModalBoundaryClustering
+            La instancia recuperada.
+        """
+        obj = joblib.load(filepath)
+        if not isinstance(obj, cls):
+            raise TypeError("El objeto cargado no es ModalBoundaryClustering")
+        return obj
 
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
         check_is_fitted(self, "regions_")
