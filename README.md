@@ -10,10 +10,11 @@ the **class probability** (classification) or the **predicted value**
 ## Installation
 
 Requires **Python >=3.9** and it is recommended to work inside a virtual
-environment.
+environment. Install the latest release from
+[PyPI](https://pypi.org/project/sheshe/):
 
 ```bash
-pip install -e .
+pip install sheshe
 ```
 
 Base dependencies: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`
