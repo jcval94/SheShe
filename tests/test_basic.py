@@ -105,3 +105,8 @@ def test_membership_matrix_no_directions():
     sh.fit(X, y)
     with pytest.raises(ValueError, match="direcciones"):
         sh.predict(X)
+
+
+def test_n_max_seeds_minimum():
+    with pytest.raises(ValueError, match="n_max_seeds"):
+        ModalBoundaryClustering(n_max_seeds=0)
