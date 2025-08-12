@@ -1,4 +1,5 @@
-"""Compara SheShe con algoritmos no supervisados en varios conjuntos de datos.
+"""
+Compara SheShe con algoritmos no supervisados en varios conjuntos de datos.
 
 Genera métricas de *clustering* (ARI, homogeneidad, completitud y V-measure)
 para cinco dataframes distintos y diferentes configuraciones de parámetros.
