@@ -180,6 +180,12 @@ print((sh.predict(X) == sh2.predict(X)).all())
 
 Para ejemplos más completos, consulta la carpeta `examples/`.
 
+### Ejemplos de gráficos
+
+Al ejecutar [examples/iris_visualization.py](examples/iris_visualization.py) se
+generan pares de gráficos que se guardan en `examples/images/` (por ejemplo,
+`pair_0.png`, `pair_1.png`).
+
 ### Experimentos y benchmark
 
 Los experimentos de comparación con algoritmos **no supervisados** se encuentran
@@ -187,7 +193,11 @@ en la carpeta [`experiments/`](experiments/). El script
 [`compare_unsupervised.py`](experiments/compare_unsupervised.py) evalúa cinco
 conjuntos de datos distintos, explora parámetros de **SheShe**, **KMeans** y
 **DBSCAN**, y almacena cuatro métricas (`ARI`, `homogeneity`, `completeness`,
-`v_measure`) junto con el tiempo de ejecución (`runtime_sec`).
+`v_measure`) junto con el tiempo de ejecución (`runtime_sec`). Cada
+configuración se ejecuta varias veces con distintas semillas aleatorias,
+generando `benchmark/unsupervised_results.csv` con las corridas individuales y
+`benchmark/unsupervised_results_summary.csv` con promedios y desviaciones
+estándar.
 
 ```bash
 python experiments/compare_unsupervised.py

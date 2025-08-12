@@ -186,6 +186,11 @@ print((sh.predict(X) == sh2.predict(X)).all())
 
 For more complete examples, see the `examples/` folder.
 
+### Plot samples
+
+Running [examples/iris_visualization.py](examples/iris_visualization.py) generates
+pairwise plots saved under `examples/images/` (e.g., `pair_0.png`, `pair_1.png`).
+
 ### Experiments and benchmark
 
 The experiments comparing against **unsupervised** algorithms are located in
@@ -193,7 +198,11 @@ the [`experiments/`](experiments/) folder. The script
 [`compare_unsupervised.py`](experiments/compare_unsupervised.py) evaluates five
 different datasets, explores parameters of **SheShe**, **KMeans** and
 **DBSCAN**, and stores four metrics (`ARI`, `homogeneity`, `completeness`,
-`v_measure`) along with the execution time (`runtime_sec`).
+`v_measure`) along with the execution time (`runtime_sec`). Each configuration
+is executed multiple times with different random seeds, producing
+`benchmark/unsupervised_results.csv` (raw runs) and
+`benchmark/unsupervised_results_summary.csv` with averages and standard
+deviations.
 
 ```bash
 python experiments/compare_unsupervised.py
