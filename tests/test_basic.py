@@ -1,6 +1,6 @@
 # tests/test_basic.py
 import numpy as np
-from sklearn.datasets import load_iris, make_regression
+from sklearn.datasets import load_iris, make_regression, make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sheshe import ModalBoundaryClustering
@@ -72,3 +72,19 @@ def test_decision_function_regression_fallback():
     expected = sh.estimator_.predict(Xs)
     df_scores = sh.decision_function(X[:5])
     assert np.allclose(df_scores, expected)
+
+
+def test_membership_matrix_handles_zero_directions():
+    X, y = make_classification(
+        n_samples=30, n_features=2, n_redundant=0,
+        n_informative=2, random_state=0
+    )
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification", base_2d_rays=0, random_state=0,
+    )
+    sh.fit(X, y)
+    M = sh._membership_matrix(X)
+    assert np.all(M == 0)
+    y_pred = sh.predict(X)
+    assert np.array_equal(y_pred, sh.pipeline_.predict(X))

@@ -480,6 +480,10 @@ class ModalBoundaryClustering(BaseEstimator):
         n = len(X)
         R = np.zeros((n, len(self.regions_)), dtype=int)
         for k, reg in enumerate(self.regions_):
+            if reg.directions.size == 0:
+                # región sin direcciones: ningún punto pertenece
+                R[:, k] = 0
+                continue
             c = reg.center
             V = X - c
             norms = np.linalg.norm(V, axis=1) + 1e-12
