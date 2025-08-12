@@ -279,6 +279,11 @@ class ModalBoundaryClustering(BaseEstimator):
       - `direction`: 'center_out' (default) o 'outside_in' para localizar la inflexión.
       - Pendiente en punto de inflexión (df/dt).
       - Ascenso con barreras en bordes.
+
+    Parameters
+    ----------
+    base_2d_rays : int, default=8
+        Número de rayos en 2D (≈45°). Debe ser mayor que cero.
     """
 
     def __init__(
@@ -302,6 +307,8 @@ class ModalBoundaryClustering(BaseEstimator):
     ):
         if scan_steps < 2:
             raise ValueError("scan_steps must be at least 2")
+        if base_2d_rays <= 0:
+            raise ValueError("base_2d_rays must be greater than 0")
 
         self.base_estimator = base_estimator
         self.task = task

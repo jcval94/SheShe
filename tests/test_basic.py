@@ -92,16 +92,6 @@ def test_scan_steps_minimum():
     with pytest.raises(ValueError):
         ModalBoundaryClustering(scan_steps=1)
 
-
-def test_membership_matrix_no_directions():
-    iris = load_iris()
-    X, y = iris.data[:, :2], iris.target
-    sh = ModalBoundaryClustering(
-        base_estimator=LogisticRegression(max_iter=200),
-        task="classification",
-        base_2d_rays=0,
-        random_state=0,
-    )
-    sh.fit(X, y)
-    with pytest.raises(ValueError, match="direcciones"):
-        sh.predict(X)
+def test_base_2d_rays_must_be_positive():
+    with pytest.raises(ValueError, match="base_2d_rays"):
+        ModalBoundaryClustering(base_2d_rays=0)
