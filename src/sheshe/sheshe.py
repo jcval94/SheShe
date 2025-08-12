@@ -546,6 +546,74 @@ class ModalBoundaryClustering(BaseEstimator):
         self._log(f"predict_proba completado en {runtime:.4f}s")
         return result
 
+    def decision_function(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
+        """Valores de decisión del estimador base con *fallback* automático.
+
+        Si el estimador subyacente dispone de :meth:`decision_function`, se
+        devuelve dicha salida. En caso contrario se recurre a
+        :meth:`predict_proba` para tareas de clasificación o a
+        :meth:`predict` para regresión.
+
+        Parameters
+        ----------
+        X:
+            Muestras a evaluar.
+
+        Returns
+        -------
+        ndarray
+            Puntajes, probabilidades o predicciones dependiendo del *fallback*.
+
+        Examples
+        --------
+        Clasificación con un estimador que implementa ``decision_function``::
+
+            >>> from sklearn.datasets import load_iris
+            >>> from sklearn.linear_model import LogisticRegression
+            >>> X, y = load_iris(return_X_y=True)
+            >>> sh = ModalBoundaryClustering(LogisticRegression(max_iter=200),
+            ...                             task="classification").fit(X, y)
+            >>> sh.decision_function(X[:2]).shape
+            (2, 3)
+
+        Clasificación con un modelo sin ``decision_function`` (usa
+        ``predict_proba``)::
+
+            >>> from sklearn.ensemble import RandomForestClassifier
+            >>> sh = ModalBoundaryClustering(RandomForestClassifier(),
+            ...                             task="classification").fit(X, y)
+            >>> sh.decision_function(X[:2]).shape
+            (2, 3)
+
+        En regresión la salida proviene de ``predict``::
+
+            >>> from sklearn.datasets import make_regression
+            >>> from sklearn.ensemble import RandomForestRegressor
+            >>> X, y = make_regression(n_samples=10, n_features=4, random_state=0)
+            >>> sh = ModalBoundaryClustering(RandomForestRegressor(),
+            ...                             task="regression").fit(X, y)
+            >>> sh.decision_function(X[:2]).shape
+            (2,)
+        """
+
+        start = time.perf_counter()
+        try:
+            check_is_fitted(self, "regions_")
+            Xs = self.scaler_.transform(np.asarray(X, dtype=float))
+            if hasattr(self.estimator_, "decision_function"):
+                result = self.estimator_.decision_function(Xs)
+            else:
+                if self.task == "classification" and hasattr(self.estimator_, "predict_proba"):
+                    result = self.estimator_.predict_proba(Xs)
+                else:
+                    result = self.estimator_.predict(Xs)
+        except Exception as exc:
+            self._log(f"Error en decision_function: {exc}")
+            raise
+        runtime = time.perf_counter() - start
+        self._log(f"decision_function completado en {runtime:.4f}s")
+        return result
+
     def score(self, X: Union[np.ndarray, pd.DataFrame], y: np.ndarray) -> float:
         """Devuelve la métrica de sklearn delegando en el pipeline interno."""
         check_is_fitted(self, "pipeline_")
