@@ -9,8 +9,9 @@ Los resultados se guardan en ``benchmark/unsupervised_results.csv``.
 from pathlib import Path
 import math
 import time
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Optional
 
+import numpy as np
 import pandas as pd
 from sklearn.datasets import (
     load_breast_cancer,
@@ -60,8 +61,23 @@ def _evaluate(y_true, y_pred, metrics: Iterable[Metric]) -> dict:
     return {name: fn(y_true, y_pred) for name, fn in metrics}
 
 
-def run() -> None:
-    """Ejecuta el experimento de comparación y guarda un CSV con resultados."""
+def run(
+    verbose: bool = False,
+    save_labels: bool = True,
+    out_dir: Optional[Path] = None,
+) -> None:
+    """Ejecuta el experimento de comparación y guarda resultados.
+
+    Parameters
+    ----------
+    verbose:
+        Si ``True``, muestra mensajes de progreso y tiempos de ejecución.
+    save_labels:
+        Cuando es ``True``, almacena las etiquetas predichas en ficheros ``.labels``.
+    out_dir:
+        Directorio de salida donde se guardan los resultados y etiquetas. Por
+        defecto se usa ``benchmark/`` en la raíz del proyecto.
+    """
 
     datasets = {
         "iris": load_iris(return_X_y=True),
@@ -79,6 +95,18 @@ def run() -> None:
     ]
 
     results = []
+    out_dir = out_dir or Path(__file__).parent.parent / "benchmark"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def _save_labels(y_pred, fname: str) -> None:
+        if not save_labels:
+            return
+        label_path = out_dir / fname
+        try:
+            np.savetxt(label_path, y_pred, fmt="%s")
+        except Exception as exc:  # pragma: no cover - logging auxiliar
+            if verbose:
+                print(f"No se pudieron guardar etiquetas en {label_path}: {exc}")
 
     for name, (X, y) in datasets.items():
         n_classes = len(set(y))
@@ -86,12 +114,20 @@ def run() -> None:
         # SheShe: barrido sobre C
         for C in [0.1, 1.0, 10.0]:
             start = time.perf_counter()
-            sh = ModalBoundaryClustering(
-                base_estimator=LogisticRegression(max_iter=500, C=C),
-                task="classification",
-                random_state=0,
-            ).fit(X, y)
-            y_pred = sh.predict(X)
+            try:
+                sh = ModalBoundaryClustering(
+                    base_estimator=LogisticRegression(max_iter=500, C=C),
+                    task="classification",
+                    random_state=0,
+                ).fit(X, y)
+                y_pred = sh.predict(X)
+                metrics_dict = _evaluate(y, y_pred, metrics)
+                _save_labels(y_pred, f"{name}_SheShe_C-{C}.labels")
+            except Exception as exc:
+                y_pred = []
+                metrics_dict = {name: math.nan for name, _ in metrics}
+                if verbose:
+                    print(f"SheShe falló en {name} (C={C}): {exc}")
             runtime = time.perf_counter() - start
             record = {
                 "dataset": name,
@@ -99,15 +135,28 @@ def run() -> None:
                 "params": f"C={C}",
                 "runtime_sec": runtime,
             }
-            record.update(_evaluate(y, y_pred, metrics))
+            record.update(metrics_dict)
             results.append(record)
+            if verbose:
+                print(
+                    f"SheShe {name} C={C} → {runtime:.4f}s"
+                )
 
         # KMeans: variar n_clusters
         for k in [n_classes - 1, n_classes, n_classes + 1]:
             k = max(k, 1)
             start = time.perf_counter()
-            km = KMeans(n_clusters=k, random_state=0)
-            km.fit(X)
+            try:
+                km = KMeans(n_clusters=k, random_state=0)
+                km.fit(X)
+                y_pred = km.labels_
+                metrics_dict = _evaluate(y, y_pred, metrics)
+                _save_labels(y_pred, f"{name}_KMeans_k-{k}.labels")
+            except Exception as exc:
+                y_pred = []
+                metrics_dict = {name: math.nan for name, _ in metrics}
+                if verbose:
+                    print(f"KMeans falló en {name} (k={k}): {exc}")
             runtime = time.perf_counter() - start
             record = {
                 "dataset": name,
@@ -115,14 +164,27 @@ def run() -> None:
                 "params": f"n_clusters={k}",
                 "runtime_sec": runtime,
             }
-            record.update(_evaluate(y, km.labels_, metrics))
+            record.update(metrics_dict)
             results.append(record)
+            if verbose:
+                print(
+                    f"KMeans {name} k={k} → {runtime:.4f}s"
+                )
 
         # DBSCAN: variar eps
         for eps in [0.3, 0.5, 0.7]:
             start = time.perf_counter()
-            db = DBSCAN(eps=eps, min_samples=5)
-            db.fit(X)
+            try:
+                db = DBSCAN(eps=eps, min_samples=5)
+                db.fit(X)
+                y_pred = db.labels_
+                metrics_dict = _evaluate(y, y_pred, metrics)
+                _save_labels(y_pred, f"{name}_DBSCAN_eps-{eps}.labels")
+            except Exception as exc:
+                y_pred = []
+                metrics_dict = {name: math.nan for name, _ in metrics}
+                if verbose:
+                    print(f"DBSCAN falló en {name} (eps={eps}): {exc}")
             runtime = time.perf_counter() - start
             record = {
                 "dataset": name,
@@ -130,12 +192,15 @@ def run() -> None:
                 "params": f"eps={eps}",
                 "runtime_sec": runtime,
             }
-            record.update(_evaluate(y, db.labels_, metrics))
+            record.update(metrics_dict)
             results.append(record)
+            if verbose:
+                print(
+                    f"DBSCAN {name} eps={eps} → {runtime:.4f}s"
+                )
 
     df = pd.DataFrame(results)
-    out_path = Path(__file__).parent.parent / "benchmark" / "unsupervised_results.csv"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "unsupervised_results.csv"
     df.to_csv(out_path, index=False)
     print(df.head())
     print(f"... guardado {len(df)} registros en {out_path}")

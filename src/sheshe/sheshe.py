@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import itertools
 import math
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -286,6 +288,9 @@ class ModalBoundaryClustering(BaseEstimator):
         n_max_seeds: int = 5,
         random_state: Optional[int] = 42,
         max_subspaces: int = 20,
+        verbose: bool = False,
+        save_labels: bool = False,
+        out_dir: Optional[Union[str, Path]] = None,
     ):
         self.base_estimator = base_estimator
         self.task = task
@@ -300,6 +305,9 @@ class ModalBoundaryClustering(BaseEstimator):
         self.n_max_seeds = n_max_seeds
         self.random_state = random_state
         self.max_subspaces = max_subspaces
+        self.verbose = verbose
+        self.save_labels = save_labels
+        self.out_dir = Path(out_dir) if out_dir is not None else None
 
     # ---------- helpers ----------
 
@@ -385,48 +393,76 @@ class ModalBoundaryClustering(BaseEstimator):
         vals = self._predict_value_real(X, class_idx=class_idx)
         return {"min": float(np.min(vals)), "max": float(np.max(vals))}
 
+    def _log(self, msg: str) -> None:
+        if self.verbose:
+            print(msg)
+
+    def _maybe_save_labels(self, labels: np.ndarray, label_path: Optional[Union[str, Path]]) -> None:
+        if label_path is None:
+            if not self.save_labels:
+                return
+            label_path = Path(f"{self.__class__.__name__}.labels")
+            if self.out_dir is not None:
+                self.out_dir.mkdir(parents=True, exist_ok=True)
+                label_path = self.out_dir / label_path
+        else:
+            label_path = Path(label_path)
+            if label_path.suffix != ".labels":
+                label_path = label_path.with_suffix(".labels")
+        try:
+            np.savetxt(label_path, labels, fmt="%s")
+        except Exception as exc:  # pragma: no cover - logging auxiliar
+            self._log(f"No se pudieron guardar etiquetas en {label_path}: {exc}")
+
     # ---------- API pública ----------
 
     def fit(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None):
-        X = np.asarray(X, dtype=float)
-        self.n_features_in_ = X.shape[1]
-        self.feature_names_in_ = list(X.columns) if isinstance(X, pd.DataFrame) else None
+        start = time.perf_counter()
+        try:
+            X = np.asarray(X, dtype=float)
+            self.n_features_in_ = X.shape[1]
+            self.feature_names_in_ = list(X.columns) if isinstance(X, pd.DataFrame) else None
 
-        self._fit_estimator(X, y)
-        lo, hi = self._bounds_from_data(X)
-        X_std = np.std(X, axis=0) + 1e-12
-        dirs = generate_directions(self.n_features_in_, self.base_2d_rays, self.random_state, self.max_subspaces)
+            self._fit_estimator(X, y)
+            lo, hi = self._bounds_from_data(X)
+            X_std = np.std(X, axis=0) + 1e-12
+            dirs = generate_directions(self.n_features_in_, self.base_2d_rays, self.random_state, self.max_subspaces)
 
-        self.regions_: List[ClusterRegion] = []
-        self.classes_ = None
+            self.regions_: List[ClusterRegion] = []
+            self.classes_ = None
 
-        if self.task == "classification":
-            _ = self.pipeline_.predict(X[:2])  # asegura classes_
-            self.classes_ = self.estimator_.classes_
-            for ci, label in enumerate(self.classes_):
-                stats = self._build_norm_stats(X, class_idx=ci)
-                f = self._build_value_fn(class_idx=ci, norm_stats=stats)
+            if self.task == "classification":
+                _ = self.pipeline_.predict(X[:2])  # asegura classes_
+                self.classes_ = self.estimator_.classes_
+                for ci, label in enumerate(self.classes_):
+                    stats = self._build_norm_stats(X, class_idx=ci)
+                    f = self._build_value_fn(class_idx=ci, norm_stats=stats)
+                    center = self._find_maximum(X, f, (lo, hi))
+                    radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
+                    peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
+                    peak_norm = float(f(center))
+                    self.regions_.append(ClusterRegion(
+                        label=label, center=center, directions=dirs, radii=radii,
+                        inflection_points=infl, inflection_slopes=slopes,
+                        peak_value_real=peak_real, peak_value_norm=peak_norm
+                    ))
+            else:
+                stats = self._build_norm_stats(X, class_idx=None)
+                f = self._build_value_fn(class_idx=None, norm_stats=stats)
                 center = self._find_maximum(X, f, (lo, hi))
                 radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
-                peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
+                peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
                 peak_norm = float(f(center))
                 self.regions_.append(ClusterRegion(
-                    label=label, center=center, directions=dirs, radii=radii,
+                    label="NA", center=center, directions=dirs, radii=radii,
                     inflection_points=infl, inflection_slopes=slopes,
                     peak_value_real=peak_real, peak_value_norm=peak_norm
                 ))
-        else:
-            stats = self._build_norm_stats(X, class_idx=None)
-            f = self._build_value_fn(class_idx=None, norm_stats=stats)
-            center = self._find_maximum(X, f, (lo, hi))
-            radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
-            peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
-            peak_norm = float(f(center))
-            self.regions_.append(ClusterRegion(
-                label="NA", center=center, directions=dirs, radii=radii,
-                inflection_points=infl, inflection_slopes=slopes,
-                peak_value_real=peak_real, peak_value_norm=peak_norm
-            ))
+        except Exception as exc:
+            self._log(f"Error en fit: {exc}")
+            raise
+        runtime = time.perf_counter() - start
+        self._log(f"fit completado en {runtime:.4f}s")
         return self
 
     def _membership_matrix(self, X: np.ndarray) -> np.ndarray:
@@ -444,41 +480,62 @@ class ModalBoundaryClustering(BaseEstimator):
             R[:, k] = (norms <= r_boundary + 1e-12).astype(int)
         return R
 
-    def predict(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
-        check_is_fitted(self, "regions_")
-        X = np.asarray(X, dtype=float)
-        M = self._membership_matrix(X)
-        if self.task == "classification":
-            labels = np.array([reg.label for reg in self.regions_])
-            pred = np.empty(len(X), dtype=labels.dtype)
-            some = M.sum(axis=1) > 0
-            for i in np.where(some)[0]:
-                ks = np.where(M[i] == 1)[0]
-                if len(ks) == 1:
-                    pred[i] = labels[ks[0]]
-                else:
-                    dists = [np.linalg.norm(X[i] - self.regions_[k].center) for k in ks]
-                    pred[i] = labels[ks[np.argmin(dists)]]
-            none = ~some
-            if np.any(none):
-                base_pred = self.pipeline_.predict(X[none])
-                pred[none] = base_pred
-            return pred
-        else:
-            return M[:, 0]
+    def predict(
+        self,
+        X: Union[np.ndarray, pd.DataFrame],
+        label_path: Optional[Union[str, Path]] = None,
+    ) -> np.ndarray:
+        start = time.perf_counter()
+        try:
+            check_is_fitted(self, "regions_")
+            X = np.asarray(X, dtype=float)
+            M = self._membership_matrix(X)
+            if self.task == "classification":
+                labels = np.array([reg.label for reg in self.regions_])
+                pred = np.empty(len(X), dtype=labels.dtype)
+                some = M.sum(axis=1) > 0
+                for i in np.where(some)[0]:
+                    ks = np.where(M[i] == 1)[0]
+                    if len(ks) == 1:
+                        pred[i] = labels[ks[0]]
+                    else:
+                        dists = [np.linalg.norm(X[i] - self.regions_[k].center) for k in ks]
+                        pred[i] = labels[ks[np.argmin(dists)]]
+                none = ~some
+                if np.any(none):
+                    base_pred = self.pipeline_.predict(X[none])
+                    pred[none] = base_pred
+                result = pred
+            else:
+                result = M[:, 0]
+        except Exception as exc:
+            self._log(f"Error en predict: {exc}")
+            raise
+        runtime = time.perf_counter() - start
+        self._log(f"predict completado en {runtime:.4f}s")
+        self._maybe_save_labels(result, label_path)
+        return result
 
     def predict_proba(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
         """Clasificación: proba por clase del estimador base. Regresión: valor normalizado [0,1]."""
-        check_is_fitted(self, "regions_")
-        Xs = self.scaler_.transform(np.asarray(X, dtype=float))
-        if self.task == "classification":
-            return self.estimator_.predict_proba(Xs)
-        else:
-            vals = self.estimator_.predict(Xs)
-            vmin = min(reg.peak_value_real for reg in self.regions_)
-            vmax = max(reg.peak_value_real for reg in self.regions_)
-            rng = vmax - vmin if vmax > vmin else 1.0
-            return ((vals - vmin) / rng).reshape(-1, 1)
+        start = time.perf_counter()
+        try:
+            check_is_fitted(self, "regions_")
+            Xs = self.scaler_.transform(np.asarray(X, dtype=float))
+            if self.task == "classification":
+                result = self.estimator_.predict_proba(Xs)
+            else:
+                vals = self.estimator_.predict(Xs)
+                vmin = min(reg.peak_value_real for reg in self.regions_)
+                vmax = max(reg.peak_value_real for reg in self.regions_)
+                rng = vmax - vmin if vmax > vmin else 1.0
+                result = ((vals - vmin) / rng).reshape(-1, 1)
+        except Exception as exc:
+            self._log(f"Error en predict_proba: {exc}")
+            raise
+        runtime = time.perf_counter() - start
+        self._log(f"predict_proba completado en {runtime:.4f}s")
+        return result
 
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
         check_is_fitted(self, "regions_")
