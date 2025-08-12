@@ -9,9 +9,11 @@ la **probabilidad por clase** (clasificación) o del **valor predicho** (regresi
 ## Instalación
 
 Requiere **Python >=3.9** y se recomienda el uso de un entorno virtual.
+Instala la versión publicada en
+[PyPI](https://pypi.org/project/sheshe/):
 
 ```bash
-pip install -e .
+pip install sheshe
 ```
 
 Dependencias base: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`
