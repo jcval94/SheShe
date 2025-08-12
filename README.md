@@ -165,7 +165,34 @@ out_dir.mkdir(exist_ok=True)
 for i, fig_num in enumerate(plt.get_fignums()):
     plt.figure(fig_num)
     plt.savefig(out_dir / f"pair_{i}.png")
-    plt.close(fig_num)
+plt.close(fig_num)
+```
+
+### Plotting with pandas DataFrames
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+iris = load_iris()
+df = pd.DataFrame(iris.data, columns=iris.feature_names)
+
+sh = ModalBoundaryClustering().fit(df, iris.target)
+sh.plot_pairs(df, iris.target, max_pairs=2)  # usa nombres de columnas en los ejes
+plt.show()
+```
+
+### Visualizing interpretability summary
+```python
+import matplotlib.pyplot as plt
+
+summary = sh.interpretability_summary(df.columns)
+centroids = summary[summary["Type"] == "centroid"]
+plt.scatter(centroids["coord_0"], centroids["coord_1"], c=centroids["Category"])
+plt.xlabel("coord_0")
+plt.ylabel("coord_1")
+plt.show()
 ```
 
 ### Save and load model
@@ -196,21 +223,22 @@ different datasets, explores parameters of **SheShe**, **KMeans** and
 `v_measure`) along with the execution time (`runtime_sec`).
 
 ```bash
-python experiments/compare_unsupervised.py
-cat benchmark/unsupervised_results.csv | head
+python experiments/compare_unsupervised.py --runs 5
+cat benchmark/unsupervised_results_summary.csv | head
 ```
 
-Results are generated inside `benchmark/`.
+Results are generated inside `benchmark/` (valores por repetición y medias en
+`*_summary.csv`).
 
 For the manuscript we provide additional scripts in
 [`paper_experiments.py`](experiments/paper_experiments.py) which perform
 supervised comparisons, ablation studies over `base_2d_rays` and `direction`,
 and sensitivity analyses w.r.t. dimensionality and Gaussian noise.  Executing
-the script generates reproducible tables (`*.csv`) and figures (`*.png`) under
-`benchmark/`:
+the script generates tables with todas las repeticiones y un resumen (`*_summary.csv`),
+además de figuras (`*.png`) bajo `benchmark/`:
 
 ```bash
-python experiments/paper_experiments.py
+python experiments/paper_experiments.py --runs 5
 ```
 
 ---

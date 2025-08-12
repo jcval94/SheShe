@@ -10,10 +10,12 @@ utilizadas en el artículo de SheShe.
 - **Métricas:** ARI, homogeneity, completeness, v_measure y tiempo de ejecución.
 - **Ejecución:**
   ```bash
-  python experiments/compare_unsupervised.py
+  python experiments/compare_unsupervised.py --runs 5
   ```
-  Los resultados se almacenan en `benchmark/unsupervised_results.csv` junto con
-  las etiquetas predichas (`*.labels`).
+  El parámetro `--runs` controla la cantidad de repeticiones con distintas
+  semillas. Los resultados individuales (`unsupervised_results.csv`) y el
+  resumen estadístico (`unsupervised_results_summary.csv`) se almacenan en
+  `benchmark/` junto con las etiquetas predichas (`*.labels`).
 
 ## Experimentos para el paper
 - **Script:** `paper_experiments.py`
@@ -25,6 +27,9 @@ utilizadas en el artículo de SheShe.
   gaussiano.
 - **Ejecución:**
   ```bash
-  python experiments/paper_experiments.py
+  python experiments/paper_experiments.py --runs 5
   ```
-  Genera tablas (`*.csv`) y figuras (`*.png`) dentro de `benchmark/`.
+  El argumento `--runs` fija el número de semillas empleadas. Se guardan las
+  ejecuciones individuales y un resumen con medias y desviaciones estándar para
+  cada experimento (`*_summary.csv`). Además, se generan las figuras (`*.png`)
+  dentro de `benchmark/`.
