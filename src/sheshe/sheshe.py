@@ -54,12 +54,18 @@ def sample_unit_directions_sph_fibo(n: int) -> np.ndarray:
     return np.column_stack([x, y, z])
 
 def finite_diff_gradient(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
-    """Central difference gradient."""
+    """Central difference gradient with optional batch evaluation."""
     d = x.shape[0]
-    g = np.zeros(d, dtype=float)
+    E = np.eye(d) * eps
+    P = np.vstack([x + E, x - E])
+    if hasattr(f, "batch"):
+        vals = f.batch(P)
+        return (vals[:d] - vals[d:]) / (2.0 * eps)
+    g = np.zeros(d, float)
     for i in range(d):
-        e = np.zeros(d); e[i] = 1.0
-        g[i] = (f(x + eps*e) - f(x - eps*e)) / (2.0*eps)
+        e = np.zeros(d)
+        e[i] = 1.0
+        g[i] = (f(x + eps * e) - f(x - eps * e)) / (2.0 * eps)
     return g
 
 def project_step_with_barrier(x: np.ndarray, g: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> np.ndarray:
@@ -296,15 +302,15 @@ class ModalBoundaryClustering(BaseEstimator):
         self,
         base_estimator: Optional['BaseEstimator'] = None,
         task: str = "classification",  # "classification" | "regression"
-        base_2d_rays: int = 8,
+        base_2d_rays: int = 36,
         direction: str = "center_out",
         scan_radius_factor: float = 3.0,   # multiples of the global std
-        scan_steps: int = 64,
+        scan_steps: int = 32,
         grad_lr: float = 0.2,
-        grad_max_iter: int = 200,
+        grad_max_iter: int = 80,
         grad_tol: float = 1e-5,
-        grad_eps: float = 1e-2,
-        n_max_seeds: int = 5,
+        grad_eps: float = 5e-3,
+        n_max_seeds: int = 3,
         random_state: Optional[int] = 42,
         max_subspaces: int = 20,
         verbose: bool = False,
@@ -374,9 +380,19 @@ class ModalBoundaryClustering(BaseEstimator):
     def _build_value_fn(self, class_idx: Optional[int], norm_stats: Dict[str, float]):
         vmin, vmax = norm_stats["min"], norm_stats["max"]
         rng = vmax - vmin if vmax > vmin else 1.0
+
+        def _norm(v):
+            return (v - vmin) / rng
+
         def f(x: np.ndarray) -> float:
-            val = float(self._predict_value_real(x.reshape(1, -1), class_idx=class_idx)[0])
-            return (val - vmin) / rng
+            val = self._predict_value_real(x.reshape(1, -1), class_idx=class_idx)[0]
+            return float(_norm(val))
+
+        def f_batch(X: np.ndarray) -> np.ndarray:
+            vals = self._predict_value_real(np.asarray(X, float), class_idx=class_idx)
+            return _norm(vals)
+
+        f.batch = f_batch  # type: ignore[attr-defined]
         return f
 
     def _bounds_from_data(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -386,8 +402,9 @@ class ModalBoundaryClustering(BaseEstimator):
         return lo - 0.05*span, hi + 0.05*span
 
     def _choose_seeds(self, X: np.ndarray, f, k: int) -> np.ndarray:
-        vals = np.array([f(x) for x in X])
-        idx = np.argsort(-vals)[:k]
+        vals = f.batch(X) if hasattr(f, "batch") else np.array([f(x) for x in X])
+        idx = np.argpartition(-vals, k-1)[:k]
+        idx = idx[np.argsort(-vals[idx])]
         return X[idx]
 
     def _find_maximum(self, X: np.ndarray, f, bounds: Tuple[np.ndarray, np.ndarray]) -> np.ndarray:
@@ -429,23 +446,36 @@ class ModalBoundaryClustering(BaseEstimator):
                 return 1e-9
             return float(tmax)
 
-        radii = np.zeros(len(directions), dtype=float)
-        pts = np.zeros((len(directions), d), dtype=float)
-        slopes = np.zeros(len(directions), dtype=float)
+        if len(directions) == 0:
+            return np.zeros(0), np.zeros((0, d)), np.zeros(0)
 
-        for i, u in enumerate(directions):
+        blocks: List[np.ndarray] = []
+        ts_blocks: List[np.ndarray] = []
+        cuts = [0]
+        for u in directions:
             T_dir = min(T_base, tmax_in_bounds(center, u, lo, hi))
             ts = np.linspace(0.0, T_dir, self.scan_steps)
+            P = center[None, :] + ts[:, None] * u[None, :]
+            blocks.append(P)
+            ts_blocks.append(ts)
+            cuts.append(cuts[-1] + len(ts))
+        P_all = np.vstack(blocks)
 
-            vals = np.array([f(center + t*u) for t in ts], dtype=float)
-            r, m = find_inflection(ts, vals, self.direction)
+        vals_all = (
+            f.batch(P_all) if hasattr(f, "batch") else np.array([f(p) for p in P_all])
+        )
 
-            p = center + r*u
+        n = len(directions)
+        radii = np.zeros(n, float)
+        slopes = np.zeros(n, float)
+        pts = np.zeros((n, d), float)
+        for i, u in enumerate(directions):
+            a, b = cuts[i], cuts[i + 1]
+            ts, vs = ts_blocks[i], vals_all[a:b]
+            r, m = find_inflection(ts, vs, self.direction)
+            p = center + r * u
             p = np.minimum(np.maximum(p, lo), hi)
-
-            radii[i] = float(r)
-            pts[i, :] = p
-            slopes[i] = float(m)
+            radii[i], slopes[i], pts[i, :] = float(r), float(m), p
         return radii, pts, slopes
 
     def _build_norm_stats(self, X: np.ndarray, class_idx: Optional[int]) -> Dict[str, float]:
