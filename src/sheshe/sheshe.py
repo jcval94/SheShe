@@ -465,6 +465,15 @@ class ModalBoundaryClustering(BaseEstimator):
         self._log(f"fit completado en {runtime:.4f}s")
         return self
 
+    def fit_predict(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None) -> np.ndarray:
+        """Ajusta el modelo y devuelve la predicción para ``X``.
+
+        Atajo común en *sklearn* que equivale a llamar a :meth:`fit` y
+        posteriormente a :meth:`predict` sobre los mismos datos.
+        """
+        self.fit(X, y)
+        return self.predict(X)
+
     def _membership_matrix(self, X: np.ndarray) -> np.ndarray:
         X = np.asarray(X, dtype=float)
         n = len(X)
