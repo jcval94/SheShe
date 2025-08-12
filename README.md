@@ -202,6 +202,17 @@ cat benchmark/unsupervised_results.csv | head
 
 Results are generated inside `benchmark/`.
 
+For the manuscript we provide additional scripts in
+[`paper_experiments.py`](experiments/paper_experiments.py) which perform
+supervised comparisons, ablation studies over `base_2d_rays` and `direction`,
+and sensitivity analyses w.r.t. dimensionality and Gaussian noise.  Executing
+the script generates reproducible tables (`*.csv`) and figures (`*.png`) under
+`benchmark/`:
+
+```bash
+python experiments/paper_experiments.py
+```
+
 ---
 
 ## Key parameters
