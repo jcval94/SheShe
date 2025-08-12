@@ -91,3 +91,8 @@ def test_decision_function_regression_fallback():
 def test_scan_steps_minimum():
     with pytest.raises(ValueError):
         ModalBoundaryClustering(scan_steps=1)
+
+
+def test_base_2d_rays_must_be_positive():
+    with pytest.raises(ValueError):
+        ModalBoundaryClustering(base_2d_rays=0)
