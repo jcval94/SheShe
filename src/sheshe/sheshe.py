@@ -30,19 +30,19 @@ def _rng(random_state: Optional[int]) -> np.random.RandomState:
     return np.random.RandomState(None if random_state is None else int(random_state))
 
 def sample_unit_directions_gaussian(n: int, dim: int, random_state: Optional[int] = 42) -> np.ndarray:
-    """Direcciones ~uniformes en S^{dim-1} normalizando gaussianas."""
+    """~Uniform directions on S^{dim-1} by normalizing Gaussians."""
     rng = _rng(random_state)
     U = rng.normal(size=(n, dim))
     U /= (np.linalg.norm(U, axis=1, keepdims=True) + 1e-12)
     return U
 
 def sample_unit_directions_circle(n: int) -> np.ndarray:
-    """2D: n ángulos equiespaciados."""
+    """2D: n evenly spaced angles."""
     ang = np.linspace(0, 2*np.pi, n, endpoint=False)
     return np.column_stack([np.cos(ang), np.sin(ang)])
 
 def sample_unit_directions_sph_fibo(n: int) -> np.ndarray:
-    """3D: puntos casi equi-área en S^2 (Fibonacci esférico)."""
+    """3D: near equal-area points on S^2 (spherical Fibonacci)."""
     ga = (1 + 5 ** 0.5) / 2  # golden ratio
     k = np.arange(n)
     z = 1 - (2*k + 1)/n
@@ -53,7 +53,7 @@ def sample_unit_directions_sph_fibo(n: int) -> np.ndarray:
     return np.column_stack([x, y, z])
 
 def finite_diff_gradient(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
-    """Gradiente por diferencia central."""
+    """Gradient using central differences."""
     d = x.shape[0]
     g = np.zeros(d, dtype=float)
     for i in range(d):
@@ -63,8 +63,8 @@ def finite_diff_gradient(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
 
 def project_step_with_barrier(x: np.ndarray, g: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> np.ndarray:
     """
-    Anula componentes del gradiente que empujan fuera del dominio cuando estamos en el borde.
-    Evita 'escaparse' y fuerza el movimiento por otras variables.
+    Zero out gradient components that push outside the domain when at the boundary.
+    Prevents 'escaping' and forces movement through other variables.
     """
     step = g.copy()
     for i in range(len(x)):
@@ -76,7 +76,7 @@ def gradient_ascent(
     f, x0: np.ndarray, bounds: Tuple[np.ndarray, np.ndarray],
     lr: float = 0.1, max_iter: int = 200, tol: float = 1e-5, eps_grad: float = 1e-2
 ) -> np.ndarray:
-    """Ascenso con backtracking y barreras en los límites."""
+    """Gradient ascent with backtracking and boundary barriers."""
     lo, hi = bounds
     x = x0.copy()
     best = f(x)
@@ -109,12 +109,12 @@ def second_diff(arr: np.ndarray) -> np.ndarray:
 
 def find_inflection(ts: np.ndarray, vals: np.ndarray, direction: str) -> Tuple[float, float]:
     """
-    Devuelve (t_inf, slope_at_inf). direction: 'center_out' | 'outside_in'.
-    - t_inf: parámetro t en [0,T]
-    - slope_at_inf: df/dt en t_inf (signo coherente con t creciente).
+    Return (t_inf, slope_at_inf). direction: 'center_out' | 'outside_in'.
+    - t_inf: parameter t in [0, T]
+    - slope_at_inf: df/dt at t_inf (sign consistent with increasing t).
     """
     if direction not in ("center_out", "outside_in"):
-        raise ValueError("direction debe ser 'center_out' u 'outside_in'.")
+        raise ValueError("direction must be 'center_out' or 'outside_in'.")
 
     # Prepara serie según dirección
     if direction == "outside_in":
@@ -190,10 +190,10 @@ class ClusterRegion:
 
 def rays_count_auto(dim: int, base_2d: int = 8) -> int:
     """
-    Nº de rays sugerido según dimensión:
-      - 2D: base_2d (por defecto 8)
-      - 3D: N ≈ 2 / (1 - cos(π/base_2d))  (cobertura por caps; ~26 si base_2d=8)
-      - >3D: mantener coste acotado: usamos subespacios → devolver pequeño nº global.
+    Suggested number of rays according to dimension:
+      - 2D: base_2d (default 8)
+      - 3D: N ≈ 2 / (1 - cos(π/base_2d)) (cap coverage; ~26 if base_2d=8)
+      - >3D: keep cost bounded: use subspaces → return a small global count.
     """
     if dim <= 1:
         return 1
@@ -209,12 +209,12 @@ def rays_count_auto(dim: int, base_2d: int = 8) -> int:
 def generate_directions(dim: int, base_2d: int, random_state: Optional[int] = 42,
                         max_subspaces: int = 20) -> np.ndarray:
     """
-    Conjunto de direcciones:
-      - 2D: 8 equiángulos (por defecto)
-      - 3D: ~N por fórmula de caps + Fibonacci esférico
-      - >3D: mezcla de:
-          * pequeños globales (gaussianos) y
-          * direcciones embebidas en subespacios 2D/3D (todas o muestreadas)
+    Set of directions:
+      - 2D: 8 equally spaced (default)
+      - 3D: ~N by cap formula + spherical Fibonacci
+      - >3D: mix of:
+          * a few global (Gaussian) directions and
+          * directions embedded in 2D/3D subspaces (all or sampled)
     """
     if dim == 1:
         return np.array([[1.0]])
@@ -271,14 +271,14 @@ class ModalBoundaryClustering(BaseEstimator):
     """
     SheShe: Smart High-dimensional Edge Segmentation & Hyperboundary Explorer
 
-    Clusterización por máximos locales sobre la superficie de probabilidad (clasificación)
-    o del valor predicho (regresión). Compatible con sklearn.
+    Clustering by local maxima on the probability surface (classification)
+    or the predicted value (regression). Compatible with sklearn.
 
-    Novedades v2:
-      - Nº de rays dinámico: 2D→8; 3D≈26; >3D se reduce con subespacios (2D/3D) + pocos globales.
-      - `direction`: 'center_out' (default) o 'outside_in' para localizar la inflexión.
-      - Pendiente en punto de inflexión (df/dt).
-      - Ascenso con barreras en bordes.
+    What's new in v2:
+      - Dynamic number of rays: 2D→8; 3D≈26; >3D reduced via subspaces (2D/3D) plus few global ones.
+      - `direction`: 'center_out' (default) or 'outside_in' to locate the inflection.
+      - Slope at the inflection point (df/dt).
+      - Ascent with boundary barriers.
     """
 
     def __init__(
@@ -340,7 +340,7 @@ class ModalBoundaryClustering(BaseEstimator):
         Xs = self.scaler_.transform(X)
         if self.task == "classification":
             if class_idx is None:
-                raise ValueError("class_idx requerido en clasificación.")
+                raise ValueError("class_idx required for classification.")
             proba = self.estimator_.predict_proba(Xs)
             return proba[:, class_idx]
         else:
@@ -381,8 +381,8 @@ class ModalBoundaryClustering(BaseEstimator):
     def _scan_radii(self, center: np.ndarray, f, directions: np.ndarray, X_std: np.ndarray
                    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Para cada dirección u: escaneo radial t∈[0,T] y primer punto de inflexión según `direction`.
-        Devuelve (radii, points, slopes).
+        For each direction ``u``: radial scan ``t∈[0,T]`` and first inflection point according to ``direction``.
+        Returns ``(radii, points, slopes)``.
         """
         d = center.shape[0]
         T = float(self.scan_radius_factor * np.linalg.norm(X_std))
@@ -477,10 +477,10 @@ class ModalBoundaryClustering(BaseEstimator):
         return self
 
     def fit_predict(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None) -> np.ndarray:
-        """Ajusta el modelo y devuelve la predicción para ``X``.
+        """Fit the model and return the prediction for ``X``.
 
-        Atajo común en *sklearn* que equivale a llamar a :meth:`fit` y
-        posteriormente a :meth:`predict` sobre los mismos datos.
+        Common *sklearn* shortcut equivalent to calling :meth:`fit`
+        followed by :meth:`predict` on the same data.
         """
         self.fit(X, y)
         return self.predict(X)
@@ -537,7 +537,7 @@ class ModalBoundaryClustering(BaseEstimator):
         return result
 
     def predict_proba(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
-        """Clasificación: proba por clase del estimador base. Regresión: valor normalizado [0,1]."""
+        """Classification: class probabilities from the base estimator. Regression: normalized value [0,1]."""
         start = time.perf_counter()
         try:
             check_is_fitted(self, "regions_")
@@ -558,26 +558,25 @@ class ModalBoundaryClustering(BaseEstimator):
         return result
 
     def decision_function(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
-        """Valores de decisión del estimador base con *fallback* automático.
+        """Decision values from the base estimator with automatic fallback.
 
-        Si el estimador subyacente dispone de :meth:`decision_function`, se
-        devuelve dicha salida. En caso contrario se recurre a
-        :meth:`predict_proba` para tareas de clasificación o a
-        :meth:`predict` para regresión.
+        If the underlying estimator implements :meth:`decision_function`, that
+        output is returned. Otherwise it falls back to :meth:`predict_proba`
+        for classification or :meth:`predict` for regression.
 
         Parameters
         ----------
         X:
-            Muestras a evaluar.
+            Samples to evaluate.
 
         Returns
         -------
         ndarray
-            Puntajes, probabilidades o predicciones dependiendo del *fallback*.
+            Scores, probabilities or predictions depending on the fallback.
 
         Examples
         --------
-        Clasificación con un estimador que implementa ``decision_function``::
+        Classification with an estimator that implements ``decision_function``::
 
             >>> from sklearn.datasets import load_iris
             >>> from sklearn.linear_model import LogisticRegression
@@ -587,7 +586,7 @@ class ModalBoundaryClustering(BaseEstimator):
             >>> sh.decision_function(X[:2]).shape
             (2, 3)
 
-        Clasificación con un modelo sin ``decision_function`` (usa
+        Classification with a model without ``decision_function`` (uses
         ``predict_proba``)::
 
             >>> from sklearn.ensemble import RandomForestClassifier
@@ -596,7 +595,7 @@ class ModalBoundaryClustering(BaseEstimator):
             >>> sh.decision_function(X[:2]).shape
             (2, 3)
 
-        En regresión la salida proviene de ``predict``::
+        In regression the output comes from ``predict``::
 
             >>> from sklearn.datasets import make_regression
             >>> from sklearn.ensemble import RandomForestRegressor
@@ -626,20 +625,43 @@ class ModalBoundaryClustering(BaseEstimator):
         return result
 
     def score(self, X: Union[np.ndarray, pd.DataFrame], y: np.ndarray) -> float:
-        """Devuelve la métrica de sklearn delegando en el pipeline interno."""
+        """Return the sklearn metric delegating to the internal pipeline."""
         check_is_fitted(self, "pipeline_")
         return self.pipeline_.score(np.asarray(X, dtype=float), y)
 
     def save(self, filepath: Union[str, Path]) -> None:
-        """Guarda la instancia actual en ``filepath`` usando ``joblib.dump``."""
+        """Save the current instance to ``filepath`` using ``joblib.dump``."""
         joblib.dump(self, filepath)
 
     @classmethod
     def load(cls, filepath: Union[str, Path]) -> "ModalBoundaryClustering":
-        """Carga una instancia previamente guardada con :meth:`save`."""
+        """Load an instance previously saved with :meth:`save`."""
         return joblib.load(filepath)
 
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
+        """Return a DataFrame summarizing centers and inflection points.
+
+        The resulting DataFrame uses Spanish column names:
+
+        - ``Tipo``: "centroide" or "inflexion_point"
+        - ``Distancia``: radius from the center to the inflection point
+        - ``Categoria``: class label (or "NA" in regression)
+        - ``pendiente``: df/dt at the inflection point
+        - ``valor_real`` / ``valor_norm``: raw and normalized model output
+        - coordinate columns: either provided ``feature_names`` or ``coord_{i}``
+          defaults
+
+        Parameters
+        ----------
+        feature_names:
+            Names for the coordinate columns. Defaults to the internal feature
+            names discovered during :meth:`fit`.
+
+        Returns
+        -------
+        DataFrame
+            Summary with one row for the centroid and one per inflection point.
+        """
         check_is_fitted(self, "regions_")
         d = self.n_features_in_
         if feature_names is None:
@@ -758,7 +780,7 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def plot_pairs(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None,
                    max_pairs: Optional[int] = None):
-        """Genera figuras para todas las combinaciones 2D (o hasta max_pairs)."""
+        """Generate figures for all 2D combinations (or up to max_pairs)."""
         check_is_fitted(self, "regions_")
         X = np.asarray(X, dtype=float)
         d = X.shape[1]
@@ -767,7 +789,7 @@ class ModalBoundaryClustering(BaseEstimator):
             pairs = pairs[:max_pairs]
 
         if self.task == "classification":
-            assert y is not None, "y requerido para graficar clasificación."
+            assert y is not None, "y required to plot classification."
             palette = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3",
                        "#ff7f00", "#a65628", "#f781bf", "#999999"]
             class_colors = {c: palette[i % len(palette)] for i, c in enumerate(self.classes_)}

@@ -1,22 +1,23 @@
-# SheShe  
+# SheShe
 **Smart High-dimensional Edge Segmentation & Hyperboundary Explorer**
 
-Segmentación de bordes y exploración de hiper-fronteras basada en **máximos locales** de
-la **probabilidad por clase** (clasificación) o del **valor predicho** (regresión).
+[Versión en español](README.es.md)
+
+Edge segmentation and hyperboundary exploration based on **local maxima** of the **class probability** (classification) or the **predicted value** (regression).
 
 ---
 
-## Instalación
+## Installation
 
-Requiere **Python >=3.9** y se recomienda el uso de un entorno virtual.
+Requires **Python >=3.9** and it is recommended to use a virtual environment.
 
 ```bash
 pip install -e .
 ```
 
-Dependencias base: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`
+Base dependencies: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`
 
-Para un entorno de desarrollo con pruebas:
+For a development environment with tests:
 
 ```bash
 pip install -e ".[dev]"
@@ -25,60 +26,60 @@ PYTHONPATH=src pytest -q
 
 ---
 
-## API rápida
+## Quick API
 
 ```python
 from sheshe import ModalBoundaryClustering
 
-# clasificación
+# classification
 clf = ModalBoundaryClustering(
-    base_estimator=None,           # por defecto LogisticRegression
+    base_estimator=None,           # defaults to LogisticRegression
     task="classification",         # "classification" | "regression"
-    base_2d_rays=8,                # nº de rayos en 2D (≈45°)
+    base_2d_rays=8,                # number of rays in 2D (≈45°)
     direction="center_out",        # "center_out" | "outside_in"
     scan_radius_factor=3.0,
     scan_steps=64,
     random_state=0
 )
 
-# regresión (ejemplo)
+# regression (example)
 reg = ModalBoundaryClustering(task="regression")
 ```
 
-### Métodos
+### Methods
 - `fit(X, y)`
 - `predict(X)`
-- `predict_proba(X)`  → clasificación: probas por clase; regresión: valor normalizado [0,1]
-- `interpretability_summary(feature_names=None)` → DataFrame con:
+- `predict_proba(X)`  → classification: class probabilities; regression: normalized value [0,1]
+- `interpretability_summary(feature_names=None)` → DataFrame whose columns are in Spanish:
   - `Tipo`: "centroide" | "inflexion_point"
-  - `Distancia`: radio desde el centro al punto de inflexión
-  - `Categoria`: clase (o "NA" en regresión)
-  - `pendiente`: df/dt en el punto de inflexión
+  - `Distancia`: radius from the center to the inflection point
+  - `Categoria`: class (or "NA" in regression)
+  - `pendiente`: df/dt at the inflection point
   - `valor_real` / `valor_norm`
-  - `coord_0..coord_{d-1}` o nombres de features
-- `plot_pairs(X, y=None, max_pairs=None)` → gráficos 2D para todas las combinaciones de pares
-- `save(filepath)` → guarda el modelo mediante `joblib`
-- `ModalBoundaryClustering.load(filepath)` → carga una instancia guardada
+  - `coord_0..coord_{d-1}` or feature names
+- `plot_pairs(X, y=None, max_pairs=None)` → 2D plots for all pairwise combinations
+- `save(filepath)` → save the model using `joblib`
+- `ModalBoundaryClustering.load(filepath)` → load a saved instance
 
 ---
 
-## ¿Cómo funciona?
-1. Entrena/usa un **modelo base** de sklearn (clasificación con `predict_proba` o regresión con `predict`).
-2. Busca **máximos locales** por **ascenso de gradiente** con barreras en los límites del dominio.
-3. Desde el máximo, traza **rayos** (direcciones) en la hiperesfera:
-   - 2D: 8 rayos por defecto
-   - 3D: ~26 direcciones (cobertura por *caps* esféricos con muestreo Fibonacci)
-   - >3D: mezcla de unas pocas direcciones globales + **subespacios** 2D/3D
-4. Sobre cada rayo, **escanea radialmente** y calcula el **primer punto de inflexión** según `direction`:
-   - `center_out`: desde el centro hacia fuera
-   - `outside_in`: desde el exterior hacia el centro
-   Registra además la **pendiente** (df/dt) en ese punto.
-5. Conecta los puntos de inflexión para formar la **frontera** de la región de alta probabilidad/valor.
+## How does it work?
+1. Trains/uses a **base model** from sklearn (classification with `predict_proba` or regression with `predict`).
+2. Searches for **local maxima** via **gradient ascent** with barriers at the domain limits.
+3. From the maximum, traces **rays** (directions) on the hypersphere:
+   - 2D: 8 rays by default
+   - 3D: ~26 directions (coverage by spherical *caps* using Fibonacci sampling)
+   - >3D: mix of a few global directions + **2D/3D subspaces**
+4. Along each ray, **scans radially** and computes the **first inflection point** according to `direction`:
+   - `center_out`: from the center outward
+   - `outside_in`: from the exterior toward the center
+   It also records the **slope** (df/dt) at that point.
+5. Connects the inflection points to form the **boundary** of the high probability/value region.
 
 ---
 
-## Ejemplos
-### Clasificación — Iris
+## Examples
+### Classification — Iris
 ```python
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
@@ -96,11 +97,11 @@ sh = ModalBoundaryClustering(
 ).fit(X, y)
 
 print(sh.interpretability_summary(iris.feature_names).head())
-sh.plot_pairs(X, y, max_pairs=3)   # genera las gráficas
+sh.plot_pairs(X, y, max_pairs=3)   # generate plots
 plt.show()
 ```
 
-### Clasificación con modelo ya entrenado
+### Classification with a pre-trained model
 ```python
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_wine
@@ -110,11 +111,11 @@ from sheshe import ModalBoundaryClustering
 wine = load_wine()
 X, y = wine.data, wine.target
 
-# Entrena un modelo de forma independiente
+# Train a model separately
 base_model = RandomForestClassifier(n_estimators=200, random_state=0)
 base_model.fit(X, y)
 
-# Usa SheShe con ese modelo ya ajustado
+# Use SheShe with that fitted model
 sh = ModalBoundaryClustering(
     base_estimator=base_model,
     task="classification",
@@ -126,7 +127,7 @@ sh.plot_pairs(X, y, max_pairs=2)
 plt.show()
 ```
 
-### Regresión — Diabetes
+### Regression — Diabetes
 ```python
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_diabetes
@@ -148,13 +149,13 @@ sh.plot_pairs(X, max_pairs=3)
 plt.show()
 ```
 
-### Guardado de gráficas
+### Saving plots
 ```python
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-# tras llamar a ``sh.plot_pairs(...)``
-out_dir = Path("imagenes")
+# after calling ``sh.plot_pairs(...)``
+out_dir = Path("images")
 out_dir.mkdir(exist_ok=True)
 for i, fig_num in enumerate(plt.get_fignums()):
     plt.figure(fig_num)
@@ -162,7 +163,7 @@ for i, fig_num in enumerate(plt.get_fignums()):
     plt.close(fig_num)
 ```
 
-### Guardar y cargar modelo
+### Save and load model
 ```python
 from pathlib import Path
 from sklearn.datasets import load_iris
@@ -172,62 +173,57 @@ iris = load_iris()
 X, y = iris.data, iris.target
 
 sh = ModalBoundaryClustering().fit(X, y)
-ruta = Path("sheshe_model.joblib")
-sh.save(ruta)
-sh2 = ModalBoundaryClustering.load(ruta)
+path = Path("sheshe_model.joblib")
+sh.save(path)
+sh2 = ModalBoundaryClustering.load(path)
 print((sh.predict(X) == sh2.predict(X)).all())
 ```
 
-Para ejemplos más completos, consulta la carpeta `examples/`.
+For more complete examples, see the `examples/` folder.
 
-### Experimentos y benchmark
+### Experiments and benchmark
 
-Los experimentos de comparación con algoritmos **no supervisados** se encuentran
-en la carpeta [`experiments/`](experiments/). El script
-[`compare_unsupervised.py`](experiments/compare_unsupervised.py) evalúa cinco
-conjuntos de datos distintos, explora parámetros de **SheShe**, **KMeans** y
-**DBSCAN**, y almacena cuatro métricas (`ARI`, `homogeneity`, `completeness`,
-`v_measure`) junto con el tiempo de ejecución (`runtime_sec`).
+Comparisons with **unsupervised** algorithms are located in the [`experiments/`](experiments/) folder. The script [`compare_unsupervised.py`](experiments/compare_unsupervised.py) evaluates five different datasets, explores parameters of **SheShe**, **KMeans**, and **DBSCAN**, and stores four metrics (`ARI`, `homogeneity`, `completeness`, `v_measure`) along with the execution time (`runtime_sec`).
 
 ```bash
 python experiments/compare_unsupervised.py
 cat benchmark/unsupervised_results.csv | head
 ```
 
-se generan los resultados dentro de `benchmark/`.
+The results are generated inside `benchmark/`.
 
 ---
 
-## Parámetros clave
-- `base_2d_rays` → controla la resolución angular en 2D (8 por defecto). 3D escala ~26; d>3 usa subespacios.
-- `direction` → "center_out" | "outside_in" para localizar el punto de inflexión.
-- `scan_radius_factor`, `scan_steps` → tamaño y resolución del escaneo radial.
-- `grad_*` → hiperparámetros del ascenso (tasa, iteraciones, tolerancias).
-- `max_subspaces` → nº máx. de subespacios considerados cuando d>3.
+## Key parameters
+- `base_2d_rays` → controls angular resolution in 2D (8 by default). 3D scales to ~26; d>3 uses subspaces.
+- `direction` → "center_out" | "outside_in" to locate the inflection point.
+- `scan_radius_factor`, `scan_steps` → size and resolution of the radial scan.
+- `grad_*` → ascent hyperparameters (rate, iterations, tolerances).
+- `max_subspaces` → maximum number of subspaces considered when d>3.
 
 ---
 
-## Limitaciones
-- Depende de la **superficie** producida por el modelo base (puede ser rugosa en RF).
-- En alta dimensión, la frontera es una **aproximación** (subespacios).
-- Encuentra **máximos locales** (no garantiza el global), mitigado con múltiples *seeds*.
+## Limitations
+- Depends on the **surface** produced by the base model (may be rough in RF).
+- In high dimension, the boundary is an **approximation** (subspaces).
+- Finds **local maxima** (does not guarantee the global one), mitigated with multiple seeds.
 
 ---
 
-## Contribuir
+## Contributing
 
-Las mejoras son bienvenidas. Para proponer cambios:
+Improvements are welcome. To propose changes:
 
-1. Haz un *fork* del repositorio y crea una rama descriptiva.
-2. Instala las dependencias de desarrollo y ejecuta los tests:
+1. Fork the repository and create a descriptive branch.
+2. Install the development dependencies and run tests:
 
    ```bash
    pip install -e ".[dev]"
    PYTHONPATH=src pytest -q
    ```
-3. Envía un *pull request* con una descripción clara del cambio.
+3. Submit a pull request with a clear description of the change.
 
 ---
 
-## Licencia
+## License
 MIT
