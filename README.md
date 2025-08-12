@@ -3,7 +3,8 @@
 
 [Versión en español](README.es.md)
 
-Edge segmentation and hyperboundary exploration based on **local maxima** of the **class probability** (classification) or the **predicted value** (regression).
+Edge segmentation and hyperboundary exploration based on **local maxima** of the
+**class probability** (classification) or the **predicted value** (regression).
 
 ---
 
