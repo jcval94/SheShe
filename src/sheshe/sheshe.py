@@ -526,12 +526,18 @@ class ModalBoundaryClustering(BaseEstimator):
         X: Union[np.ndarray, pd.DataFrame],
         label_path: Optional[Union[str, Path]] = None,
     ) -> np.ndarray:
+        """Predicción para ``X``.
+
+        Clasificación → etiqueta de la región correspondiente (con *fallback*
+        al estimador base si el punto no pertenece a ninguna). Regresión →
+        valor predicho por el estimador base.
+        """
         start = time.perf_counter()
         try:
             check_is_fitted(self, "regions_")
             X = np.asarray(X, dtype=float)
-            M = self._membership_matrix(X)
             if self.task == "classification":
+                M = self._membership_matrix(X)
                 labels = np.array([reg.label for reg in self.regions_])
                 pred = np.empty(len(X), dtype=labels.dtype)
                 some = M.sum(axis=1) > 0
@@ -548,7 +554,7 @@ class ModalBoundaryClustering(BaseEstimator):
                     pred[none] = base_pred
                 result = pred
             else:
-                result = M[:, 0]
+                result = self.pipeline_.predict(X)
         except Exception as exc:
             self._log(f"Error en predict: {exc}")
             raise

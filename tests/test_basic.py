@@ -33,6 +33,19 @@ def test_score_regression():
     assert np.isfinite(score)
 
 
+def test_predict_regression_returns_base_estimator_value():
+    X, y = make_regression(n_samples=80, n_features=5, noise=0.1, random_state=0)
+    sh = ModalBoundaryClustering(
+        base_estimator=RandomForestRegressor(n_estimators=10, random_state=0),
+        task="regression",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    expected = sh.pipeline_.predict(X[:5])
+    y_hat = sh.predict(X[:5])
+    assert np.allclose(y_hat, expected)
+
+
 def test_decision_function_classifier_and_fallback():
     iris = load_iris()
     X, y = iris.data, iris.target
