@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import joblib
 
 from sklearn.base import BaseEstimator, clone
 from sklearn.preprocessing import StandardScaler
@@ -618,6 +619,15 @@ class ModalBoundaryClustering(BaseEstimator):
         """Devuelve la métrica de sklearn delegando en el pipeline interno."""
         check_is_fitted(self, "pipeline_")
         return self.pipeline_.score(np.asarray(X, dtype=float), y)
+
+    def save(self, filepath: Union[str, Path]) -> None:
+        """Guarda la instancia actual en ``filepath`` usando ``joblib.dump``."""
+        joblib.dump(self, filepath)
+
+    @classmethod
+    def load(cls, filepath: Union[str, Path]) -> "ModalBoundaryClustering":
+        """Carga una instancia previamente guardada con :meth:`save`."""
+        return joblib.load(filepath)
 
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
         check_is_fitted(self, "regions_")
