@@ -6,13 +6,22 @@ la **probabilidad por clase** (clasificación) o del **valor predicho** (regresi
 
 ---
 
-## Instalación (modo editable recomendado)
+## Instalación
+
+Requiere **Python >=3.9** y se recomienda el uso de un entorno virtual.
 
 ```bash
 pip install -e .
 ```
 
-Requisitos base: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`
+Dependencias base: `numpy`, `pandas`, `scikit-learn>=1.1`, `matplotlib`
+
+Para un entorno de desarrollo con pruebas:
+
+```bash
+pip install -e ".[dev]"
+PYTHONPATH=src pytest -q
+```
 
 ---
 
@@ -67,9 +76,9 @@ reg = ModalBoundaryClustering(task="regression")
 ---
 
 ## Ejemplos
-
 ### Clasificación — Iris
 ```python
+import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
 from sheshe import ModalBoundaryClustering
@@ -77,16 +86,47 @@ from sheshe import ModalBoundaryClustering
 iris = load_iris()
 X, y = iris.data, iris.target
 
-model = LogisticRegression(max_iter=1000)
-sh = ModalBoundaryClustering(base_estimator=model, task="classification", base_2d_rays=8, random_state=0)
-sh.fit(X, y)
+sh = ModalBoundaryClustering(
+    base_estimator=LogisticRegression(max_iter=1000),
+    task="classification",
+    base_2d_rays=8,
+    random_state=0,
+).fit(X, y)
 
 print(sh.interpretability_summary(iris.feature_names).head())
-sh.plot_pairs(X, y, max_pairs=3)   # genera gráficas por pares de variables
+sh.plot_pairs(X, y, max_pairs=3)   # genera las gráficas
+plt.show()
+```
+
+### Clasificación con modelo ya entrenado
+```python
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_wine
+from sklearn.ensemble import RandomForestClassifier
+from sheshe import ModalBoundaryClustering
+
+wine = load_wine()
+X, y = wine.data, wine.target
+
+# Entrena un modelo de forma independiente
+base_model = RandomForestClassifier(n_estimators=200, random_state=0)
+base_model.fit(X, y)
+
+# Usa SheShe con ese modelo ya ajustado
+sh = ModalBoundaryClustering(
+    base_estimator=base_model,
+    task="classification",
+    base_2d_rays=8,
+    random_state=0,
+).fit(X, y)
+
+sh.plot_pairs(X, y, max_pairs=2)
+plt.show()
 ```
 
 ### Regresión — Diabetes
 ```python
+import matplotlib.pyplot as plt
 from sklearn.datasets import load_diabetes
 from sklearn.ensemble import GradientBoostingRegressor
 from sheshe import ModalBoundaryClustering
@@ -94,27 +134,33 @@ from sheshe import ModalBoundaryClustering
 diab = load_diabetes()
 X, y = diab.data, diab.target
 
-sh = ModalBoundaryClustering(base_estimator=GradientBoostingRegressor(random_state=0),
-                             task="regression", base_2d_rays=8, random_state=0)
-sh.fit(X, y)
+sh = ModalBoundaryClustering(
+    base_estimator=GradientBoostingRegressor(random_state=0),
+    task="regression",
+    base_2d_rays=8,
+    random_state=0,
+).fit(X, y)
 
 print(sh.interpretability_summary(diab.feature_names).head())
 sh.plot_pairs(X, max_pairs=3)
+plt.show()
+```
+
+### Guardado de gráficas
+```python
+from pathlib import Path
+import matplotlib.pyplot as plt
+
+# tras llamar a ``sh.plot_pairs(...)``
+out_dir = Path("imagenes")
+out_dir.mkdir(exist_ok=True)
+for i, fig_num in enumerate(plt.get_fignums()):
+    plt.figure(fig_num)
+    plt.savefig(out_dir / f"pair_{i}.png")
+    plt.close(fig_num)
 ```
 
 Para ejemplos más completos, consulta la carpeta `examples/`.
-
-### Visualización y guardado de gráficas
-
-El script [`examples/iris_visualization.py`](examples/iris_visualization.py) muestra
-cómo generar gráficas y almacenarlas en disco:
-
-```bash
-python examples/iris_visualization.py
-ls examples/images
-```
-
-Las imágenes se guardan en `examples/images/`.
 
 ### Experimentos y benchmark
 
@@ -147,6 +193,21 @@ se generan los resultados dentro de `benchmark/`.
 - Depende de la **superficie** producida por el modelo base (puede ser rugosa en RF).
 - En alta dimensión, la frontera es una **aproximación** (subespacios).
 - Encuentra **máximos locales** (no garantiza el global), mitigado con múltiples *seeds*.
+
+---
+
+## Contribuir
+
+Las mejoras son bienvenidas. Para proponer cambios:
+
+1. Haz un *fork* del repositorio y crea una rama descriptiva.
+2. Instala las dependencias de desarrollo y ejecuta los tests:
+
+   ```bash
+   pip install -e ".[dev]"
+   PYTHONPATH=src pytest -q
+   ```
+3. Envía un *pull request* con una descripción clara del cambio.
 
 ---
 
