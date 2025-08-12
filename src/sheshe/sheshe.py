@@ -537,6 +537,57 @@ class ModalBoundaryClustering(BaseEstimator):
         self._log(f"predict_proba completado en {runtime:.4f}s")
         return result
 
+    def decision_function(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
+        """Puntaje del modelo base para cada muestra.
+
+        Utiliza ``decision_function`` del estimador subyacente cuando está
+        disponible. Si dicho método no existe, recurre a ``predict_proba`` en
+        clasificación o a ``predict`` en regresión.
+
+        Parameters
+        ----------
+        X : array-like o DataFrame, shape (n_muestras, n_features)
+            Datos de entrada sobre los que evaluar la función de decisión.
+
+        Returns
+        -------
+        np.ndarray
+            Puntajes de la función de decisión o el resultado del *fallback*.
+
+        Examples
+        --------
+        >>> from sklearn.datasets import load_iris
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> X, y = load_iris(return_X_y=True)
+        >>> clf = ModalBoundaryClustering(base_estimator=LogisticRegression(max_iter=200),
+        ...                               task="classification").fit(X, y)
+        >>> clf.decision_function(X[:2]).shape
+        (2, 3)
+
+        >>> from sklearn.datasets import load_diabetes
+        >>> X_reg, y_reg = load_diabetes(return_X_y=True)
+        >>> reg = ModalBoundaryClustering(task="regression").fit(X_reg, y_reg)
+        >>> reg.decision_function(X_reg[:2]).shape
+        (2,)
+        """
+
+        start = time.perf_counter()
+        try:
+            check_is_fitted(self, "regions_")
+            Xs = self.scaler_.transform(np.asarray(X, dtype=float))
+            if hasattr(self.estimator_, "decision_function"):
+                result = self.estimator_.decision_function(Xs)
+            elif self.task == "classification" and hasattr(self.estimator_, "predict_proba"):
+                result = self.estimator_.predict_proba(Xs)
+            else:
+                result = self.estimator_.predict(Xs)
+        except Exception as exc:
+            self._log(f"Error en decision_function: {exc}")
+            raise
+        runtime = time.perf_counter() - start
+        self._log(f"decision_function completado en {runtime:.4f}s")
+        return result
+
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
         check_is_fitted(self, "regions_")
         d = self.n_features_in_
