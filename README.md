@@ -57,6 +57,8 @@ reg = ModalBoundaryClustering(task="regression")
   - `valor_real` / `valor_norm`
   - `coord_0..coord_{d-1}` o nombres de features
 - `plot_pairs(X, y=None, max_pairs=None)` → gráficos 2D para todas las combinaciones de pares
+- `save(filepath)` → guarda el modelo mediante `joblib`
+- `ModalBoundaryClustering.load(filepath)` → carga una instancia guardada
 
 ---
 
@@ -158,6 +160,22 @@ for i, fig_num in enumerate(plt.get_fignums()):
     plt.figure(fig_num)
     plt.savefig(out_dir / f"pair_{i}.png")
     plt.close(fig_num)
+```
+
+### Guardar y cargar modelo
+```python
+from pathlib import Path
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+sh = ModalBoundaryClustering().fit(X, y)
+ruta = Path("sheshe_model.joblib")
+sh.save(ruta)
+sh2 = ModalBoundaryClustering.load(ruta)
+print((sh.predict(X) == sh2.predict(X)).all())
 ```
 
 Para ejemplos más completos, consulta la carpeta `examples/`.
