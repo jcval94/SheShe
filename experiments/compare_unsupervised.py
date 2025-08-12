@@ -1,11 +1,14 @@
-"""
-Compara SheShe con algoritmos no supervisados en varios conjuntos de datos.
+"""Compare SheShe against unsupervised algorithms on multiple datasets.
 
-Genera métricas de *clustering* (ARI, homogeneidad, completitud y V-measure)
-para cinco dataframes distintos y diferentes configuraciones de parámetros.
-Cada ejecución registra además el **tiempo de ejecución** de la fase de
-entrenamiento/predicción, almacenado en ``runtime_sec``.
-Los resultados se guardan en ``benchmark/unsupervised_results.csv``.
+The script generates *clustering* metrics (ARI, homogeneity, completeness and
+V-measure) for five different dataframes and sweeps several parameter
+configurations. To obtain **robust** measurements each configuration is
+executed multiple times with different random seeds and the training/prediction
+**runtime** (``runtime_sec``) is stored. Two CSV files are produced:
+
+* ``benchmark/unsupervised_results.csv`` → raw results per run.
+* ``benchmark/unsupervised_results_summary.csv`` → mean and standard deviation
+  over the repeated runs.
 """
 from pathlib import Path
 import math
@@ -66,6 +69,7 @@ def run(
     verbose: bool = False,
     save_labels: bool = True,
     out_dir: Optional[Path] = None,
+    n_runs: int = 5,
 ) -> None:
     """Ejecuta el experimento de comparación y guarda resultados.
 
@@ -78,6 +82,9 @@ def run(
     out_dir:
         Directorio de salida donde se guardan los resultados y etiquetas. Por
         defecto se usa ``benchmark/`` en la raíz del proyecto.
+    n_runs:
+        Número de repeticiones por configuración para obtener resultados más
+        robustos. Cada repetición usa una semilla distinta.
     """
 
     datasets = {
@@ -112,101 +119,115 @@ def run(
     for name, (X, y) in datasets.items():
         n_classes = len(set(y))
 
-        # SheShe: barrido sobre C
-        for C in [0.1, 1.0, 10.0]:
-            start = time.perf_counter()
-            try:
-                sh = ModalBoundaryClustering(
-                    base_estimator=LogisticRegression(max_iter=500, C=C),
-                    task="classification",
-                    random_state=0,
-                ).fit(X, y)
-                y_pred = sh.predict(X)
-                metrics_dict = _evaluate(y, y_pred, metrics)
-                _save_labels(y_pred, f"{name}_SheShe_C-{C}.labels")
-            except Exception as exc:
-                y_pred = []
-                metrics_dict = {name: math.nan for name, _ in metrics}
+        for seed in range(n_runs):
+            # SheShe: sweep over C
+            for C in [0.1, 1.0, 10.0]:
+                start = time.perf_counter()
+                try:
+                    sh = ModalBoundaryClustering(
+                        base_estimator=LogisticRegression(max_iter=500, C=C, random_state=seed),
+                        task="classification",
+                        random_state=seed,
+                    ).fit(X, y)
+                    y_pred = sh.predict(X)
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_SheShe_C-{C}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {m: math.nan for m, _ in metrics}
+                    if verbose:
+                        print(f"SheShe falló en {name} (C={C}, seed={seed}): {exc}")
+                runtime = time.perf_counter() - start
+                record = {
+                    "dataset": name,
+                    "algorithm": "SheShe",
+                    "params": f"C={C}",
+                    "seed": seed,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
                 if verbose:
-                    print(f"SheShe falló en {name} (C={C}): {exc}")
-            runtime = time.perf_counter() - start
-            record = {
-                "dataset": name,
-                "algorithm": "SheShe",
-                "params": f"C={C}",
-                "runtime_sec": runtime,
-            }
-            record.update(metrics_dict)
-            results.append(record)
-            if verbose:
-                print(
-                    f"SheShe {name} C={C} → {runtime:.4f}s"
-                )
+                    print(f"SheShe {name} C={C} seed={seed} → {runtime:.4f}s")
 
-        # KMeans: variar n_clusters
-        for k in [n_classes - 1, n_classes, n_classes + 1]:
-            k = max(k, 1)
-            start = time.perf_counter()
-            try:
-                km = KMeans(n_clusters=k, random_state=0)
-                km.fit(X)
-                y_pred = km.labels_
-                metrics_dict = _evaluate(y, y_pred, metrics)
-                _save_labels(y_pred, f"{name}_KMeans_k-{k}.labels")
-            except Exception as exc:
-                y_pred = []
-                metrics_dict = {name: math.nan for name, _ in metrics}
+            # KMeans: vary n_clusters
+            for k in [n_classes - 1, n_classes, n_classes + 1]:
+                k = max(k, 1)
+                start = time.perf_counter()
+                try:
+                    km = KMeans(n_clusters=k, random_state=seed)
+                    km.fit(X)
+                    y_pred = km.labels_
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_KMeans_k-{k}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {m: math.nan for m, _ in metrics}
+                    if verbose:
+                        print(f"KMeans falló en {name} (k={k}, seed={seed}): {exc}")
+                runtime = time.perf_counter() - start
+                record = {
+                    "dataset": name,
+                    "algorithm": "KMeans",
+                    "params": f"n_clusters={k}",
+                    "seed": seed,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
                 if verbose:
-                    print(f"KMeans falló en {name} (k={k}): {exc}")
-            runtime = time.perf_counter() - start
-            record = {
-                "dataset": name,
-                "algorithm": "KMeans",
-                "params": f"n_clusters={k}",
-                "runtime_sec": runtime,
-            }
-            record.update(metrics_dict)
-            results.append(record)
-            if verbose:
-                print(
-                    f"KMeans {name} k={k} → {runtime:.4f}s"
-                )
+                    print(f"KMeans {name} k={k} seed={seed} → {runtime:.4f}s")
 
-        # DBSCAN: variar eps
-        for eps in [0.3, 0.5, 0.7]:
-            start = time.perf_counter()
-            try:
-                db = DBSCAN(eps=eps, min_samples=5)
-                db.fit(X)
-                y_pred = db.labels_
-                metrics_dict = _evaluate(y, y_pred, metrics)
-                _save_labels(y_pred, f"{name}_DBSCAN_eps-{eps}.labels")
-            except Exception as exc:
-                y_pred = []
-                metrics_dict = {name: math.nan for name, _ in metrics}
+            # DBSCAN: vary eps
+            for eps in [0.3, 0.5, 0.7]:
+                start = time.perf_counter()
+                try:
+                    db = DBSCAN(eps=eps, min_samples=5)
+                    db.fit(X)
+                    y_pred = db.labels_
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_DBSCAN_eps-{eps}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {m: math.nan for m, _ in metrics}
+                    if verbose:
+                        print(f"DBSCAN falló en {name} (eps={eps}, seed={seed}): {exc}")
+                runtime = time.perf_counter() - start
+                record = {
+                    "dataset": name,
+                    "algorithm": "DBSCAN",
+                    "params": f"eps={eps}",
+                    "seed": seed,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
                 if verbose:
-                    print(f"DBSCAN falló en {name} (eps={eps}): {exc}")
-            runtime = time.perf_counter() - start
-            record = {
-                "dataset": name,
-                "algorithm": "DBSCAN",
-                "params": f"eps={eps}",
-                "runtime_sec": runtime,
-            }
-            record.update(metrics_dict)
-            results.append(record)
-            if verbose:
-                print(
-                    f"DBSCAN {name} eps={eps} → {runtime:.4f}s"
-                )
-
+                    print(f"DBSCAN {name} eps={eps} seed={seed} → {runtime:.4f}s")
     df = pd.DataFrame(results)
     out_path = out_dir / "unsupervised_results.csv"
     df.to_csv(out_path, index=False)
     print(df.head())
     print(f"... guardado {len(df)} registros en {out_path}")
 
+    # Summary statistics
+    metric_cols = ["runtime_sec"] + [name for name, _ in metrics]
+    summary = (
+        df.groupby(["dataset", "algorithm", "params"])[metric_cols]
+        .agg(["mean", "std"])
+        .reset_index()
+    )
+    summary.columns = [
+        "dataset",
+        "algorithm",
+        "params",
+        *[f"{col}_{stat}" for col in metric_cols for stat in ["mean", "std"]],
+    ]
+    summary_path = out_dir / "unsupervised_results_summary.csv"
+    summary.to_csv(summary_path, index=False)
+    print(summary.head())
+    print(f"... guardado resumen en {summary_path}")
+
 
 if __name__ == "__main__":
     run()
-
