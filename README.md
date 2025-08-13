@@ -37,10 +37,10 @@ from sheshe import ModalBoundaryClustering
 clf = ModalBoundaryClustering(
     base_estimator=None,           # default LogisticRegression
     task="classification",         # "classification" | "regression"
-    base_2d_rays=8,                # number of rays in 2D (≈45°)
+    base_2d_rays=24,
     direction="center_out",        # "center_out" | "outside_in"
     scan_radius_factor=3.0,
-    scan_steps=64,
+    scan_steps=24,
     random_state=0
 )
 
@@ -245,12 +245,21 @@ python experiments/paper_experiments.py --runs 5
 ---
 
 ## Key parameters
-- `base_2d_rays` → controls angular resolution in 2D (8 by default). 3D scales
+- `base_2d_rays` → controls angular resolution in 2D (24 by default). 3D scales
   to ~26; d>3 uses subspaces.
 - `direction` → "center_out" | "outside_in" to locate the inflection point.
 - `scan_radius_factor`, `scan_steps` → size and resolution of the radial scan.
 - `grad_*` → hyperparameters of gradient ascent (rate, iterations, tolerances).
 - `max_subspaces` → max number of subspaces considered when d>3.
+
+---
+
+## Performance tips
+- Defaults favour speed: `base_2d_rays=24`, `scan_steps=24` and `n_max_seeds=2`.
+- The heuristic `auto_rays_by_dim=True` (default) reduces rays for high dimensional datasets:
+  - 25–64 features → `base_2d_rays` capped at 16.
+  - 65+ features → `base_2d_rays` capped at 12.
+  For 30D problems such as Breast Cancer this matches the recommended `base_2d_rays=16`.
 
 ---
 

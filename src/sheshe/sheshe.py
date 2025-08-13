@@ -302,20 +302,23 @@ class ModalBoundaryClustering(BaseEstimator):
         self,
         base_estimator: Optional['BaseEstimator'] = None,
         task: str = "classification",  # "classification" | "regression"
-        base_2d_rays: int = 36,
+        base_2d_rays: int = 24,
         direction: str = "center_out",
         scan_radius_factor: float = 3.0,   # multiples of the global std
-        scan_steps: int = 32,
+        scan_steps: int = 24,
         grad_lr: float = 0.2,
         grad_max_iter: int = 80,
         grad_tol: float = 1e-5,
         grad_eps: float = 5e-3,
-        n_max_seeds: int = 3,
+        n_max_seeds: int = 2,
         random_state: Optional[int] = 42,
         max_subspaces: int = 20,
         verbose: bool = False,
         save_labels: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
+        auto_rays_by_dim: bool = True,
+        use_spsa: bool = False,
+        use_adaptive_scan: bool = False,
     ):
         if scan_steps < 2:
             raise ValueError("scan_steps must be at least 2")
@@ -338,6 +341,9 @@ class ModalBoundaryClustering(BaseEstimator):
         self.verbose = verbose
         self.save_labels = save_labels
         self.out_dir = Path(out_dir) if out_dir is not None else None
+        self.auto_rays_by_dim = auto_rays_by_dim
+        self.use_spsa = use_spsa
+        self.use_adaptive_scan = use_adaptive_scan
 
     # ---------- helpers ----------
 
@@ -356,6 +362,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.scaler_ = self.pipeline_.named_steps["scaler"]
 
     def _predict_value_real(self, X: np.ndarray, class_idx: Optional[int] = None) -> np.ndarray:
+        X = np.asarray(X, dtype=np.float64, order="C")
         Xs = self.scaler_.transform(X)
         if self.task == "classification":
             if class_idx is None:
@@ -523,7 +530,14 @@ class ModalBoundaryClustering(BaseEstimator):
             lo, hi = self._bounds_from_data(X)
             self.bounds_ = (lo.copy(), hi.copy())  # store bounds for radial scans
             X_std = np.std(X, axis=0) + 1e-12
-            dirs = generate_directions(self.n_features_in_, self.base_2d_rays, self.random_state, self.max_subspaces)
+            d = X.shape[1]
+            base_rays_eff = self.base_2d_rays
+            if self.auto_rays_by_dim:
+                if d >= 65:
+                    base_rays_eff = min(base_rays_eff, 12)
+                elif d >= 25:
+                    base_rays_eff = min(base_rays_eff, 16)
+            dirs = generate_directions(d, base_rays_eff, self.random_state, self.max_subspaces)
 
             self.regions_: List[ClusterRegion] = []
             self.classes_ = None
@@ -875,15 +889,13 @@ class ModalBoundaryClustering(BaseEstimator):
         xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
         xj_lin = np.linspace(xj.min(), xj.max(), grid_res)
         XI, XJ = np.meshgrid(xi_lin, xj_lin)
-
         for reg in self.regions_:
             label = reg.label
-            Z = np.zeros_like(XI, dtype=float)
-            for r in range(grid_res):
-                X_full = np.tile(np.mean(X, axis=0), (grid_res, 1))
-                X_full[:, i] = XI[r, :]
-                X_full[:, j] = XJ[r, :]
-                Z[r, :] = self._predict_value_real(X_full, class_idx=list(self.classes_).index(label))
+            cls_idx = list(self.classes_).index(label)
+            X_grid = np.tile(np.mean(X, axis=0), (grid_res * grid_res, 1))
+            X_grid[:, i] = XI.ravel()
+            X_grid[:, j] = XJ.ravel()
+            Z = self._predict_value_real(X_grid, class_idx=cls_idx).reshape(XI.shape)
 
             plt.figure(figsize=(6, 5))
             plt.title(f"Prob. clase '{label}' vs (feat {i},{j})")
@@ -941,13 +953,10 @@ class ModalBoundaryClustering(BaseEstimator):
         xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
         xj_lin = np.linspace(xj.min(), xj.max(), grid_res)
         XI, XJ = np.meshgrid(xi_lin, xj_lin)
-
-        Z = np.zeros_like(XI, dtype=float)
-        for r in range(grid_res):
-            X_full = np.tile(np.mean(X, axis=0), (grid_res, 1))
-            X_full[:, i] = XI[r, :]
-            X_full[:, j] = XJ[r, :]
-            Z[r, :] = self._predict_value_real(X_full, class_idx=None)
+        X_grid = np.tile(np.mean(X, axis=0), (grid_res * grid_res, 1))
+        X_grid[:, i] = XI.ravel()
+        X_grid[:, j] = XJ.ravel()
+        Z = self._predict_value_real(X_grid, class_idx=None).reshape(XI.shape)
 
         plt.figure(figsize=(6, 5))
         plt.title(f"Valor predicho vs (feat {i},{j})")
