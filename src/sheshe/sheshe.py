@@ -1024,3 +1024,61 @@ class ModalBoundaryClustering(BaseEstimator):
         else:
             for pair in pairs:
                 self._plot_single_pair_reg(X, pair)
+
+    def plot_pair_3d(self, X: Union[np.ndarray, pd.DataFrame], pair: Tuple[int, int],
+                     class_label: Optional[Any] = None, grid_res: int = 50,
+                     alpha_surface: float = 0.6) -> None:
+        """Visualize probability (or predicted value) as 3D surface.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Data used to define the range of each axis.
+        pair : tuple of int
+            Indices ``(i, j)`` of the features to plot.
+        class_label : optional
+            Class to visualize when ``task='classification'``.
+        grid_res : int, default=50
+            Resolution of the mesh used for the surface.
+        alpha_surface : float, default=0.6
+            Surface transparency.
+
+        Returns
+        -------
+        None
+        """
+        check_is_fitted(self, "regions_")
+        X = np.asarray(X, dtype=float)
+        i, j = pair
+        xi, xj = X[:, i], X[:, j]
+        xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
+        xj_lin = np.linspace(xj.min(), xj.max(), grid_res)
+        XI, XJ = np.meshgrid(xi_lin, xj_lin)
+
+        if self.task == "classification":
+            assert class_label is not None, "class_label required for classification."
+            class_idx = list(self.classes_).index(class_label)
+            zlabel = f"P({class_label})"
+            title = f"Prob. clase '{class_label}' vs (feat {i},{j})"
+        else:
+            class_idx = None
+            zlabel = "y_pred"
+            title = f"Valor predicho vs (feat {i},{j})"
+
+        Z = np.zeros_like(XI, dtype=float)
+        for r in range(grid_res):
+            X_full = np.tile(np.mean(X, axis=0), (grid_res, 1))
+            X_full[:, i] = XI[r, :]
+            X_full[:, j] = XJ[r, :]
+            Z[r, :] = self._predict_value_real(X_full, class_idx=class_idx)
+
+        fig = plt.figure(figsize=(6, 5))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.plot_surface(XI, XJ, Z, cmap="viridis", alpha=alpha_surface)
+        ax.set_xlabel(f"feat {i}")
+        ax.set_ylabel(f"feat {j}")
+        ax.set_zlabel(zlabel)
+        ax.set_title(title)
+        plt.tight_layout()
+
+        return None
