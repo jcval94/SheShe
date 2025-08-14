@@ -55,8 +55,11 @@ def test_gradient_ascent_quadratic_convergence():
     def f(x):
         return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
 
+    def grad_f(x):
+        return np.array([-2.0 * (x[0] - 1.0), -2.0 * (x[1] + 2.0)])
+
     x0 = np.array([5.0, 5.0])
     lo = np.array([-10.0, -10.0])
     hi = np.array([10.0, 10.0])
-    res = gradient_ascent(f, x0, (lo, hi), lr=0.2, max_iter=500)
+    res = gradient_ascent(f, x0, (lo, hi), lr=0.2, max_iter=500, gradient=grad_f)
     assert np.allclose(res, np.array([1.0, -2.0]), atol=5e-2)

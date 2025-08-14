@@ -6,7 +6,7 @@ import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 import numpy as np
 import pandas as pd
@@ -78,15 +78,30 @@ def project_step_with_barrier(x: np.ndarray, g: np.ndarray, lo: np.ndarray, hi: 
     return step
 
 def gradient_ascent(
-    f, x0: np.ndarray, bounds: Tuple[np.ndarray, np.ndarray],
-    lr: float = 0.1, max_iter: int = 200, tol: float = 1e-5, eps_grad: float = 1e-2
+    f,
+    x0: np.ndarray,
+    bounds: Tuple[np.ndarray, np.ndarray],
+    lr: float = 0.1,
+    max_iter: int = 200,
+    tol: float = 1e-5,
+    eps_grad: float = 1e-2,
+    gradient: Optional[Callable[[np.ndarray], np.ndarray]] = None,
 ) -> np.ndarray:
-    """Gradient ascent with backtracking and boundary barriers."""
+    """Gradient ascent with backtracking and boundary barriers.
+
+    Parameters
+    ----------
+    f : callable
+        Objective function.
+    gradient : callable, optional
+        Analytic gradient of ``f``. If ``None``, a finite difference
+        approximation is used.
+    """
     lo, hi = bounds
     x = x0.copy()
     best = f(x)
     for _ in range(max_iter):
-        g = finite_diff_gradient(f, x, eps=eps_grad)
+        g = gradient(x) if gradient is not None else finite_diff_gradient(f, x, eps=eps_grad)
         if np.linalg.norm(g) < tol:
             break
         g = project_step_with_barrier(x, g, lo, hi)
@@ -97,7 +112,7 @@ def gradient_ascent(
         v_new = f(x_new)
         if v_new <= best + 1e-12:
             # backtracking
-            x_try = np.clip(x + 0.5*step, lo, hi)
+            x_try = np.clip(x + 0.5 * step, lo, hi)
             v_try = f(x_try)
             if v_try <= best + 1e-12:
                 break
@@ -419,10 +434,17 @@ class ModalBoundaryClustering(BaseEstimator):
         if len(seeds) == 0:
             return X[0]
         best_x, best_v = seeds[0].copy(), f(seeds[0])
+        grad_fn = getattr(f, "grad", None)
         for s in seeds:
             x_star = gradient_ascent(
-                f, s, bounds, lr=self.grad_lr, max_iter=self.grad_max_iter,
-                tol=self.grad_tol, eps_grad=self.grad_eps
+                f,
+                s,
+                bounds,
+                lr=self.grad_lr,
+                max_iter=self.grad_max_iter,
+                tol=self.grad_tol,
+                eps_grad=self.grad_eps,
+                gradient=grad_fn,
             )
             v = f(x_star)
             if v > best_v:
