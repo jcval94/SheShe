@@ -18,3 +18,4 @@ tests/test_basic.py
 tests/test_high_dim.py
 tests/test_numeric_utils.py
 tests/test_plot_pairs.py
+tests/test_perf_smoke.py
