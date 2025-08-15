@@ -995,10 +995,14 @@ class ModalBoundaryClustering(BaseEstimator):
         xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
         xj_lin = np.linspace(xj.min(), xj.max(), grid_res)
         XI, XJ = np.meshgrid(xi_lin, xj_lin)
+
+        d = X.shape[1]
+        fixed = np.mean(X, axis=0)
+        X_std = X.std(0)
         for reg in self.regions_:
             label = reg.label
             cls_idx = list(self.classes_).index(label)
-            X_grid = np.tile(np.mean(X, axis=0), (grid_res * grid_res, 1))
+            X_grid = np.tile(fixed, (grid_res * grid_res, 1))
             X_grid[:, i] = XI.ravel()
             X_grid[:, j] = XJ.ravel()
             Z = self._predict_value_real(X_grid, class_idx=cls_idx).reshape(XI.shape)
@@ -1014,8 +1018,23 @@ class ModalBoundaryClustering(BaseEstimator):
                 plt.scatter(X[mask, i], X[mask, j], s=18, c=class_colors[c], label=str(c), edgecolor='k', linewidths=0.3)
 
             # frontera (poli 2D)
-            pts = reg.inflection_points[:, [i, j]]
-            ctr = reg.center[[i, j]]
+            center2 = reg.center.copy()
+            mask_others = np.ones(d, dtype=bool)
+            mask_others[[i, j]] = False
+            center2[mask_others] = fixed[mask_others]
+
+            U2 = np.linspace(0, 2 * np.pi, 32, endpoint=False)
+            D = np.zeros((len(U2), d))
+            D[:, i] = np.cos(U2)
+            D[:, j] = np.sin(U2)
+
+            f = self._build_value_fn(
+                class_idx=cls_idx,
+                norm_stats=self._build_norm_stats(X, cls_idx),
+            )
+            _, pts, _ = self._scan_radii(center2, f, D, X_std)
+            pts = pts[:, [i, j]]
+            ctr = center2[[i, j]]
             ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
             order = np.argsort(ang)
             poly = pts[order]
@@ -1059,7 +1078,10 @@ class ModalBoundaryClustering(BaseEstimator):
         xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
         xj_lin = np.linspace(xj.min(), xj.max(), grid_res)
         XI, XJ = np.meshgrid(xi_lin, xj_lin)
-        X_grid = np.tile(np.mean(X, axis=0), (grid_res * grid_res, 1))
+        d = X.shape[1]
+        fixed = np.mean(X, axis=0)
+        X_std = X.std(0)
+        X_grid = np.tile(fixed, (grid_res * grid_res, 1))
         X_grid[:, i] = XI.ravel()
         X_grid[:, j] = XJ.ravel()
         Z = self._predict_value_real(X_grid, class_idx=None).reshape(XI.shape)
@@ -1070,8 +1092,23 @@ class ModalBoundaryClustering(BaseEstimator):
         plt.colorbar(cf, label="y_pred")
 
         reg = self.regions_[0]
-        pts = reg.inflection_points[:, [i, j]]
-        ctr = reg.center[[i, j]]
+        center2 = reg.center.copy()
+        mask_others = np.ones(d, dtype=bool)
+        mask_others[[i, j]] = False
+        center2[mask_others] = fixed[mask_others]
+
+        U2 = np.linspace(0, 2 * np.pi, 32, endpoint=False)
+        D = np.zeros((len(U2), d))
+        D[:, i] = np.cos(U2)
+        D[:, j] = np.sin(U2)
+
+        f = self._build_value_fn(
+            class_idx=None,
+            norm_stats=self._build_norm_stats(X, class_idx=None),
+        )
+        _, pts, _ = self._scan_radii(center2, f, D, X_std)
+        pts = pts[:, [i, j]]
+        ctr = center2[[i, j]]
         ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
         order = np.argsort(ang)
         poly = pts[order]
