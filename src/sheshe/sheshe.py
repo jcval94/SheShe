@@ -68,6 +68,23 @@ def finite_diff_gradient(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
         g[i] = (f(x + eps * e) - f(x - eps * e)) / (2.0 * eps)
     return g
 
+
+def spsa_gradient(
+    f, x: np.ndarray, eps: float = 1e-2, random_state: Optional[int] = None
+) -> np.ndarray:
+    """Simultaneous perturbation stochastic approximation (SPSA) gradient."""
+    rng = _rng(random_state)
+    d = x.shape[0]
+    delta = rng.choice([-1.0, 1.0], size=d)
+    x_plus = x + eps * delta
+    x_minus = x - eps * delta
+    if hasattr(f, "batch"):
+        vals = f.batch(np.vstack([x_plus, x_minus]))
+        diff = vals[0] - vals[1]
+    else:
+        diff = f(x_plus) - f(x_minus)
+    return diff / (2.0 * eps * delta)
+
 def project_step_with_barrier(x: np.ndarray, g: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> np.ndarray:
     """Zero out gradient components that push outside the domain when on the boundary.
     Prevents escaping and forces movement along other variables."""
@@ -86,6 +103,9 @@ def gradient_ascent(
     tol: float = 1e-5,
     eps_grad: float = 1e-2,
     gradient: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    *,
+    use_spsa: bool = False,
+    random_state: Optional[int] = None,
 ) -> np.ndarray:
     """Gradient ascent with backtracking and boundary barriers.
 
@@ -101,7 +121,12 @@ def gradient_ascent(
     x = x0.copy()
     best = f(x)
     for _ in range(max_iter):
-        g = gradient(x) if gradient is not None else finite_diff_gradient(f, x, eps=eps_grad)
+        if gradient is not None:
+            g = gradient(x)
+        elif use_spsa:
+            g = spsa_gradient(f, x, eps=eps_grad, random_state=random_state)
+        else:
+            g = finite_diff_gradient(f, x, eps=eps_grad)
         if np.linalg.norm(g) < tol:
             break
         g = project_step_with_barrier(x, g, lo, hi)
@@ -445,6 +470,8 @@ class ModalBoundaryClustering(BaseEstimator):
                 tol=self.grad_tol,
                 eps_grad=self.grad_eps,
                 gradient=grad_fn,
+                use_spsa=self.use_spsa,
+                random_state=self.random_state,
             )
             v = f(x_star)
             if v > best_v:
@@ -483,7 +510,10 @@ class ModalBoundaryClustering(BaseEstimator):
         cuts = [0]
         for u in directions:
             T_dir = min(T_base, tmax_in_bounds(center, u, lo, hi))
-            ts = np.linspace(0.0, T_dir, self.scan_steps)
+            if self.use_adaptive_scan:
+                ts = np.geomspace(1e-9, T_dir + 1e-9, self.scan_steps) - 1e-9
+            else:
+                ts = np.linspace(0.0, T_dir, self.scan_steps)
             P = center[None, :] + ts[:, None] * u[None, :]
             blocks.append(P)
             ts_blocks.append(ts)
