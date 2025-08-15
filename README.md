@@ -214,6 +214,33 @@ print((sh.predict(X) == sh2.predict(X)).all())
 
 For more complete examples, see the `examples/` folder.
 
+## SubspaceScout
+
+`SubspaceScout` helps discover informative feature subspaces (pairs, trios, ...)
+before running SheShe. It can work purely with mutual information or leverage
+optional models like LightGBM+SHAP or EBM to rank feature interactions.
+
+```python
+from sheshe import SubspaceScout
+
+scout = SubspaceScout(
+    # model_method='lightgbm',    # default uses MI; LightGBM and SHAP are optional
+    max_order=4,                # explore pairs, trios and quartets
+    top_m=50,                   # limit to top 50 informative features
+    base_pairs_limit=12,        # seed pairs for orders >=3
+    beam_width=10,              # combos kept per layer
+    extend_candidate_pool=16,   # random candidate features per parent
+    branch_per_parent=4,        # extensions per parent
+    marginal_gain_min=1e-3,     # minimum gain to accept
+    max_eval_per_order=150,     # cap MI evaluations per order
+    sample_size=4096,           # subsample size
+    time_budget_s=None,         # e.g., 15.0 for 15 seconds
+    task='classification',
+    random_state=0,
+)
+subspaces = scout.fit(X, y)
+```
+
 ### Experiments and benchmark
 
 The experiments comparing against **unsupervised** algorithms are located in
