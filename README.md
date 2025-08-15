@@ -251,6 +251,10 @@ python experiments/paper_experiments.py --runs 5
 - `scan_radius_factor`, `scan_steps` → size and resolution of the radial scan.
 - `grad_*` → hyperparameters of gradient ascent (rate, iterations, tolerances).
 - `max_subspaces` → max number of subspaces considered when d>3.
+- `density_alpha` / `density_k` → optional density penalty computed with an
+  HNSW k‑NN search (via `hnswlib`) to keep centers inside the data cloud. The
+  normalized value is multiplied by `(density(x))**density_alpha`; set
+  `density_alpha=0` to disable.
 
 ---
 

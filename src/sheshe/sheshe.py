@@ -20,6 +20,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC, SVR
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, GradientBoostingRegressor
+try:  # optional dependency for density estimation
+    import hnswlib
+except Exception:  # pragma: no cover - handled at runtime
+    hnswlib = None  # type: ignore
 from sklearn.utils.validation import check_is_fitted
 
 
@@ -406,11 +410,17 @@ class ModalBoundaryClustering(BaseEstimator):
         auto_rays_by_dim: bool = True,
         use_spsa: bool = False,
         use_adaptive_scan: bool = False,
+        density_alpha: float = 0.0,
+        density_k: int = 15,
     ):
         if scan_steps < 2:
             raise ValueError("scan_steps must be at least 2")
         if n_max_seeds < 1:
             raise ValueError("n_max_seeds must be at least 1")
+        if not (0.0 <= density_alpha <= 1.0):
+            raise ValueError("density_alpha must be in [0, 1]")
+        if density_k < 1:
+            raise ValueError("density_k must be at least 1")
 
         self.base_estimator = base_estimator
         self.task = task
@@ -431,6 +441,8 @@ class ModalBoundaryClustering(BaseEstimator):
         self.auto_rays_by_dim = auto_rays_by_dim
         self.use_spsa = use_spsa
         self.use_adaptive_scan = use_adaptive_scan
+        self.density_alpha = density_alpha
+        self.density_k = density_k
 
     # ---------- helpers ----------
 
@@ -480,11 +492,19 @@ class ModalBoundaryClustering(BaseEstimator):
 
         def f(x: np.ndarray) -> float:
             val = self._predict_value_real(x.reshape(1, -1), class_idx=class_idx)[0]
-            return float(_norm(val))
+            v = float(_norm(val))
+            if self.density_alpha > 0.0:
+                dens = self._density(x.reshape(1, -1))[0]
+                v *= float(dens ** self.density_alpha)
+            return v
 
         def f_batch(X: np.ndarray) -> np.ndarray:
             vals = self._predict_value_real(np.asarray(X, float), class_idx=class_idx)
-            return _norm(vals)
+            v = _norm(vals)
+            if self.density_alpha > 0.0:
+                dens = self._density(np.asarray(X, float))
+                v = v * (dens ** self.density_alpha)
+            return v
 
         f.batch = f_batch  # type: ignore[attr-defined]
         return f
@@ -494,6 +514,48 @@ class ModalBoundaryClustering(BaseEstimator):
         hi = X.max(axis=0)
         span = hi - lo
         return lo - 0.05*span, hi + 0.05*span
+
+    def _setup_density(self, X: np.ndarray) -> None:
+        if self.density_alpha <= 0.0:
+            return
+        if hnswlib is None:
+            raise ImportError("hnswlib is required when density_alpha > 0.0")
+        Xs = self.scaler_.transform(np.asarray(X, float)).astype(np.float32)
+        n_samples = len(Xs)
+        if n_samples <= 1:
+            self.density_k_ = 1
+            self._nn_density = None
+            self.density_min_ = self.density_max_ = 1.0
+            return
+        k = min(self.density_k, n_samples - 1)
+        self.density_k_ = k
+        dim = Xs.shape[1]
+        index = hnswlib.Index(space="l2", dim=dim)
+        index.init_index(max_elements=n_samples, ef_construction=200)
+        index.add_items(Xs)
+        index.set_ef(max(50, k * 3))
+        self._nn_density = index
+        _, dists = index.knn_query(Xs, k=k + 1)
+        dists = np.sqrt(dists[:, -1])
+        dens = 1.0 / (dists + 1e-12)
+        self.density_min_ = float(np.min(dens))
+        self.density_max_ = float(np.max(dens))
+
+    def _density(self, X: np.ndarray) -> np.ndarray:
+        if self.density_alpha <= 0.0:
+            return np.ones(len(np.asarray(X, float)))
+        Xs = self.scaler_.transform(np.asarray(X, float)).astype(np.float32)
+        if self._nn_density is None:
+            dens = np.ones(len(Xs))
+        else:
+            _, dists = self._nn_density.knn_query(Xs, k=self.density_k_)
+            dists = np.sqrt(dists[:, -1])
+            dens = 1.0 / (dists + 1e-12)
+        rng = self.density_max_ - self.density_min_
+        if rng <= 0:
+            return np.ones_like(dens)
+        dens_norm = (dens - self.density_min_) / rng
+        return np.clip(dens_norm, 0.0, 1.0)
 
     def _choose_seeds(self, X: np.ndarray, f, k: int) -> np.ndarray:
         vals = f.batch(X) if hasattr(f, "batch") else np.array([f(x) for x in X])
@@ -633,6 +695,8 @@ class ModalBoundaryClustering(BaseEstimator):
                     raise ValueError("y must contain at least two classes for classification")
 
             self._fit_estimator(X, y)
+            if self.density_alpha > 0.0:
+                self._setup_density(X)
             lo, hi = self._bounds_from_data(X)
             self.bounds_ = (lo.copy(), hi.copy())  # store bounds for radial scans
             X_std = np.std(X, axis=0) + 1e-12
