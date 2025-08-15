@@ -152,6 +152,53 @@ def second_diff(arr: np.ndarray) -> np.ndarray:
         s[1:-1] = arr[:-2] - 2*arr[1:-1] + arr[2:]
     return s
 
+def _adaptive_scan_1d(
+    f_line: Callable[[np.ndarray], np.ndarray],
+    T: float,
+    steps: int,
+    direction: str,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Escaneo adaptativo en ``[0, T]``.
+
+    Comienza con una grilla gruesa y luego refina localmente alrededor del
+    cambio de concavidad o de la caída del 50% del valor máximo observado.
+    """
+
+    steps = max(8, int(steps))
+
+    # 1) Grilla gruesa
+    n0 = max(8, steps // 3)
+    ts = np.linspace(0.0, T, n0)
+    vs = f_line(ts)
+
+    # 2) Busca intervalo candidato mediante cambio de concavidad
+    def second_diff(a: np.ndarray) -> np.ndarray:
+        if len(a) < 3:
+            return np.zeros_like(a)
+        s = np.zeros_like(a)
+        s[1:-1] = a[:-2] - 2 * a[1:-1] + a[2:]
+        return s
+
+    sd = second_diff(vs)
+    j = None
+    for k in range(1, len(sd)):
+        if sd[k] >= 0 and sd[k - 1] < 0:
+            j = k
+            break
+
+    # 3) Refinamiento local por bisección/densificación
+    remaining = steps - len(ts)
+    if j is not None and remaining > 0:
+        a, b = max(0, j - 2), min(len(ts) - 1, j + 2)
+        for _ in range(remaining):
+            mids = (ts[a:b] + ts[a + 1 : b + 1]) * 0.5
+            vm = f_line(mids)
+            ts = np.sort(np.r_[ts, mids])
+            # Re-evaluar para mantener el orden de ``vs``
+            vs = f_line(ts)
+
+    return ts, vs
+
 def find_inflection(ts: np.ndarray, vals: np.ndarray, direction: str) -> Tuple[float, float]:
     """Return ``(t_inf, slope_at_inf)``.
 
@@ -511,12 +558,19 @@ class ModalBoundaryClustering(BaseEstimator):
         for u in directions:
             T_dir = min(T_base, tmax_in_bounds(center, u, lo, hi))
             if self.use_adaptive_scan:
-                ts = np.geomspace(1e-9, T_dir + 1e-9, self.scan_steps) - 1e-9
+                # f_line: evaluación rápida sobre puntos (batch interno)
+                def f_line(ts_arr: np.ndarray) -> np.ndarray:
+                    P = center[None, :] + ts_arr[:, None] * u[None, :]
+                    return f.batch(P) if hasattr(f, "batch") else np.array([f(p) for p in P])
+
+                ts, vs = _adaptive_scan_1d(f_line, T_dir, self.scan_steps, self.direction)
+                ts_blocks.append(ts)
+                blocks.append(center[None, :] + ts[:, None] * u[None, :])
             else:
                 ts = np.linspace(0.0, T_dir, self.scan_steps)
-            P = center[None, :] + ts[:, None] * u[None, :]
-            blocks.append(P)
-            ts_blocks.append(ts)
+                P = center[None, :] + ts[:, None] * u[None, :]
+                ts_blocks.append(ts)
+                blocks.append(P)
             cuts.append(cuts[-1] + len(ts))
         P_all = np.vstack(blocks)
 
