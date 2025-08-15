@@ -1,2 +1,6 @@
 # Ignore generated example images
 examples/images/
+
+# Packaging artifacts
+dist/
+*.egg-info/
