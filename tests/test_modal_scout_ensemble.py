@@ -23,3 +23,42 @@ def test_modal_scout_ensemble_basic():
     assert np.isclose(mse.weights_.sum(), 1.0)
     report = mse.report()
     assert isinstance(report, list) and report
+
+
+def test_modal_scout_ensemble_labels2():
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+        cv=2,
+        save_label2=True,
+    )
+    mse.fit(X, y)
+    assert hasattr(mse, "labels2_")
+    assert hasattr(mse, "label2id_")
+    assert mse.labels2_.shape[0] == X.shape[0]
+    labels, ids = mse.predict_regions(X)
+    assert np.array_equal(labels, mse.labels2_)
+    assert np.array_equal(ids, mse.label2id_)
+    far_point = np.array([[1000, 1000, 1000, 1000]])
+    far_label, far_id = mse.predict_regions(far_point)
+    assert far_label[0] == -1
+    assert far_id[0] == -1
+
+
+def test_modal_scout_ensemble_labels2_optional():
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+        cv=2,
+    )
+    mse.fit(X, y)
+    assert not hasattr(mse, "labels2_")
+    assert not hasattr(mse, "label2id_")
