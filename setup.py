@@ -25,7 +25,7 @@ setup(
         "matplotlib",
     ],
     extras_require={
-        "dev": ["pytest", "seaborn"],
+        "dev": ["pytest", "seaborn", "hnswlib"],
     },
     classifiers=[
         "Programming Language :: Python :: 3",
