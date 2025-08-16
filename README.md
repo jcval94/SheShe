@@ -30,12 +30,13 @@ PYTHONPATH=src pytest -q
 
 ## Quick API
 
-The library exposes four main objects:
+The library exposes five main objects:
 
 - `ModalBoundaryClustering`
 - `ClusterRegion` – dataclass describing a discovered region
 - `SubspaceScout`
 - `ModalScoutEnsemble`
+- `RegionInterpreter` – turn `ClusterRegion` objects into human-readable rules
 
 ```python
 from sheshe import (
@@ -89,6 +90,22 @@ X, y = load_iris(return_X_y=True)
 labels = ModalBoundaryClustering().fit_predict(X, y)
 print(labels[:5])
 ```
+
+### RegionInterpreter – interpret cluster regions
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering, RegionInterpreter
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+sh = ModalBoundaryClustering().fit(X, y)
+cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
+RegionInterpreter.pretty_print(cards[:1])
+```
+
+Each card includes a `cluster_id` to identify the region and the class `label`.
 
 #### Visualización 3D
 `plot_pair_3d` visualiza la probabilidad de una clase o el valor predicho como
