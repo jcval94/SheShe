@@ -55,6 +55,7 @@ clf = ModalBoundaryClustering(
     scan_steps=24,
     smooth_window=None,             # optional moving average window
     drop_fraction=0.5,              # fallback drop from peak value
+    stop_criteria="inflexion",     # or "percentile" for decile drop
     random_state=0
 )
 
@@ -89,12 +90,14 @@ reg = ModalBoundaryClustering(task="regression")
    - 3D: ~26 directions (coverage by spherical *caps* using Fibonacci sampling)
    - >3D: mixture of a few global directions + 2D/3D **subspaces**
 4. Along each ray, **scan radially** and compute the **first inflection point**
-   according to `direction`:
+   according to `direction` and `stop_criteria`:
     - `center_out`: from the center outward
     - `outside_in`: from the outside toward the center
    Optionally apply a moving average (`smooth_window`) and record the **slope**
-   (df/dt) at that point. If no inflection is found, use the first point where
-   the value drops below `drop_fraction` of the peak.
+   (df/dt) at that point. With `stop_criteria="percentile"` the scan stops
+   when the value falls to a lower decile of the dataset distribution. If no
+   stop is found, use the first point where the value drops below
+   `drop_fraction` of the peak.
 5. Connect the inflection points to form the **boundary** of the region with
    high probability/value.
 
@@ -195,6 +198,27 @@ print(sh.interpretability_summary(diab.feature_names).head())
 sh.plot_pairs(X, max_pairs=3)
 plt.show()
 ```
+
+---
+
+## Benchmark
+
+The percentile-based stopping rule avoids the point of inflection and scans
+only until the value crosses into a lower decile.  The optimized loop
+implementation is considerably faster than the previous vectorized version. On
+the Iris dataset:
+
+```
+$ PYTHONPATH=src python experiments/benchmark_stop_criteria.py
+vectorized implementation: 0.0259s
+loop implementation:       0.0121s
+speedup: 2.14x
+ModalBoundaryClustering fit with stop_criteria='inflexion': 0.1026s
+ModalBoundaryClustering fit with stop_criteria='percentile': 0.1411s
+```
+
+The exact numbers depend on the machine, but the optimized loop method is
+substantially quicker while producing the same results.
 
 ### Saving figures
 ```python

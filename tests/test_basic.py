@@ -197,3 +197,27 @@ def test_drop_fraction_changes_radii():
     r2, _, _ = sh2._scan_radii(center, f, dirs, X_std)
 
     assert r2[0] > r1[0]
+
+
+def test_percentile_stop_criteria():
+    center = np.array([0.0])
+    dirs = np.array([[1.0]])
+    X_std = np.array([1.0])
+
+    def f(point):
+        return 0.94 - 0.02 * point[0]
+
+    def f_batch(X):
+        return 0.94 - 0.02 * X[:, 0]
+
+    f.batch = f_batch  # type: ignore[attr-defined]
+
+    lo = np.array([0.0])
+    hi = np.array([10.0])
+
+    deciles = np.array([0, 0.1, 0.2, 0.3, 0.4, 0.9, 0.92, 0.93, 0.94, 0.94, 1.0])
+
+    sh = ModalBoundaryClustering(scan_steps=3, scan_radius_factor=2.0, stop_criteria="percentile")
+    sh.bounds_ = (lo, hi)
+    r, _, _ = sh._scan_radii(center, f, dirs, X_std, deciles=deciles)
+    assert np.isclose(r[0], 1.0)
