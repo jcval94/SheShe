@@ -30,8 +30,20 @@ PYTHONPATH=src pytest -q
 
 ## Quick API
 
+The library exposes four main objects:
+
+- `ModalBoundaryClustering`
+- `ClusterRegion` – dataclass describing a discovered region
+- `SubspaceScout`
+- `ModalScoutEnsemble`
+
 ```python
-from sheshe import ModalBoundaryClustering
+from sheshe import (
+    ModalBoundaryClustering,
+    SubspaceScout,
+    ModalScoutEnsemble,
+    ClusterRegion,
+)
 
 # classification
 clf = ModalBoundaryClustering(
@@ -131,6 +143,27 @@ sh = ModalBoundaryClustering(
 
 sh.plot_pairs(X, y, max_pairs=2)
 plt.show()
+```
+
+### Classification — synthetic blobs with custom parameters
+```python
+from sklearn.datasets import make_blobs
+from sklearn.linear_model import LogisticRegression
+from sheshe import ModalBoundaryClustering
+
+X, y = make_blobs(n_samples=400, centers=5, cluster_std=1.8, random_state=0)
+
+sh = ModalBoundaryClustering(
+    base_estimator=LogisticRegression(max_iter=200),
+    task="classification",
+    base_2d_rays=16,
+    scan_steps=32,
+    n_max_seeds=3,
+    direction="outside_in",
+    random_state=0,
+).fit(X, y)
+
+print(sh.predict(X[:5]))
 ```
 
 ### Regression — Diabetes
