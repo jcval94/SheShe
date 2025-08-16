@@ -57,6 +57,7 @@ def test_labels2_attribute_and_method():
         base_estimator=LogisticRegression(max_iter=200),
         task="classification",
         random_state=0,
+        save_label2=True,
     )
     sh.fit(X, y)
     assert hasattr(sh, "labels2_")
@@ -68,6 +69,18 @@ def test_labels2_attribute_and_method():
     far_point = np.array([[1000, 1000, 1000, 1000]])
     far_label = sh.predict_regions(far_point)[0]
     assert far_label == -1
+
+
+def test_labels2_optional():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    assert not hasattr(sh, "labels2_")
 
 
 def test_score_regression():
