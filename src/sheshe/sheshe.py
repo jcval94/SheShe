@@ -1052,6 +1052,25 @@ class ModalBoundaryClustering(BaseEstimator):
         self._maybe_save_labels(result, label_path)
         return result
 
+    def get_cluster(self, cluster_id: int) -> Optional[ClusterRegion]:
+        """Return the :class:`ClusterRegion` with the given ``cluster_id``.
+
+        Parameters
+        ----------
+        cluster_id : int
+            Identifier of the cluster to retrieve.
+
+        Returns
+        -------
+        ClusterRegion or None
+            Cluster object matching ``cluster_id`` or ``None`` if not found.
+        """
+        check_is_fitted(self, "regions_")
+        for reg in self.regions_:
+            if reg.cluster_id == cluster_id:
+                return reg
+        return None
+
     def predict_proba(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
         """Classification: class probabilities or decision scores.
 

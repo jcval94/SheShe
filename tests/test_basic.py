@@ -269,3 +269,18 @@ def test_percentile_stop_criteria():
     sh.bounds_ = (lo, hi)
     r, _, _ = sh._scan_radii(center, f, dirs, X_std, deciles=deciles)
     assert np.isclose(r[0], 1.0)
+
+
+def test_get_cluster_by_id():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    first = sh.regions_[0]
+    found = sh.get_cluster(first.cluster_id)
+    assert found is first
+    assert sh.get_cluster(-1) is None
