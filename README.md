@@ -66,6 +66,7 @@ reg = ModalBoundaryClustering(task="regression")
 ### Methods
 - `fit(X, y)`
 - `predict(X)`
+- `fit_predict(X, y=None)` → convenience method equivalent to calling `fit` followed by `predict` on the same data
 - `predict_proba(X)`  → classification: per-class probabilities; regression: normalized value [0,1]
 - `interpretability_summary(feature_names=None)` → DataFrame with:
   - `Type`: "centroid" | "inflection_point"
@@ -77,6 +78,17 @@ reg = ModalBoundaryClustering(task="regression")
 - `plot_pairs(X, y=None, max_pairs=None)` → 2D plots for all pair combinations
 - `save(filepath)` → save the model using `joblib`
 - `ModalBoundaryClustering.load(filepath)` → load a saved instance
+
+Example of `fit_predict` usage:
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+labels = ModalBoundaryClustering().fit_predict(X, y)
+print(labels[:5])
+```
 
 #### Visualización 3D
 `plot_pair_3d` visualiza la probabilidad de una clase o el valor predicho como
