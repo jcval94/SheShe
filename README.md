@@ -69,6 +69,7 @@ reg = ModalBoundaryClustering(task="regression")
 - `predict(X)`
 - `fit_predict(X, y=None)` → convenience method equivalent to calling `fit` followed by `predict` on the same data
 - `predict_proba(X)`  → classification: per-class probabilities; regression: normalized value [0,1]
+- `decision_function(X)` → decision scores from the base estimator; falls back to `predict_proba` for classification or `predict` for regression
 - `interpretability_summary(feature_names=None)` → DataFrame with:
   - `Type`: "centroid" | "inflection_point"
   - `Distance`: radius from the center to the inflection point
@@ -89,6 +90,22 @@ from sheshe import ModalBoundaryClustering
 X, y = load_iris(return_X_y=True)
 labels = ModalBoundaryClustering().fit_predict(X, y)
 print(labels[:5])
+```
+
+#### `decision_function(X)`
+
+Returns decision values from the underlying estimator. For classification it
+prefers the estimator's ``decision_function`` but falls back to
+``predict_proba`` when that method is missing. In regression the method relies
+on ``predict`` as a fallback.
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+print(sh.decision_function(X[:5]))
 ```
 
 ### RegionInterpreter – interpret cluster regions
