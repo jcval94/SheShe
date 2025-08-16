@@ -16,7 +16,11 @@ def main():
     for name, est in models.items():
         print(f"\n-- {name} --")
         sh = ModalBoundaryClustering(
-            base_estimator=est, task="regression", base_2d_rays=8, random_state=0
+            base_estimator=est,
+            task="regression",
+            base_2d_rays=8,
+            random_state=0,
+            drop_fraction=0.5,
         ).fit(Xd, yd)
         seg = sh.predict(Xd).mean()
         yhat = sh.pipeline_.predict(Xd)
@@ -27,7 +31,13 @@ def main():
     print("\n=== Friedman1 ===")
     Xf, yf = make_friedman1(n_samples=800, n_features=8, noise=0.5, random_state=0)
     est = GradientBoostingRegressor(random_state=0)
-    sh = ModalBoundaryClustering(est, task="regression", base_2d_rays=8, random_state=1).fit(Xf, yf)
+    sh = ModalBoundaryClustering(
+        est,
+        task="regression",
+        base_2d_rays=8,
+        random_state=1,
+        drop_fraction=0.5,
+    ).fit(Xf, yf)
     print("Zona alta (Friedman1):", sh.predict(Xf).mean())
     sh.plot_pairs(Xf, max_pairs=3)
 

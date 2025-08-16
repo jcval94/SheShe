@@ -53,6 +53,7 @@ clf = ModalBoundaryClustering(
     scan_radius_factor=3.0,
     scan_steps=64,
     smooth_window=None,             # ventana de suavizado opcional
+    drop_fraction=0.5,              # caída requerida desde el pico
     random_state=0
 )
 
@@ -88,7 +89,9 @@ reg = ModalBoundaryClustering(task="regression")
     - `center_out`: desde el centro hacia fuera
     - `outside_in`: desde el exterior hacia el centro
    Opcionalmente aplica un promedio móvil (`smooth_window`) y registra además la
-   **pendiente** (df/dt) en ese punto.
+   **pendiente** (df/dt) en ese punto. Si no se detecta un punto de inflexión,
+   usa el primer valor donde la función cae por debajo de `drop_fraction` del
+   máximo.
 5. Conecta los puntos de inflexión para formar la **frontera** de la región de alta probabilidad/valor.
 
 ---
@@ -109,6 +112,7 @@ sh = ModalBoundaryClustering(
     task="classification",
     base_2d_rays=8,
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 print(sh.interpretability_summary(iris.feature_names).head())
@@ -136,6 +140,7 @@ sh = ModalBoundaryClustering(
     task="classification",
     base_2d_rays=8,
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 sh.plot_pairs(X, y, max_pairs=2)
@@ -158,6 +163,7 @@ sh = ModalBoundaryClustering(
     n_max_seeds=3,
     direction="outside_in",
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 print(sh.predict(X[:5]))
@@ -178,6 +184,7 @@ sh = ModalBoundaryClustering(
     task="regression",
     base_2d_rays=8,
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 print(sh.interpretability_summary(diab.feature_names).head())

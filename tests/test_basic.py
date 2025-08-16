@@ -175,3 +175,25 @@ def test_fit_raises_with_single_class():
     sh = ModalBoundaryClustering(task="classification")
     with pytest.raises(ValueError, match="at least two classes"):
         sh.fit(X, y)
+
+
+def test_drop_fraction_changes_radii():
+    center = np.array([0.0])
+    dirs = np.array([[1.0]])
+    X_std = np.array([1.0])
+
+    def f(point):
+        return np.exp(-point[0])
+
+    lo = np.array([0.0])
+    hi = np.array([10.0])
+
+    sh1 = ModalBoundaryClustering(drop_fraction=0.5)
+    sh1.bounds_ = (lo, hi)
+    r1, _, _ = sh1._scan_radii(center, f, dirs, X_std)
+
+    sh2 = ModalBoundaryClustering(drop_fraction=0.2)
+    sh2.bounds_ = (lo, hi)
+    r2, _, _ = sh2._scan_radii(center, f, dirs, X_std)
+
+    assert r2[0] > r1[0]

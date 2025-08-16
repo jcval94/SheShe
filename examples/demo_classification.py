@@ -20,7 +20,11 @@ def main():
     for name, est in models.items():
         print(f"\n-- {name} --")
         sh = ModalBoundaryClustering(
-            base_estimator=est, task="classification", base_2d_rays=8, random_state=0
+            base_estimator=est,
+            task="classification",
+            base_2d_rays=8,
+            random_state=0,
+            drop_fraction=0.5,
         ).fit(X, y)
         y_hat = sh.predict(X)
         print("Accuracy:", accuracy_score(y, y_hat))
@@ -32,7 +36,10 @@ def main():
     Xw, yw = wine.data, wine.target
     sh = ModalBoundaryClustering(
         base_estimator=RandomForestClassifier(n_estimators=350, random_state=1),
-        task="classification", base_2d_rays=8, random_state=1
+        task="classification",
+        base_2d_rays=8,
+        random_state=1,
+        drop_fraction=0.5,
     ).fit(Xw, yw)
     print("Accuracy Wine:", accuracy_score(yw, sh.predict(Xw)))
     print(sh.interpretability_summary(wine.feature_names).head())

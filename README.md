@@ -54,6 +54,7 @@ clf = ModalBoundaryClustering(
     scan_radius_factor=3.0,
     scan_steps=24,
     smooth_window=None,             # optional moving average window
+    drop_fraction=0.5,              # fallback drop from peak value
     random_state=0
 )
 
@@ -92,7 +93,8 @@ reg = ModalBoundaryClustering(task="regression")
     - `center_out`: from the center outward
     - `outside_in`: from the outside toward the center
    Optionally apply a moving average (`smooth_window`) and record the **slope**
-   (df/dt) at that point.
+   (df/dt) at that point. If no inflection is found, use the first point where
+   the value drops below `drop_fraction` of the peak.
 5. Connect the inflection points to form the **boundary** of the region with
    high probability/value.
 
@@ -114,6 +116,7 @@ sh = ModalBoundaryClustering(
     task="classification",
     base_2d_rays=8,
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 print(sh.interpretability_summary(iris.feature_names).head())
@@ -141,6 +144,7 @@ sh = ModalBoundaryClustering(
     task="classification",
     base_2d_rays=8,
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 sh.plot_pairs(X, y, max_pairs=2)
@@ -163,6 +167,7 @@ sh = ModalBoundaryClustering(
     n_max_seeds=3,
     direction="outside_in",
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 print(sh.predict(X[:5]))
@@ -183,6 +188,7 @@ sh = ModalBoundaryClustering(
     task="regression",
     base_2d_rays=8,
     random_state=0,
+    drop_fraction=0.5,
 ).fit(X, y)
 
 print(sh.interpretability_summary(diab.feature_names).head())

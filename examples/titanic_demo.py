@@ -13,7 +13,10 @@ def main():
 
     sh = ModalBoundaryClustering(
         base_estimator=LogisticRegression(max_iter=1000),
-        task="classification", base_2d_rays=8, random_state=2
+        task="classification",
+        base_2d_rays=8,
+        random_state=2,
+        drop_fraction=0.5,
     ).fit(X, y)
     print("Accuracy Titanic:", accuracy_score(y, sh.predict(X)))
     print(sh.interpretability_summary(df.drop(columns=["survived"]).columns.tolist()).head())
