@@ -52,6 +52,7 @@ clf = ModalBoundaryClustering(
     direction="center_out",        # "center_out" | "outside_in"
     scan_radius_factor=3.0,
     scan_steps=64,
+    smooth_window=None,             # ventana de suavizado opcional
     random_state=0
 )
 
@@ -84,9 +85,10 @@ reg = ModalBoundaryClustering(task="regression")
    - 3D: ~26 direcciones (cobertura por *caps* esféricos con muestreo Fibonacci)
    - >3D: mezcla de unas pocas direcciones globales + **subespacios** 2D/3D
 4. Sobre cada rayo, **escanea radialmente** y calcula el **primer punto de inflexión** según `direction`:
-   - `center_out`: desde el centro hacia fuera
-   - `outside_in`: desde el exterior hacia el centro
-   Registra además la **pendiente** (df/dt) en ese punto.
+    - `center_out`: desde el centro hacia fuera
+    - `outside_in`: desde el exterior hacia el centro
+   Opcionalmente aplica un promedio móvil (`smooth_window`) y registra además la
+   **pendiente** (df/dt) en ese punto.
 5. Conecta los puntos de inflexión para formar la **frontera** de la región de alta probabilidad/valor.
 
 ---

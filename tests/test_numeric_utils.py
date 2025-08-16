@@ -51,6 +51,17 @@ def test_find_inflection_outside_in():
     assert abs(slope) < 1e-3
 
 
+def test_find_inflection_with_smoothing():
+    ts = np.linspace(0, 3.0, 301)
+    base = 1.0 / (1.0 + ts**2)
+    noise = 0.05 * np.sin(40 * ts)
+    vals = base + noise
+    t_expected = 1.0 / math.sqrt(3.0)
+    t_raw, _ = find_inflection(ts, vals, "center_out")
+    t_smooth, _ = find_inflection(ts, vals, "center_out", smooth_window=11)
+    assert abs(t_smooth - t_expected) < abs(t_raw - t_expected)
+
+
 def test_gradient_ascent_quadratic_convergence():
     def f(x):
         return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
