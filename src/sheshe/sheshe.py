@@ -657,9 +657,26 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def _choose_seeds(self, X: np.ndarray, f, k: int) -> np.ndarray:
         vals = f.batch(X) if hasattr(f, "batch") else np.array([f(x) for x in X])
-        idx = np.argpartition(-vals, k-1)[:k]
-        idx = idx[np.argsort(-vals[idx])]
-        return X[idx]
+        if len(vals) == 0 or k <= 0:
+            return np.zeros((0, X.shape[1]))
+        best_idx = int(np.argmax(vals))
+        seeds = [X[best_idx]]
+        if k == 1:
+            return np.asarray(seeds)
+
+        from sklearn.cluster import KMeans
+
+        remaining = np.delete(X, best_idx, axis=0)
+        n_clusters = min(k - 1, len(remaining))
+        if n_clusters > 0:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=self.random_state, n_init=10)
+            kmeans.fit(remaining)
+            centers = kmeans.cluster_centers_
+            center_vals = f.batch(centers) if hasattr(f, "batch") else np.array([f(c) for c in centers])
+            order = np.argsort(-center_vals)
+            centers = centers[order]
+            seeds.extend(list(centers))
+        return np.asarray(seeds)[:k]
 
     def _find_maximum(self, X: np.ndarray, f, bounds: Tuple[np.ndarray, np.ndarray]) -> np.ndarray:
         seeds = self._choose_seeds(X, f, min(self.n_max_seeds, len(X)))
