@@ -53,6 +53,7 @@ clf = ModalBoundaryClustering(
     direction="center_out",        # "center_out" | "outside_in"
     scan_radius_factor=3.0,
     scan_steps=24,
+    smooth_window=None,             # optional moving average window
     random_state=0
 )
 
@@ -88,9 +89,10 @@ reg = ModalBoundaryClustering(task="regression")
    - >3D: mixture of a few global directions + 2D/3D **subspaces**
 4. Along each ray, **scan radially** and compute the **first inflection point**
    according to `direction`:
-   - `center_out`: from the center outward
-   - `outside_in`: from the outside toward the center
-   Also record the **slope** (df/dt) at that point.
+    - `center_out`: from the center outward
+    - `outside_in`: from the outside toward the center
+   Optionally apply a moving average (`smooth_window`) and record the **slope**
+   (df/dt) at that point.
 5. Connect the inflection points to form the **boundary** of the region with
    high probability/value.
 

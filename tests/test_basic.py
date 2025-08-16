@@ -47,6 +47,19 @@ def test_predict_regression_returns_base_estimator_value():
     assert np.allclose(y_hat, expected)
 
 
+def test_smooth_window_param():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        smooth_window=5,
+    )
+    sh.fit(X, y)
+    assert sh.smooth_window == 5
+
+
 def test_decision_function_classifier_and_fallback():
     iris = load_iris()
     X, y = iris.data, iris.target

@@ -203,13 +203,21 @@ def _adaptive_scan_1d(
 
     return ts, vs
 
-def find_inflection(ts: np.ndarray, vals: np.ndarray, direction: str) -> Tuple[float, float]:
+def find_inflection(
+    ts: np.ndarray,
+    vals: np.ndarray,
+    direction: str,
+    smooth_window: int | None = None,
+) -> Tuple[float, float]:
     """Return ``(t_inf, slope_at_inf)``.
 
     Parameters
     ----------
     direction : {'center_out', 'outside_in'}
         Scanning strategy.
+    smooth_window : int | None, default=None
+        If provided and >1, apply a moving average of this window size on the
+        scanned values before computing the second derivative.
 
     Returns
     -------
@@ -228,6 +236,15 @@ def find_inflection(ts: np.ndarray, vals: np.ndarray, direction: str) -> Tuple[f
     else:
         ts_scan = ts
         vals_scan = vals
+
+    if smooth_window is not None and smooth_window > 1:
+        w = int(smooth_window)
+        if w % 2 == 0:
+            w += 1
+        pad = w // 2
+        vals_pad = np.pad(vals_scan, pad_width=pad, mode="edge")
+        kernel = np.ones(w) / w
+        vals_scan = np.convolve(vals_pad, kernel, mode="valid")
 
     sd = second_diff(vals_scan)
 
@@ -387,6 +404,7 @@ class ModalBoundaryClustering(BaseEstimator):
         inflection.
       - Slope at the inflection point (df/dt).
       - Ascent with boundary barriers.
+      - Optional smoothing of radial scans via ``smooth_window``.
     """
 
     def __init__(
@@ -397,6 +415,7 @@ class ModalBoundaryClustering(BaseEstimator):
         direction: str = "center_out",
         scan_radius_factor: float = 3.0,   # multiples of the global std
         scan_steps: int = 24,
+        smooth_window: int | None = None,
         grad_lr: float = 0.2,
         grad_max_iter: int = 80,
         grad_tol: float = 1e-5,
@@ -415,6 +434,8 @@ class ModalBoundaryClustering(BaseEstimator):
     ):
         if scan_steps < 2:
             raise ValueError("scan_steps must be at least 2")
+        if smooth_window is not None and smooth_window < 1:
+            raise ValueError("smooth_window must be None or >= 1")
         if n_max_seeds < 1:
             raise ValueError("n_max_seeds must be at least 1")
         if not (0.0 <= density_alpha <= 1.0):
@@ -428,6 +449,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.direction = direction
         self.scan_radius_factor = scan_radius_factor
         self.scan_steps = scan_steps
+        self.smooth_window = smooth_window
         self.grad_lr = grad_lr
         self.grad_max_iter = grad_max_iter
         self.grad_tol = grad_tol
@@ -647,7 +669,7 @@ class ModalBoundaryClustering(BaseEstimator):
         for i, u in enumerate(directions):
             a, b = cuts[i], cuts[i + 1]
             ts, vs = ts_blocks[i], vals_all[a:b]
-            r, m = find_inflection(ts, vs, self.direction)
+            r, m = find_inflection(ts, vs, self.direction, self.smooth_window)
             p = center + r * u
             p = np.minimum(np.maximum(p, lo), hi)
             radii[i], slopes[i], pts[i, :] = float(r), float(m), p
