@@ -241,6 +241,29 @@ scout = SubspaceScout(
 subspaces = scout.fit(X, y)
 ```
 
+## ModalScoutEnsemble
+
+`ModalScoutEnsemble` trains multiple ModalBoundaryClustering models on the top subspaces returned by `SubspaceScout` and combines their predictions.
+
+```python
+from sheshe import ModalScoutEnsemble
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+mse = ModalScoutEnsemble(
+    base_estimator=LogisticRegression(max_iter=200),
+    task="classification",
+    random_state=0,
+    scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+    cv=2,
+)
+mse.fit(X, y)
+print(mse.predict(X[:5]))
+```
+
 ### Experiments and benchmark
 
 The experiments comparing against **unsupervised** algorithms are located in
