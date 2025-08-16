@@ -17,7 +17,7 @@ def test_import_and_fit():
     proba = sh.predict_proba(X[:3])
     assert proba.shape[0] == 3
     df = sh.interpretability_summary(iris.feature_names)
-    assert {"Tipo","Distancia","Categoria"}.issubset(df.columns)
+    assert {"Tipo","Distancia","Categoria","ClusterID"}.issubset(df.columns)
     score = sh.score(X, y)
     assert 0.0 <= score <= 1.0
 

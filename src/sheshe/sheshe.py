@@ -362,6 +362,7 @@ def find_percentile_drop(
 
 @dataclass
 class ClusterRegion:
+    cluster_id: int                        # general cluster identifier
     label: Union[int, str]                 # class (or "NA" in regression)
     center: np.ndarray                     # local maximum
     directions: np.ndarray                 # (n_rays, d)
@@ -857,6 +858,7 @@ class ModalBoundaryClustering(BaseEstimator):
                     peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
                     peak_norm = float(f(center))
                     self.regions_.append(ClusterRegion(
+                        cluster_id=len(self.regions_),
                         label=label, center=center, directions=dirs, radii=radii,
                         inflection_points=infl, inflection_slopes=slopes,
                         peak_value_real=peak_real, peak_value_norm=peak_norm
@@ -878,6 +880,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
                 peak_norm = float(f(center))
                 self.regions_.append(ClusterRegion(
+                    cluster_id=len(self.regions_),
                     label="NA", center=center, directions=dirs, radii=radii,
                     inflection_points=infl, inflection_slopes=slopes,
                     peak_value_real=peak_real, peak_value_norm=peak_norm
@@ -1140,6 +1143,7 @@ class ModalBoundaryClustering(BaseEstimator):
             row_c = {
                 "Tipo": "centroide",
                 "Distancia": 0.0,
+                "ClusterID": reg.cluster_id,
                 "Categoria": reg.label,
                 "valor_real": reg.peak_value_real,
                 "valor_norm": reg.peak_value_norm,
@@ -1157,6 +1161,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 row_i = {
                     "Tipo": "inflexion_point",
                     "Distancia": float(r),
+                    "ClusterID": reg.cluster_id,
                     "Categoria": reg.label,
                     "valor_real": float(self._predict_value_real(p.reshape(1, -1), class_idx=cls_index)[0]),
                     "valor_norm": np.nan,
@@ -1215,7 +1220,7 @@ class ModalBoundaryClustering(BaseEstimator):
             Z = self._predict_value_real(X_grid, class_idx=cls_idx).reshape(XI.shape)
 
             plt.figure(figsize=(6, 5))
-            plt.title(f"Prob. clase '{label}' vs (feat {i},{j})")
+            plt.title(f"Cluster {reg.cluster_id} - Prob. clase '{label}' vs (feat {i},{j})")
             cf = plt.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
             plt.colorbar(cf, label=f"P({label})")
 
@@ -1247,8 +1252,21 @@ class ModalBoundaryClustering(BaseEstimator):
             order = np.argsort(ang)
             poly = pts[order]
             col = class_colors[label]
-            plt.plot(np.r_[poly[:, 0], poly[0, 0]], np.r_[poly[:, 1], poly[0, 1]], color=col, linewidth=2, label=f"frontera {label}")
-            plt.scatter(ctr[0], ctr[1], c=col, marker='X', s=80, label=f"centro {label}")
+            plt.plot(
+                np.r_[poly[:, 0], poly[0, 0]],
+                np.r_[poly[:, 1], poly[0, 1]],
+                color=col,
+                linewidth=2,
+                label=f"frontera {reg.cluster_id} ({label})",
+            )
+            plt.scatter(
+                ctr[0],
+                ctr[1],
+                c=col,
+                marker='X',
+                s=80,
+                label=f"centro {reg.cluster_id} ({label})",
+            )
 
             plt.xlabel(f"feat {i}")
             plt.ylabel(f"feat {j}")
@@ -1294,12 +1312,11 @@ class ModalBoundaryClustering(BaseEstimator):
         X_grid[:, j] = XJ.ravel()
         Z = self._predict_value_real(X_grid, class_idx=None).reshape(XI.shape)
 
+        reg = self.regions_[0]
         plt.figure(figsize=(6, 5))
-        plt.title(f"Valor predicho vs (feat {i},{j})")
+        plt.title(f"Cluster {reg.cluster_id} - Valor predicho vs (feat {i},{j})")
         cf = plt.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
         plt.colorbar(cf, label="y_pred")
-
-        reg = self.regions_[0]
         center2 = reg.center.copy()
         mask_others = np.ones(d, dtype=bool)
         mask_others[[i, j]] = False
@@ -1321,8 +1338,21 @@ class ModalBoundaryClustering(BaseEstimator):
         ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
         order = np.argsort(ang)
         poly = pts[order]
-        plt.plot(np.r_[poly[:, 0], poly[0, 0]], np.r_[poly[:, 1], poly[0, 1]], color="black", linewidth=2, label="frontera")
-        plt.scatter(ctr[0], ctr[1], c="black", marker='X', s=80, label="centro")
+        plt.plot(
+            np.r_[poly[:, 0], poly[0, 0]],
+            np.r_[poly[:, 1], poly[0, 1]],
+            color="black",
+            linewidth=2,
+            label=f"frontera {reg.cluster_id}",
+        )
+        plt.scatter(
+            ctr[0],
+            ctr[1],
+            c="black",
+            marker='X',
+            s=80,
+            label=f"centro {reg.cluster_id}",
+        )
 
         plt.xlabel(f"feat {i}")
         plt.ylabel(f"feat {j}")
