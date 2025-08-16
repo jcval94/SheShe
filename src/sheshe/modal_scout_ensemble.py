@@ -178,6 +178,7 @@ class ModalScoutEnsemble(BaseEstimator):
     # Passthrough a MBC
     mbc_kwargs: Optional[Dict[str, Any]] = None,
     verbose: int = 0,
+    save_label2: bool = False,
   ):
     self.base_estimator = base_estimator
     self.task = task
@@ -209,6 +210,7 @@ class ModalScoutEnsemble(BaseEstimator):
     self.scout_kwargs = scout_kwargs or {}
     self.mbc_kwargs = mbc_kwargs or {}
     self.verbose = verbose
+    self.save_label2 = save_label2
 
     # Atributos post-fit
     self.selected_: List[Dict[str, Any]] = []
@@ -429,6 +431,9 @@ class ModalScoutEnsemble(BaseEstimator):
           self.regions_.append(reg)
           cid += 1
 
+    if self.save_label2:
+      self.labels2_, self.label2id_ = self.predict_regions(X)
+
     if self.verbose:
       print(f"[ModalScoutEnsemble] Submodelos={len(self.models_)} | Pesos≈{np.round(self.weights_, 3)}")
     return self
@@ -475,6 +480,76 @@ class ModalScoutEnsemble(BaseEstimator):
       yhat = mbc.predict(Xs)
       out = (w * yhat) if out is None else (out + w * yhat)
     return out
+
+  def predict_regions(self, X: np.ndarray):
+    """Predicción usando solo modelos cuya región cubre cada muestra.
+
+    Devuelve una tupla ``(labels, cluster_ids)``. Para cada muestra:
+
+    * ``labels[i]`` es la predicción agregada usando únicamente los submodelos
+      que incluyen a ``X[i]`` dentro de alguna de sus regiones. Si ningún
+      submodelo cubre la muestra, el valor es ``-1``.
+    * ``cluster_ids[i]`` es el ``cluster_id`` del submodelo con mayor peso que
+      cubre la muestra. Si ninguno la cubre, toma el valor ``-1``.
+    """
+
+    if self.weights_ is None:
+      raise RuntimeError("Modelo no ajustado.")
+
+    X = np.asarray(X, dtype=float)
+    n = X.shape[0]
+
+    if self.fitted_task_ == "classification":
+      labels = np.empty(n, dtype=object)
+    else:
+      labels = np.full(n, -1.0, dtype=float)
+    cluster_ids = np.full(n, -1, dtype=int)
+
+    for i in range(n):
+      agg = None
+      used_weights = []
+      used_ids = []
+      for w, feats, mbc in zip(self.weights_, self.features_, self.models_):
+        Xi = X[i : i + 1, feats]
+        cid = mbc.predict_regions(Xi)[0]
+        cid_val = cid[0] if isinstance(cid, list) else cid
+        if cid_val == -1:
+          continue
+        if self.fitted_task_ == "classification":
+          if hasattr(mbc, "predict_proba"):
+            P = mbc.predict_proba(Xi)
+            if P.shape[1] != len(self.classes_):
+              subc = getattr(mbc, "classes_", self.classes_)
+              P2 = np.zeros((1, len(self.classes_)), dtype=float)
+              for j, c in enumerate(subc):
+                idx = int(np.where(self.classes_ == c)[0][0])
+                P2[0, idx] = P[0, j]
+              P = P2
+          else:
+            yhat = mbc.predict(Xi)
+            P = np.zeros((1, len(self.classes_)), dtype=float)
+            for j, c in enumerate(self.classes_):
+              P[0, j] = float(yhat[0] == c)
+          agg = w * P if agg is None else agg + w * P
+        else:
+          yhat = mbc.predict(Xi)
+          agg = w * yhat if agg is None else agg + w * yhat
+        used_weights.append(w)
+        used_ids.append(cid_val)
+
+      if used_weights:
+        wsum = sum(used_weights)
+        if self.fitted_task_ == "classification":
+          probs = agg / wsum
+          labels[i] = self.classes_[int(np.argmax(probs))]
+        else:
+          labels[i] = float(agg / wsum)
+        cluster_ids[i] = used_ids[int(np.argmax(used_weights))]
+      else:
+        labels[i] = -1
+        cluster_ids[i] = -1
+
+    return labels, cluster_ids
 
   def report(self) -> List[Dict[str, Any]]:
     """Resumen por subespacio (ordenado por peso)."""
