@@ -419,6 +419,16 @@ class ModalScoutEnsemble(BaseEstimator):
         c = np.unique(y)
       self.classes_ = c
 
+    # 9) Assign global cluster IDs across all submodels
+    self.regions_ = []
+    cid = 0
+    for mbc in self.models_:
+      if hasattr(mbc, "regions_"):
+        for reg in mbc.regions_:
+          reg.cluster_id = cid
+          self.regions_.append(reg)
+          cid += 1
+
     if self.verbose:
       print(f"[ModalScoutEnsemble] Submodelos={len(self.models_)} | Pesos≈{np.round(self.weights_, 3)}")
     return self
@@ -480,6 +490,7 @@ class ModalScoutEnsemble(BaseEstimator):
         "cv_score": float(self.cv_scores_[idx]) if idx < len(self.cv_scores_) else None,
         "feat_importance": float(self.imp_scores_[idx]) if idx < len(self.imp_scores_) else None,
         "weight": float(w),
+        "cluster_ids": [reg.cluster_id for reg in getattr(mbc, "regions_", [])],
       }
       for attr in ("regions_", "rules_", "segments_", "boundaries_", "feature_importances_"):
         if hasattr(mbc, attr):
