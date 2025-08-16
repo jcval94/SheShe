@@ -495,6 +495,7 @@ class ModalBoundaryClustering(BaseEstimator):
         max_subspaces: int = 20,
         verbose: bool = False,
         save_labels: bool = False,
+        save_label2: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
         auto_rays_by_dim: bool = True,
         use_spsa: bool = False,
@@ -535,6 +536,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.max_subspaces = max_subspaces
         self.verbose = verbose
         self.save_labels = save_labels
+        self.save_label2 = save_label2
         self.out_dir = Path(out_dir) if out_dir is not None else None
         self.auto_rays_by_dim = auto_rays_by_dim
         self.use_spsa = use_spsa
@@ -891,7 +893,8 @@ class ModalBoundaryClustering(BaseEstimator):
             self.save_labels = False
             try:
                 self.labels_ = self.predict(X)
-                self.labels2_ = self.predict_regions(X)
+                if self.save_label2:
+                    self.labels2_ = self.predict_regions(X)
             finally:
                 self.save_labels = save_flag
         except Exception as exc:
