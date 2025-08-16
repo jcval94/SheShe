@@ -3,6 +3,14 @@
 
 Segmentación de bordes y exploración de hiper-fronteras basada en **máximos locales** de
 la **probabilidad por clase** (clasificación) o del **valor predicho** (regresión).
+Se trata de un algoritmo de clustering supervisado.
+
+A diferencia de los métodos de clustering no supervisados que dependen solo de
+la similitud entre características, SheShe aprovecha ejemplos etiquetados. Un
+estimador base modela la relación entre entradas y objetivos, y el algoritmo
+descubre regiones cuyas respuestas se mantienen altas para una clase o valor.
+Los clusters siguen así la superficie de decisión supervisada en lugar de
+métricas de distancia arbitrarias.
 
 ---
 
