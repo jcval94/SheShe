@@ -67,6 +67,7 @@ reg = ModalBoundaryClustering(task="regression")
 - `fit(X, y)`
 - `predict(X)`
 - `predict_proba(X)`  → classification: per-class probabilities; regression: normalized value [0,1]
+- `decision_function(X)` → classification: decision scores (`predict_proba` fallback); regression: predicted values (`predict` fallback)
 - `interpretability_summary(feature_names=None)` → DataFrame with:
   - `Type`: "centroid" | "inflection_point"
   - `Distance`: radius from the center to the inflection point
@@ -77,6 +78,23 @@ reg = ModalBoundaryClustering(task="regression")
 - `plot_pairs(X, y=None, max_pairs=None)` → 2D plots for all pair combinations
 - `save(filepath)` → save the model using `joblib`
 - `ModalBoundaryClustering.load(filepath)` → load a saved instance
+
+#### `decision_function(X)`
+Devuelve las puntuaciones crudas del modelo subyacente. En clasificación se
+usa `decision_function` si el estimador lo implementa; en caso contrario se
+utiliza `predict_proba`. En regresión se recurre a `decision_function` cuando
+está disponible y, de no existir, a `predict`.
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+sh = ModalBoundaryClustering().fit(X, y)
+scores = sh.decision_function(X[:2])
+```
 
 #### Visualización 3D
 `plot_pair_3d` visualiza la probabilidad de una clase o el valor predicho como
