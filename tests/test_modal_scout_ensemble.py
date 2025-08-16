@@ -1,0 +1,25 @@
+import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+
+from sheshe import ModalScoutEnsemble
+
+
+def test_modal_scout_ensemble_basic():
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+        cv=2,
+    )
+    mse.fit(X, y)
+    yhat = mse.predict(X)
+    assert yhat.shape == y.shape
+    proba = mse.predict_proba(X[:5])
+    assert proba.shape[0] == 5
+    assert np.isclose(mse.weights_.sum(), 1.0)
+    report = mse.report()
+    assert isinstance(report, list) and report
