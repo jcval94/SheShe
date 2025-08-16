@@ -299,6 +299,47 @@ mse.fit(X, y)
 print(mse.predict(X[:5]))
 ```
 
+#### `report()`
+
+`report()` devuelve una lista con un elemento por cada subespacio entrenado,
+ordenada por `weight`. Cada elemento es un diccionario con:
+
+- `features`: tupla con los índices de las características del subespacio.
+- `order`: número de características del subespacio.
+- `scout_score`: puntuación asignada por `SubspaceScout`.
+- `cv_score`: puntuación de validación cruzada del submodelo.
+- `feat_importance`: importancia media de las características.
+- `weight`: peso normalizado en el ensamble.
+
+Ejemplo:
+
+```python
+from pprint import pprint
+
+resumen = mse.report()
+pprint([
+    {k: row[k] for k in ("features", "order", "scout_score", "cv_score", "feat_importance", "weight")}
+    for row in resumen[:2]
+])
+```
+
+Salida:
+
+```text
+[{'cv_score': 0.9267,
+  'feat_importance': 5.9886,
+  'features': (3, 1),
+  'order': 2,
+  'scout_score': -0.2368,
+  'weight': 0.4336},
+ {'cv_score': 0.8467,
+  'feat_importance': 7.3800,
+  'features': (2, 1),
+  'order': 2,
+  'scout_score': -0.1543,
+  'weight': 0.4193}]
+```
+
 ### Experimentos y benchmark
 
 Los experimentos de comparación con algoritmos **no supervisados** se encuentran
