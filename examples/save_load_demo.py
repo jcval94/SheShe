@@ -8,7 +8,7 @@ def main():
     iris = load_iris()
     X, y = iris.data, iris.target
 
-    model = ModalBoundaryClustering(random_state=0).fit(X, y)
+    model = ModalBoundaryClustering(random_state=0, drop_fraction=0.5).fit(X, y)
     path = Path("sheshe_model.joblib")
     model.save(path)
     loaded = ModalBoundaryClustering.load(path)

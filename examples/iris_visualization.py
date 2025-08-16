@@ -21,6 +21,7 @@ def main() -> None:
         task="classification",
         base_2d_rays=8,  # número de rayos por cada plano 2D considerado
         random_state=0,
+        drop_fraction=0.5,
     ).fit(X, y)
 
     # Create up to two pairwise plots
