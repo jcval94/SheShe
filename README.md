@@ -68,6 +68,7 @@ reg = ModalBoundaryClustering(task="regression")
 - `predict(X)`
 - `fit_predict(X, y=None)` → convenience method equivalent to calling `fit` followed by `predict` on the same data
 - `predict_proba(X)`  → classification: per-class probabilities; regression: normalized value [0,1]
+- `decision_function(X)` → classification: decision scores from the estimator or `predict_proba` fallback; regression: predictions or `predict` fallback
 - `interpretability_summary(feature_names=None)` → DataFrame with:
   - `Type`: "centroid" | "inflection_point"
   - `Distance`: radius from the center to the inflection point
@@ -88,6 +89,17 @@ from sheshe import ModalBoundaryClustering
 X, y = load_iris(return_X_y=True)
 labels = ModalBoundaryClustering().fit_predict(X, y)
 print(labels[:5])
+```
+
+Example of `decision_function` usage:
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+print(sh.decision_function(X[:2]))
 ```
 
 #### Visualización 3D

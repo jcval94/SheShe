@@ -66,6 +66,7 @@ reg = ModalBoundaryClustering(task="regression")
 - `fit(X, y)`
 - `predict(X)`
 - `predict_proba(X)`  → clasificación: probas por clase; regresión: valor normalizado [0,1]
+- `decision_function(X)` → clasificación: puntajes de decisión o `predict_proba` si no existe; regresión: valor predicho o `predict` como fallback
 - `interpretability_summary(feature_names=None)` → DataFrame con:
   - `Tipo`: "centroide" | "inflexion_point"
   - `Distancia`: radio desde el centro al punto de inflexión
@@ -76,6 +77,17 @@ reg = ModalBoundaryClustering(task="regression")
 - `plot_pairs(X, y=None, max_pairs=None)` → gráficos 2D para todas las combinaciones de pares
 - `save(filepath)` → guarda el modelo mediante `joblib`
 - `ModalBoundaryClustering.load(filepath)` → carga una instancia guardada
+
+Ejemplo de uso de `decision_function`:
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+print(sh.decision_function(X[:2]))
+```
 
 ---
 
