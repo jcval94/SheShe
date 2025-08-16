@@ -54,6 +54,7 @@ clf = ModalBoundaryClustering(
     scan_steps=64,
     smooth_window=None,             # ventana de suavizado opcional
     drop_fraction=0.5,              # caída requerida desde el pico
+    stop_criteria="inflexion",     # o "percentile" para usar deciles
     random_state=0
 )
 
@@ -85,12 +86,15 @@ reg = ModalBoundaryClustering(task="regression")
    - 2D: 8 rayos por defecto
    - 3D: ~26 direcciones (cobertura por *caps* esféricos con muestreo Fibonacci)
    - >3D: mezcla de unas pocas direcciones globales + **subespacios** 2D/3D
-4. Sobre cada rayo, **escanea radialmente** y calcula el **primer punto de inflexión** según `direction`:
+4. Sobre cada rayo, **escanea radialmente** y calcula el punto donde detenerse
+   según `direction` y `stop_criteria`:
     - `center_out`: desde el centro hacia fuera
     - `outside_in`: desde el exterior hacia el centro
    Opcionalmente aplica un promedio móvil (`smooth_window`) y registra además la
-   **pendiente** (df/dt) en ese punto. Si no se detecta un punto de inflexión,
-   usa el primer valor donde la función cae por debajo de `drop_fraction` del
+   **pendiente** (df/dt) en ese punto. Con `stop_criteria="percentile"` el
+   escaneo se detiene cuando el valor cae a un decil inferior de la
+   distribución. Si no se detecta un punto de inflexión o caída de decil, se usa
+   el primer valor donde la función cae por debajo de `drop_fraction` del
    máximo.
 5. Conecta los puntos de inflexión para formar la **frontera** de la región de alta probabilidad/valor.
 
@@ -191,6 +195,27 @@ print(sh.interpretability_summary(diab.feature_names).head())
 sh.plot_pairs(X, max_pairs=3)
 plt.show()
 ```
+
+---
+
+## Benchmark
+
+La regla basada en percentiles evita el punto de inflexión y se detiene cuando
+el valor cae a un decil inferior. La implementación actual en bucle es
+considerablemente más rápida que la versión vectorizada anterior. En el dataset
+de Iris:
+
+```
+$ PYTHONPATH=src python experiments/benchmark_stop_criteria.py
+vectorized implementation: 0.0259s
+loop implementation:       0.0121s
+speedup: 2.14x
+ModalBoundaryClustering fit with stop_criteria='inflexion': 0.1026s
+ModalBoundaryClustering fit con stop_criteria='percentile': 0.1411s
+```
+
+Los valores exactos dependen de la máquina, pero el método en bucle optimizado
+es mucho más rápido y arroja los mismos resultados.
 
 ### Guardado de gráficas
 ```python
