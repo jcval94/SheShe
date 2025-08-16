@@ -366,6 +366,16 @@ mse.fit(X, y)
 print(mse.predict(X[:5]))
 ```
 
+#### `predict_proba(X)`
+
+Only available for classification tasks, this method returns the weighted mixture
+of class probabilities from all submodels in the ensemble.
+
+```python
+mse.fit(X, y)
+print(mse.predict_proba(X[:5]))
+```
+
 #### `report()`
 
 `report()` returns a list with one entry per trained subspace, sorted by
