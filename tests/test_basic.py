@@ -5,7 +5,7 @@ from sklearn.datasets import load_iris, make_regression, make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVC
-from sheshe import ModalBoundaryClustering
+from sheshe import ModalBoundaryClustering, ModalScoutEnsemble
 
 def test_import_and_fit():
     iris = load_iris()
@@ -48,6 +48,62 @@ def test_fit_predict_sets_labels_attribute():
     assert hasattr(sh, "labels_")
     assert np.array_equal(labels, sh.predict(X))
     assert np.array_equal(sh.labels_, labels)
+
+
+def test_labels2_attribute_and_method():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        save_regions=True,
+    )
+    sh.fit(X, y)
+    assert hasattr(sh, "labels2_")
+    assert hasattr(sh, "label2id_")
+    assert sh.labels2_.shape[0] == X.shape[0]
+    # calling predict_regions should match labels2_ and label2id_
+    expected = sh.predict_regions(X)
+    assert np.array_equal(sh.labels2_, expected)
+    assert np.array_equal(sh.label2id_, expected)
+    # sample far away from training data should be marked as -1
+    far_point = np.array([[1000, 1000, 1000, 1000]])
+    far_label = sh.predict_regions(far_point)[0]
+    assert far_label == -1
+
+
+def test_modal_scout_ensemble_labels2():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        top_k=1,
+        cv=0,
+        time_budget_s=3,
+        save_regions=True,
+        scout_kwargs={
+            "max_order": 2,
+            "top_m": 5,
+            "n_bins": 4,
+            "beam_width": 4,
+            "base_pairs_limit": 4,
+            "extend_candidate_pool": 4,
+            "max_eval_per_order": 50,
+        },
+    )
+    mse.fit(X, y)
+    assert hasattr(mse, "labels2_")
+    assert hasattr(mse, "label2id_")
+    assert mse.labels2_.shape[0] == X.shape[0]
+    expected = mse.predict_regions(X)
+    assert np.array_equal(mse.labels2_, expected)
+    assert np.array_equal(mse.label2id_, expected)
+    far_point = np.array([[1000, 1000, 1000, 1000]])
+    far_label = mse.predict_regions(far_point)[0]
+    assert far_label == -1
 
 
 def test_score_regression():

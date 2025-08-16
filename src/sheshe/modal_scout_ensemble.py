@@ -177,6 +177,7 @@ class ModalScoutEnsemble(BaseEstimator):
 
     # Passthrough a MBC
     mbc_kwargs: Optional[Dict[str, Any]] = None,
+    save_regions: bool = False,
     verbose: int = 0,
   ):
     self.base_estimator = base_estimator
@@ -208,6 +209,7 @@ class ModalScoutEnsemble(BaseEstimator):
 
     self.scout_kwargs = scout_kwargs or {}
     self.mbc_kwargs = mbc_kwargs or {}
+    self.save_regions = save_regions
     self.verbose = verbose
 
     # Atributos post-fit
@@ -431,7 +433,46 @@ class ModalScoutEnsemble(BaseEstimator):
 
     if self.verbose:
       print(f"[ModalScoutEnsemble] Submodelos={len(self.models_)} | Pesos≈{np.round(self.weights_, 3)}")
+    # Compute labels on training data for compatibility with ModalBoundaryClustering
+    self.labels_ = self.predict(X)
+    if self.save_regions:
+      regs = self.predict_regions(X)
+      self.labels2_ = regs
+      self.label2id_ = regs
     return self
+
+  def predict_regions(self, X: np.ndarray) -> np.ndarray:
+    """Region membership prediction for ``X``.
+
+    Combines the region memberships from all underlying submodels. For each
+    sample this method returns ``-1`` if it does not belong to any region,
+    the ``cluster_id`` when it falls in a single region or a list of
+    ``cluster_id`` values when it belongs to multiple regions.
+    """
+    if not getattr(self, "models_", None):
+      raise RuntimeError("Modelo no ajustado.")
+    X = np.asarray(X, dtype=float)
+    preds = []
+    for feats, mbc in zip(self.features_, self.models_):
+      Xs = X[:, feats]
+      preds.append(mbc.predict_regions(Xs))
+
+    out = np.empty(len(X), dtype=object)
+    for i in range(len(X)):
+      ids: List[int] = []
+      for p in preds:
+        val = p[i]
+        if isinstance(val, list):
+          ids.extend(val)
+        elif val != -1:
+          ids.append(val)
+      if not ids:
+        out[i] = -1
+      elif len(ids) == 1:
+        out[i] = ids[0]
+      else:
+        out[i] = ids
+    return out
 
   def predict_proba(self, X: np.ndarray) -> np.ndarray:
     if self.fitted_task_ != "classification":

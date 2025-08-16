@@ -495,6 +495,7 @@ class ModalBoundaryClustering(BaseEstimator):
         max_subspaces: int = 20,
         verbose: bool = False,
         save_labels: bool = False,
+        save_regions: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
         auto_rays_by_dim: bool = True,
         use_spsa: bool = False,
@@ -535,6 +536,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.max_subspaces = max_subspaces
         self.verbose = verbose
         self.save_labels = save_labels
+        self.save_regions = save_regions
         self.out_dir = Path(out_dir) if out_dir is not None else None
         self.auto_rays_by_dim = auto_rays_by_dim
         self.use_spsa = use_spsa
@@ -891,6 +893,10 @@ class ModalBoundaryClustering(BaseEstimator):
             self.save_labels = False
             try:
                 self.labels_ = self.predict(X)
+                if self.save_regions:
+                    regs = self.predict_regions(X)
+                    self.labels2_ = regs
+                    self.label2id_ = regs
             finally:
                 self.save_labels = save_flag
         except Exception as exc:
@@ -990,6 +996,47 @@ class ModalBoundaryClustering(BaseEstimator):
             raise
         runtime = time.perf_counter() - start
         self._log(f"predict completed in {runtime:.4f}s")
+        self._maybe_save_labels(result, label_path)
+        return result
+
+    def predict_regions(
+        self,
+        X: Union[np.ndarray, pd.DataFrame],
+        label_path: Optional[Union[str, Path]] = None,
+    ) -> np.ndarray:
+        """Region membership prediction for ``X``.
+
+        For each sample the method returns:
+
+        - ``-1`` if the sample does not fall inside any region.
+        - The ``cluster_id`` of the region if it falls in exactly one.
+        - A list with all ``cluster_id`` values when the sample belongs to
+          multiple regions.
+
+        This method ignores the base estimator and solely relies on the
+        discovered regions.
+        """
+        start = time.perf_counter()
+        try:
+            check_is_fitted(self, "regions_")
+            X = np.asarray(X, dtype=float)
+            M = self._membership_matrix(X)
+            ids = np.array([reg.cluster_id for reg in self.regions_])
+            pred: np.ndarray = np.empty(len(X), dtype=object)
+            for i in range(len(X)):
+                ks = np.where(M[i] == 1)[0]
+                if len(ks) == 0:
+                    pred[i] = -1
+                elif len(ks) == 1:
+                    pred[i] = ids[ks[0]]
+                else:
+                    pred[i] = ids[ks].tolist()
+            result = pred
+        except Exception as exc:
+            self._log(f"Error in predict_regions: {exc}")
+            raise
+        runtime = time.perf_counter() - start
+        self._log(f"predict_regions completed in {runtime:.4f}s")
         self._maybe_save_labels(result, label_path)
         return result
 
