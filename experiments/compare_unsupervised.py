@@ -31,7 +31,7 @@ from sklearn.metrics import (
     v_measure_score,
 )
 
-from sheshe import ModalBoundaryClustering
+from sheshe import ModalScoutEnsemble
 
 
 Metric = Tuple[str, callable]
@@ -122,28 +122,48 @@ def run(
         for name, (X, y) in datasets.items():
             n_classes = len(set(y))
 
-            # SheShe: barrido sobre C
-            for C in [0.1, 1.0, 10.0]:
+            # SheShe: barridos de C, max_order, jaccard_threshold y base_2d_rays
+            def _run_sheshe(*, C: float, max_order: int, jacc: float, rays: int) -> None:
                 start = time.perf_counter()
                 try:
-                    sh = ModalBoundaryClustering(
-                        base_estimator=LogisticRegression(max_iter=500, C=C, random_state=seed),
+                    sh = ModalScoutEnsemble(
+                        base_estimator=LogisticRegression(
+                            max_iter=500, C=C, random_state=seed
+                        ),
                         task="classification",
                         random_state=seed,
+                        max_order=max_order,
+                        jaccard_threshold=jacc,
+                        base_2d_rays=rays,
+                        scout_kwargs={
+                            "max_order": max_order,
+                            "top_m": 4,
+                            "sample_size": None,
+                        },
+                        cv=2,
                     ).fit(X, y)
                     y_pred = sh.predict(X)
                     metrics_dict = _evaluate(y, y_pred, metrics)
-                    _save_labels(y_pred, f"{name}_SheShe_C-{C}_seed-{seed}.labels")
+                    _save_labels(
+                        y_pred,
+                        f"{name}_SheShe_C-{C}_mo-{max_order}_jt-{jacc}_rays-{rays}_seed-{seed}.labels",
+                    )
                 except Exception as exc:
                     y_pred = []
                     metrics_dict = {name: math.nan for name, _ in metrics}
                     if verbose:
-                        print(f"SheShe falló en {name} (C={C}, seed={seed}): {exc}")
+                        print(
+                            "SheShe falló en "
+                            f"{name} (C={C}, max_order={max_order}, jt={jacc}, rays={rays}, seed={seed}): {exc}",
+                        )
                 runtime = time.perf_counter() - start
                 record = {
                     "dataset": name,
                     "algorithm": "SheShe",
-                    "params": f"C={C}",
+                    "params": (
+                        f"C={C},max_order={max_order},jaccard_threshold={jacc},"
+                        f"base_2d_rays={rays}"
+                    ),
                     "seed": seed,
                     "runtime_sec": runtime,
                 }
@@ -151,11 +171,28 @@ def run(
                 results.append(record)
                 if verbose:
                     print(
-                        f"SheShe {name} C={C} seed={seed} → {runtime:.4f}s",
+                        "SheShe "
+                        f"{name} C={C} max_order={max_order} jt={jacc} rays={rays} seed={seed} → {runtime:.4f}s",
                     )
 
-            # KMeans: variar n_clusters
-            for k in [n_classes - 1, n_classes, n_classes + 1]:
+            # Barrido sobre C (manteniendo el resto en valores por defecto)
+            for C in [0.01, 0.1, 1.0, 10.0, 100.0]:
+                _run_sheshe(C=C, max_order=3, jacc=0.55, rays=24)
+
+            # Barrido sobre max_order
+            for max_order in [2]:
+                _run_sheshe(C=1.0, max_order=max_order, jacc=0.55, rays=24)
+
+            # Barrido sobre jaccard_threshold
+            for jacc in [0.4, 0.7]:
+                _run_sheshe(C=1.0, max_order=3, jacc=jacc, rays=24)
+
+            # Barrido sobre base_2d_rays
+            for rays in [16]:
+                _run_sheshe(C=1.0, max_order=3, jacc=0.55, rays=rays)
+
+            # KMeans: variar n_clusters (más valores)
+            for k in [n_classes - 2, n_classes - 1, n_classes, n_classes + 1, n_classes + 2]:
                 k = max(k, 1)
                 start = time.perf_counter()
                 try:
@@ -184,8 +221,8 @@ def run(
                         f"KMeans {name} k={k} seed={seed} → {runtime:.4f}s",
                     )
 
-            # DBSCAN: variar eps
-            for eps in [0.3, 0.5, 0.7]:
+            # DBSCAN: variar eps (rango ampliado)
+            for eps in [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]:
                 start = time.perf_counter()
                 try:
                     db = DBSCAN(eps=eps, min_samples=5)
