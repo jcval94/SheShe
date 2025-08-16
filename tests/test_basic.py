@@ -22,6 +22,34 @@ def test_import_and_fit():
     assert 0.0 <= score <= 1.0
 
 
+def test_labels_attribute_after_fit():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    assert hasattr(sh, "labels_")
+    assert sh.labels_.shape[0] == X.shape[0]
+    assert np.array_equal(sh.labels_, sh.predict(X))
+
+
+def test_fit_predict_sets_labels_attribute():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+    )
+    labels = sh.fit_predict(X, y)
+    assert hasattr(sh, "labels_")
+    assert np.array_equal(labels, sh.predict(X))
+    assert np.array_equal(sh.labels_, labels)
+
+
 def test_score_regression():
     X, y = make_regression(n_samples=100, n_features=4, noise=0.1, random_state=0)
     sh = ModalBoundaryClustering(

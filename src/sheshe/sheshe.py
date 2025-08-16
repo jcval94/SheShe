@@ -885,6 +885,14 @@ class ModalBoundaryClustering(BaseEstimator):
                     inflection_points=infl, inflection_slopes=slopes,
                     peak_value_real=peak_real, peak_value_norm=peak_norm
                 ))
+            # Guardar etiquetas de entrenamiento para compatibilidad con
+            # la API estándar de clustering de scikit-learn
+            save_flag = self.save_labels
+            self.save_labels = False
+            try:
+                self.labels_ = self.predict(X)
+            finally:
+                self.save_labels = save_flag
         except Exception as exc:
             self._log(f"Error in fit: {exc}")
             raise
