@@ -106,19 +106,33 @@ def _rule_text(a: float, b: float, c: float, xname: str, yname: str, decimals: i
 
 # ==================== Núcleo de interpretabilidad ====================
 
-def _extract_region(reg: Any) -> Tuple[int, np.ndarray, np.ndarray, np.ndarray]:
-    """Admite dict u objeto (p.ej., ClusterRegion)."""
+def _extract_region(reg: Any) -> Tuple[int, Any, np.ndarray, np.ndarray, np.ndarray]:
+    """Admite dict u objeto (p.ej., ClusterRegion).
+
+    Devuelve ``cluster_id``, ``label``, ``center``, ``directions`` y ``radii``.
+    ``cluster_id`` cae a ``label`` si el objeto no lo expone explícitamente.
+    """
     if isinstance(reg, dict):
-        label = int(reg["label"])
+        cid = int(reg.get("cluster_id", reg.get("label", 0)))
+        label = reg.get("label", cid)
+        try:
+            label = int(label)
+        except Exception:
+            pass
         center = np.asarray(reg["center"], float)
         directions = np.asarray(reg["directions"], float)
         radii = np.asarray(reg["radii"], float)
     else:
-        label = int(getattr(reg, "label"))
+        cid = int(getattr(reg, "cluster_id", getattr(reg, "label")))
+        label = getattr(reg, "label", cid)
+        try:
+            label = int(label)
+        except Exception:
+            pass
         center = np.asarray(getattr(reg, "center"), float)
         directions = np.asarray(getattr(reg, "directions"), float)
         radii = np.asarray(getattr(reg, "radii"), float)
-    return label, center, directions, radii
+    return cid, label, center, directions, radii
 
 
 def _sanitize_directions(
@@ -221,6 +235,7 @@ def _ensure_names(D: int, feature_names: Optional[List[str]]) -> List[str]:
 class RegionInterpreter:
     """
     Convierte ClusterRegion(s) en tarjetas interpretables:
+    - cluster_id y label
     - headline humano
     - reglas por eje (caja robusta)
     - reglas por proyección 2D (3–5 desigualdades lineales)
@@ -250,13 +265,14 @@ class RegionInterpreter:
 
         out: List[Dict[str, Any]] = []
         for reg in regions:
-            label, center, dirs, radii = _extract_region(reg)
+            cid, label, center, dirs, radii = _extract_region(reg)
 
             # limpieza de direcciones / radios
             dirs, radii = _sanitize_directions(dirs, radii)
             if dirs.size == 0:
                 out.append(dict(
-                    label=int(label),
+                    cluster_id=int(cid),
+                    label=label,
                     center=[round(float(x), self.decimals) for x in center.tolist()],
                     headline="Región degenerada (sin radios útiles).",
                     box_rules=[],
@@ -316,7 +332,8 @@ class RegionInterpreter:
                     pass
 
             out.append(dict(
-                label=int(label),
+                cluster_id=int(cid),
+                label=label,
                 center=[round(float(x), self.decimals) for x in center.tolist()],
                 headline=headline,
                 box_rules=box_rules,
@@ -335,6 +352,7 @@ class RegionInterpreter:
         rows = []
         for c in cards:
             base = {
+                "cluster_id": c["cluster_id"],
                 "label": c["label"],
                 "center": c["center"],
                 "headline": c["headline"],
@@ -355,7 +373,7 @@ class RegionInterpreter:
     def pretty_print(cards: List[Dict[str, Any]]) -> None:
         """Impresión amigable en consola."""
         for c in cards:
-            print(f"\n=== Región {c['label']} ===")
+            print(f"\n=== Región {c['cluster_id']} (label {c['label']}) ===")
             print("Center:", c["center"])
             print("Headline:", c["headline"])
             if c.get("box_rules"):
