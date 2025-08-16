@@ -78,6 +78,31 @@ reg = ModalBoundaryClustering(task="regression")
 - `save(filepath)` → save the model using `joblib`
 - `ModalBoundaryClustering.load(filepath)` → load a saved instance
 
+#### Visualización 3D
+`plot_pair_3d` visualiza la probabilidad de una clase o el valor predicho como
+una superficie tridimensional para un par de características.
+
+Parámetros principales:
+- `pair`: tupla `(i, j)` con los índices de las características a graficar.
+- `class_label`: etiqueta de la clase a mostrar cuando `task='classification'`.
+- `grid_res`: resolución de la malla usada para la superficie.
+- `alpha_surface`: transparencia de la superficie.
+
+Ejemplo mínimo:
+
+```python
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+sh = ModalBoundaryClustering().fit(X, y)
+sh.plot_pair_3d(X, (0, 1), class_label=sh.classes_[0])
+plt.show()
+```
+
 ---
 
 ## How does it work?
