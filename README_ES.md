@@ -48,10 +48,10 @@ from sheshe import (
 clf = ModalBoundaryClustering(
     base_estimator=None,           # por defecto LogisticRegression
     task="classification",         # "classification" | "regression"
-    base_2d_rays=8,                # nº de rayos en 2D (≈45°)
+    base_2d_rays=24,               # nº de rayos en 2D (≈15°)
     direction="center_out",        # "center_out" | "outside_in"
     scan_radius_factor=3.0,
-    scan_steps=64,
+    scan_steps=24,
     smooth_window=None,             # ventana de suavizado opcional
     drop_fraction=0.5,              # caída requerida desde el pico
     stop_criteria="inflexion",     # o "percentile" para usar deciles
@@ -83,7 +83,7 @@ reg = ModalBoundaryClustering(task="regression")
 1. Entrena/usa un **modelo base** de sklearn (clasificación con `predict_proba` o regresión con `predict`).
 2. Busca **máximos locales** por **ascenso de gradiente** con barreras en los límites del dominio.
 3. Desde el máximo, traza **rayos** (direcciones) en la hiperesfera:
-   - 2D: 8 rayos por defecto
+   - 2D: 24 rayos por defecto
    - 3D: ~26 direcciones (cobertura por *caps* esféricos con muestreo Fibonacci)
    - >3D: mezcla de unas pocas direcciones globales + **subespacios** 2D/3D
 4. Sobre cada rayo, **escanea radialmente** y calcula el punto donde detenerse
@@ -114,7 +114,7 @@ X, y = iris.data, iris.target
 sh = ModalBoundaryClustering(
     base_estimator=LogisticRegression(max_iter=1000),
     task="classification",
-    base_2d_rays=8,
+    base_2d_rays=24,
     random_state=0,
     drop_fraction=0.5,
 ).fit(X, y)
@@ -142,7 +142,7 @@ base_model.fit(X, y)
 sh = ModalBoundaryClustering(
     base_estimator=base_model,
     task="classification",
-    base_2d_rays=8,
+    base_2d_rays=24,
     random_state=0,
     drop_fraction=0.5,
 ).fit(X, y)
@@ -186,7 +186,7 @@ X, y = diab.data, diab.target
 sh = ModalBoundaryClustering(
     base_estimator=GradientBoostingRegressor(random_state=0),
     task="regression",
-    base_2d_rays=8,
+    base_2d_rays=24,
     random_state=0,
     drop_fraction=0.5,
 ).fit(X, y)
@@ -329,7 +329,7 @@ python experiments/paper_experiments.py
 ---
 
 ## Parámetros clave
-- `base_2d_rays` → controla la resolución angular en 2D (8 por defecto). 3D escala ~26; d>3 usa subespacios.
+- `base_2d_rays` → controla la resolución angular en 2D (24 por defecto). 3D escala ~26; d>3 usa subespacios.
 - `direction` → "center_out" | "outside_in" para localizar el punto de inflexión.
 - `scan_radius_factor`, `scan_steps` → tamaño y resolución del escaneo radial.
 - `grad_*` → hiperparámetros del ascenso (tasa, iteraciones, tolerancias).

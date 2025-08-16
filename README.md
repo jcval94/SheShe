@@ -86,7 +86,7 @@ reg = ModalBoundaryClustering(task="regression")
 2. Find **local maxima** via **gradient ascent** with barriers at the domain
    boundaries.
 3. From the maximum, trace **rays** (directions) on the hypersphere:
-   - 2D: 8 rays by default
+   - 2D: 24 rays by default
    - 3D: ~26 directions (coverage by spherical *caps* using Fibonacci sampling)
    - >3D: mixture of a few global directions + 2D/3D **subspaces**
 4. Along each ray, **scan radially** and compute the **first inflection point**
@@ -117,7 +117,7 @@ X, y = iris.data, iris.target
 sh = ModalBoundaryClustering(
     base_estimator=LogisticRegression(max_iter=1000),
     task="classification",
-    base_2d_rays=8,
+    base_2d_rays=24,
     random_state=0,
     drop_fraction=0.5,
 ).fit(X, y)
@@ -145,7 +145,7 @@ base_model.fit(X, y)
 sh = ModalBoundaryClustering(
     base_estimator=base_model,
     task="classification",
-    base_2d_rays=8,
+    base_2d_rays=24,
     random_state=0,
     drop_fraction=0.5,
 ).fit(X, y)
@@ -189,7 +189,7 @@ X, y = diab.data, diab.target
 sh = ModalBoundaryClustering(
     base_estimator=GradientBoostingRegressor(random_state=0),
     task="regression",
-    base_2d_rays=8,
+    base_2d_rays=24,
     random_state=0,
     drop_fraction=0.5,
 ).fit(X, y)
