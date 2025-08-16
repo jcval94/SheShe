@@ -3,7 +3,14 @@
 
 Edge segmentation and hyperboundary exploration based on **local maxima** of
 the **class probability** (classification) or the **predicted value**
-(regression).
+(regression). It is a supervised clustering algorithm.
+
+Unlike traditional unsupervised clustering methods that rely only on feature
+similarity, SheShe learns from labeled examples. A base estimator models the
+relationship between inputs and targets, and the algorithm discovers regions
+whose responses remain consistently high for a given class or target value.
+Clusters therefore follow the supervised decision surface instead of arbitrary
+distance metrics.
 
 ---
 
