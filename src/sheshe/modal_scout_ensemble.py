@@ -178,7 +178,7 @@ class ModalScoutEnsemble(BaseEstimator):
     # Passthrough a MBC
     mbc_kwargs: Optional[Dict[str, Any]] = None,
     verbose: int = 0,
-    save_label2: bool = False,
+    prediction_within_region: bool = False,
   ):
     self.base_estimator = base_estimator
     self.task = task
@@ -210,7 +210,7 @@ class ModalScoutEnsemble(BaseEstimator):
     self.scout_kwargs = scout_kwargs or {}
     self.mbc_kwargs = mbc_kwargs or {}
     self.verbose = verbose
-    self.save_label2 = save_label2
+    self.prediction_within_region = prediction_within_region
 
     # Atributos post-fit
     self.selected_: List[Dict[str, Any]] = []
@@ -431,8 +431,10 @@ class ModalScoutEnsemble(BaseEstimator):
           self.regions_.append(reg)
           cid += 1
 
-    if self.save_label2:
-      self.labels2_, self.label2id_ = self.predict_regions(X)
+    if self.prediction_within_region:
+      self.labels_, self.label2id_ = self.predict_regions(X)
+    else:
+      self.labels_ = self.predict(X)
 
     if self.verbose:
       print(f"[ModalScoutEnsemble] Submodelos={len(self.models_)} | Pesos≈{np.round(self.weights_, 3)}")

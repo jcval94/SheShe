@@ -50,37 +50,37 @@ def test_fit_predict_sets_labels_attribute():
     assert np.array_equal(sh.labels_, labels)
 
 
-def test_labels2_attribute_and_method():
+def test_prediction_within_region_labels():
     iris = load_iris()
     X, y = iris.data, iris.target
     sh = ModalBoundaryClustering(
         base_estimator=LogisticRegression(max_iter=200),
         task="classification",
         random_state=0,
-        save_label2=True,
+        prediction_within_region=True,
     )
     sh.fit(X, y)
-    assert hasattr(sh, "labels2_")
-    assert sh.labels2_.shape[0] == X.shape[0]
-    # calling predict_regions should match labels2_
+    assert hasattr(sh, "labels_")
+    assert sh.labels_.shape[0] == X.shape[0]
     expected = sh.predict_regions(X)
-    assert np.array_equal(sh.labels2_, expected)
-    # sample far away from training data should be marked as -1
+    assert np.array_equal(sh.labels_, expected)
     far_point = np.array([[1000, 1000, 1000, 1000]])
     far_label = sh.predict_regions(far_point)[0]
     assert far_label == -1
 
 
-def test_labels2_optional():
+def test_prediction_within_region_optional():
     iris = load_iris()
     X, y = iris.data, iris.target
     sh = ModalBoundaryClustering(
         base_estimator=LogisticRegression(max_iter=200),
         task="classification",
         random_state=0,
+        prediction_within_region=False,
     )
     sh.fit(X, y)
-    assert not hasattr(sh, "labels2_")
+    assert hasattr(sh, "labels_")
+    assert np.array_equal(sh.labels_, sh.predict(X))
 
 
 def test_score_regression():
