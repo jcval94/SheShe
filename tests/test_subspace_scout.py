@@ -11,3 +11,29 @@ def test_subspace_scout_basic():
     results = scout.fit(X, y)
     assert isinstance(results, list)
     assert results and all('features' in r for r in results)
+
+
+def test_subspace_scout_returns_default_for_two_dims():
+    X = np.random.rand(50, 2)
+    y = np.random.randint(0, 2, size=50)
+    scout = SubspaceScout(random_state=0)
+    res = scout.fit(X, y)
+    assert res == [{
+        'features': (0, 1),
+        'order': 2,
+        'score': 1.0,
+        'metric': 'mi_synergy'
+    }]
+
+
+def test_subspace_scout_returns_default_for_one_dim():
+    X = np.random.rand(50, 1)
+    y = np.random.randint(0, 2, size=50)
+    scout = SubspaceScout(random_state=0)
+    res = scout.fit(X, y)
+    assert res == [{
+        'features': (0,),
+        'order': 1,
+        'score': 1.0,
+        'metric': 'mi_synergy'
+    }]

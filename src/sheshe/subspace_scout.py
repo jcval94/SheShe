@@ -399,6 +399,26 @@ class SubspaceScout:
         rng = np.random.default_rng(self.random_state)
 
         X = np.asarray(X); y = np.asarray(y)
+        d = X.shape[1]
+        if d <= 2:
+            if d == 2:
+                self.results_ = [{
+                    'features': (0, 1),
+                    'order': 2,
+                    'score': 1.0,
+                    'metric': self.model_method or 'mi_synergy'
+                }]
+            elif d == 1:
+                self.results_ = [{
+                    'features': (0,),
+                    'order': 1,
+                    'score': 1.0,
+                    'metric': self.model_method or 'mi_synergy'
+                }]
+            else:
+                self.results_ = []
+            return self.results_
+
         # muestreo opcional para velocidad
         if self.sample_size and X.shape[0] > self.sample_size:
             if self.task == 'classification':
