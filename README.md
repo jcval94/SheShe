@@ -141,6 +141,8 @@ Parámetros principales:
 - `class_label`: etiqueta de la clase a mostrar cuando `task='classification'`.
 - `grid_res`: resolución de la malla usada para la superficie.
 - `alpha_surface`: transparencia de la superficie.
+- `engine`: `'matplotlib'` (por defecto) para una figura estática o `'plotly'`
+  para un gráfico interactivo.
 
 Ejemplo mínimo:
 
@@ -153,8 +155,13 @@ iris = load_iris()
 X, y = iris.data, iris.target
 
 sh = ModalBoundaryClustering().fit(X, y)
+# Modo estático con Matplotlib
 sh.plot_pair_3d(X, (0, 1), class_label=sh.classes_[0])
 plt.show()
+
+# Modo interactivo con Plotly
+fig = sh.plot_pair_3d(X, (0, 1), class_label=sh.classes_[0], engine="plotly")
+fig.show()
 ```
 
 ---

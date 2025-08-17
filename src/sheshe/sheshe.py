@@ -1520,7 +1520,7 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def plot_pair_3d(self, X: Union[np.ndarray, pd.DataFrame], pair: Tuple[int, int],
                      class_label: Optional[Any] = None, grid_res: int = 50,
-                     alpha_surface: float = 0.6) -> None:
+                     alpha_surface: float = 0.6, engine: str = "matplotlib") -> Any:
         """Visualize probability (or predicted value) as 3D surface.
 
         Parameters
@@ -1535,10 +1535,14 @@ class ModalBoundaryClustering(BaseEstimator):
             Resolution of the mesh used for the surface.
         alpha_surface : float, default=0.6
             Surface transparency.
+        engine : {"matplotlib", "plotly"}, default="matplotlib"
+            Rendering engine. ``"plotly"`` produces an interactive figure
+            (requires the optional ``plotly`` dependency).
 
         Returns
         -------
-        None
+        figure
+            Matplotlib ``Figure`` or Plotly ``Figure`` depending on ``engine``.
         """
         check_is_fitted(self, "regions_")
         X = np.asarray(X, dtype=float)
@@ -1565,6 +1569,35 @@ class ModalBoundaryClustering(BaseEstimator):
             X_full[:, j] = XJ[r, :]
             Z[r, :] = self._predict_value_real(X_full, class_idx=class_idx)
 
+        if engine == "plotly":
+            try:
+                import plotly.graph_objects as go
+            except Exception as exc:  # pragma: no cover - import guard
+                raise ImportError(
+                    "plotly is required when engine='plotly'"
+                ) from exc
+
+            fig = go.Figure(
+                data=[
+                    go.Surface(
+                        x=XI,
+                        y=XJ,
+                        z=Z,
+                        colorscale="Viridis",
+                        opacity=alpha_surface,
+                    )
+                ]
+            )
+            fig.update_layout(
+                title=title,
+                scene=dict(
+                    xaxis_title=f"feat {i}",
+                    yaxis_title=f"feat {j}",
+                    zaxis_title=zlabel,
+                ),
+            )
+            return fig
+
         fig = plt.figure(figsize=(6, 5))
         ax = fig.add_subplot(111, projection="3d")
         ax.plot_surface(XI, XJ, Z, cmap="viridis", alpha=alpha_surface)
@@ -1574,4 +1607,4 @@ class ModalBoundaryClustering(BaseEstimator):
         ax.set_title(title)
         plt.tight_layout()
 
-        return None
+        return fig
