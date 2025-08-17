@@ -86,20 +86,28 @@ def _halfspaces_from_polygon(poly: np.ndarray, inside: np.ndarray) -> List[Tuple
 
 
 def _rule_text(a: float, b: float, c: float, xname: str, yname: str, decimals: int = 2) -> str:
-    """Convierte a*x + b*y <= c en y<=m·x+t / x<=m·y+t legible."""
+    eps = 1e-12
+    if abs(b) <= 1e-9 and abs(a) <= 1e-9:
+        return "0 ≤ 0"
+    if abs(b) <= 1e-9:  # recta vertical: a*x <= c
+        sense = "<=" if a > 0 else ">="
+        return f"{xname} {sense} {round(c/(a if a!=0 else eps), decimals)}"
+    if abs(a) <= 1e-9:  # recta horizontal: b*y <= c
+        sense = "<=" if b > 0 else ">="
+        return f"{yname} {sense} {round(c/(b if b!=0 else eps), decimals)}"
     if abs(b) >= 1.2 * abs(a):
-        m = -a / (b if b != 0 else 1e-12)
-        t = c / (b if b != 0 else 1e-12)
+        m = -a / b
+        t = c / b
         sense = "<=" if b > 0 else ">="
         return f"{yname} {sense} {round(m,decimals)}·{xname} + {round(t,decimals)}"
-    elif abs(a) >= 1.2 * abs(b):
-        m = -b / (a if a != 0 else 1e-12)
-        t = c / (a if a != 0 else 1e-12)
+    elif abs(a) > 1.2 * abs(b):
+        m = -b / a
+        t = c / a
         sense = "<=" if a > 0 else ">="
         return f"{xname} {sense} {round(m,decimals)}·{yname} + {round(t,decimals)}"
     else:
-        m = -a / (b if b != 0 else 1e-12)
-        t = c / (b if b != 0 else 1e-12)
+        m = -a / b
+        t = c / b
         sense = "<=" if b > 0 else ">="
         return f"{yname} {sense} {round(m,decimals)}·{xname} + {round(t,decimals)}"
 
@@ -250,6 +258,10 @@ class RegionInterpreter:
         decimals: int = 2,
         cap_threshold: float = 6.393,
         near_const_tol: float = 0.12,
+        *,
+        inverse_transform=None,
+        feature_bounds: Optional[Sequence[Tuple[float, float]]] = None,
+        include_center_in_box: bool = True,
     ) -> None:
         self.feature_names = feature_names
         self.q_box = q_box
@@ -257,6 +269,11 @@ class RegionInterpreter:
         self.decimals = decimals
         self.cap_threshold = cap_threshold
         self.near_const_tol = near_const_tol
+        self.inverse_transform = inverse_transform
+        self.feature_bounds = (
+            None if feature_bounds is None else np.asarray(feature_bounds, float)
+        )
+        self.include_center_in_box = include_center_in_box
 
     def summarize(self, regions: Sequence[Any] | Any) -> List[Dict[str, Any]]:
         """Acepta lista de objetos/dicts o un solo objeto."""
@@ -270,10 +287,15 @@ class RegionInterpreter:
             # limpieza de direcciones / radios
             dirs, radii = _sanitize_directions(dirs, radii)
             if dirs.size == 0:
+                center_out = (
+                    self.inverse_transform(center[None, :]).ravel()
+                    if self.inverse_transform is not None
+                    else center
+                )
                 out.append(dict(
                     cluster_id=int(cid),
                     label=label,
-                    center=[round(float(x), self.decimals) for x in center.tolist()],
+                    center=[round(float(x), self.decimals) for x in center_out.tolist()],
                     headline="Región degenerada (sin radios útiles).",
                     box_rules=[],
                     pairwise_rules=[],
@@ -286,10 +308,25 @@ class RegionInterpreter:
             D = B.shape[1]
             names = _ensure_names(D, self.feature_names)
 
+            # llevar a espacio original si se provee inverse_transform
+            if self.inverse_transform is not None:
+                B_orig = self.inverse_transform(B)
+                center_orig = self.inverse_transform(center[None, :]).ravel()
+            else:
+                B_orig = B
+                center_orig = center
+
             # 1) caja por ejes (robusta)
-            box = _axis_box(B, q=self.q_box)
+            box_pts = B_orig
+            if self.include_center_in_box:
+                box_pts = np.vstack([box_pts, center_orig[None, :]])
+
+            box = _axis_box(box_pts, q=self.q_box)
             box_rules, near_const = [], []
             for i, (lo, hi) in enumerate(box):
+                if self.feature_bounds is not None:
+                    lo = max(lo, float(self.feature_bounds[i, 0]))
+                    hi = min(hi, float(self.feature_bounds[i, 1]))
                 width = hi - lo
                 if width < self.near_const_tol:
                     near_const.append((i, (lo + hi) / 2))
@@ -298,10 +335,10 @@ class RegionInterpreter:
             # 2) proyecciones más informativas
             pair_rules = []
             if D >= 2:
-                pairs = _pick_best_pairs(B, k=self.k_pairs)
+                pairs = _pick_best_pairs(B_orig, k=self.k_pairs)
                 for (i, j, _) in pairs:
-                    P = B[:, [i, j]]
-                    hs = _projection_rules(P, center[[i, j]], decimals=self.decimals, max_rules=5)
+                    P = B_orig[:, [i, j]]
+                    hs = _projection_rules(P, center_orig[[i, j]], decimals=self.decimals, max_rules=5)
                     pair_rules.append({
                         "pair": (names[i], names[j]),
                         "rules": _fmt_rules(hs, names[i], names[j], self.decimals)
@@ -309,7 +346,7 @@ class RegionInterpreter:
 
             # 3) headline humano (bajo/medio/alto + dimensiones casi fijas)
             def pos_word(i):
-                lo, hi = box[i]; val = center[i]
+                lo, hi = box[i]; val = center_orig[i]
                 p = (val - lo) / (hi - lo + 1e-12)
                 return "bajo" if p <= 0.25 else ("alto" if p >= 0.75 else "medio")
 
@@ -326,15 +363,17 @@ class RegionInterpreter:
                 notes.append("Alguna dimensión queda **casi fija** (ancho muy pequeño).")
             if D >= 2:
                 try:
-                    if np.linalg.matrix_rank(np.cov(B.T)) < 2:
+                    if np.linalg.matrix_rank(np.cov(B_orig.T)) < 2:
                         notes.append("Alguna proyección es degenerada (varianza efectiva baja).")
                 except Exception:
                     pass
 
+            center_out = [round(float(x), self.decimals) for x in center_orig.tolist()]
+
             out.append(dict(
                 cluster_id=int(cid),
                 label=label,
-                center=[round(float(x), self.decimals) for x in center.tolist()],
+                center=center_out,
                 headline=headline,
                 box_rules=box_rules,
                 pairwise_rules=pair_rules,
