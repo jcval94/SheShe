@@ -95,6 +95,33 @@ def test_score_regression():
     assert np.isfinite(score)
 
 
+def test_cluster_region_metrics_classification():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = ModalBoundaryClustering(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    reg = sh.regions_[0]
+    assert reg.score is not None
+    assert {"precision", "recall", "f1"}.issubset(reg.metrics.keys())
+
+
+def test_cluster_region_metrics_regression():
+    X, y = make_regression(n_samples=80, n_features=5, noise=0.1, random_state=0)
+    sh = ModalBoundaryClustering(
+        base_estimator=RandomForestRegressor(n_estimators=10, random_state=0),
+        task="regression",
+        random_state=0,
+    )
+    sh.fit(X, y)
+    reg = sh.regions_[0]
+    assert reg.score is not None
+    assert {"mse", "mae"}.issubset(reg.metrics.keys())
+
+
 def test_predict_regression_returns_base_estimator_value():
     X, y = make_regression(n_samples=80, n_features=5, noise=0.1, random_state=0)
     sh = ModalBoundaryClustering(

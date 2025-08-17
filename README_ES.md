@@ -86,6 +86,16 @@ reg = ModalBoundaryClustering(task="regression")
 - `save(filepath)` → guarda el modelo mediante `joblib`
 - `ModalBoundaryClustering.load(filepath)` → carga una instancia guardada
 
+### Métricas por clúster
+
+Tras el ajuste, `ModalBoundaryClustering` guarda cada región descubierta en el
+atributo `regions_`. Cada `ClusterRegion` incluye:
+
+- `score`: eficacia del estimador sobre las muestras que pertenecen al clúster.
+  Usa exactitud (accuracy) para clasificación y R² para regresión.
+- `metrics`: diccionario opcional con métricas adicionales por clúster como
+  precision, recall, F1, MSE o MAE.
+
 ---
 
 ## ¿Cómo funciona?

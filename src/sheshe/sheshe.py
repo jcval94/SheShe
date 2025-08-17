@@ -4,7 +4,7 @@ from __future__ import annotations
 import itertools
 import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
@@ -20,6 +20,15 @@ from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC, SVR
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import (
+    accuracy_score,
+    r2_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    mean_squared_error,
+    mean_absolute_error,
+)
 try:  # optional dependency for density estimation
     import hnswlib
 except Exception:  # pragma: no cover - handled at runtime
@@ -371,6 +380,8 @@ class ClusterRegion:
     inflection_slopes: np.ndarray          # (n_rays,) df/dt at inflection
     peak_value_real: float                 # real prob/value at the center
     peak_value_norm: float                 # normalized value at the center [0,1]
+    score: Optional[float] = None          # effectiveness metric for the cluster
+    metrics: Dict[str, float] = field(default_factory=dict)  # optional extra metrics
 
 
 # =========================
@@ -503,6 +514,8 @@ class ModalBoundaryClustering(BaseEstimator):
         use_adaptive_scan: bool = False,
         density_alpha: float = 0.0,
         density_k: int = 15,
+        cluster_metrics_cls: Optional[Dict[str, Callable]] = None,
+        cluster_metrics_reg: Optional[Dict[str, Callable]] = None,
     ):
         if scan_steps < 2:
             raise ValueError("scan_steps must be at least 2")
@@ -547,6 +560,8 @@ class ModalBoundaryClustering(BaseEstimator):
         self.use_adaptive_scan = use_adaptive_scan
         self.density_alpha = density_alpha
         self.density_k = density_k
+        self.cluster_metrics_cls = cluster_metrics_cls
+        self.cluster_metrics_reg = cluster_metrics_reg
 
     # ---------- helpers ----------
 
@@ -916,6 +931,49 @@ class ModalBoundaryClustering(BaseEstimator):
                     inflection_points=infl, inflection_slopes=slopes,
                     peak_value_real=peak_real, peak_value_norm=peak_norm
                 ))
+            # Calcular la efectividad de cada región (score)
+            if y is not None:
+                X_arr = np.asarray(X, float)
+                M = self._membership_matrix(X_arr)
+                for k, reg in enumerate(self.regions_):
+                    mask = M[:, k] == 1
+                    if not np.any(mask):
+                        reg.score = float("nan")
+                        continue
+                    if self.task == "classification":
+                        y_true = np.asarray(y)[mask]
+                        y_pred = np.full(len(y_true), reg.label)
+                        reg.score = float(accuracy_score(y_true, y_pred))
+                        metrics = self.cluster_metrics_cls
+                        if metrics is None:
+                            metrics = {
+                                "precision": lambda a, b: precision_score(a, b, average="macro", zero_division=0),
+                                "recall": lambda a, b: recall_score(a, b, average="macro", zero_division=0),
+                                "f1": lambda a, b: f1_score(a, b, average="macro", zero_division=0),
+                            }
+                        for name, func in metrics.items():
+                            try:
+                                reg.metrics[name] = float(func(y_true, y_pred))
+                            except Exception:
+                                reg.metrics[name] = float("nan")
+                    else:
+                        y_true = np.asarray(y, float)[mask]
+                        y_pred = self.pipeline_.predict(X_arr[mask])
+                        if len(y_true) >= 2 and np.var(y_true) > 0:
+                            reg.score = float(r2_score(y_true, y_pred))
+                        else:
+                            reg.score = float("nan")
+                        metrics = self.cluster_metrics_reg
+                        if metrics is None:
+                            metrics = {
+                                "mse": mean_squared_error,
+                                "mae": mean_absolute_error,
+                            }
+                        for name, func in metrics.items():
+                            try:
+                                reg.metrics[name] = float(func(y_true, y_pred))
+                            except Exception:
+                                reg.metrics[name] = float("nan")
             # Guardar etiquetas de entrenamiento para compatibilidad con
             # la API estándar de clustering de scikit-learn
             save_flag = self.save_labels

@@ -116,6 +116,16 @@ sh = ModalBoundaryClustering().fit(X, y)
 print(sh.decision_function(X[:5]))
 ```
 
+### Per-cluster metrics
+
+After fitting, `ModalBoundaryClustering` stores the discovered regions in the
+`regions_` attribute. Each `ClusterRegion` includes:
+
+- `score`: effectiveness of the estimator on samples inside the region
+  (accuracy for classification, R² for regression)
+- `metrics`: optional dictionary with additional per-cluster metrics such as
+  precision, recall, F1, MSE or MAE
+
 ### RegionInterpreter – interpret cluster regions
 
 ```python
