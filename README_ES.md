@@ -62,7 +62,8 @@ clf = ModalBoundaryClustering(
     scan_steps=24,
     smooth_window=None,             # ventana de suavizado opcional
     drop_fraction=0.5,              # caída requerida desde el pico
-    stop_criteria="inflexion",     # o "percentile" para usar deciles
+    stop_criteria="inflexion",     # o "percentile" para usar percentiles
+    percentile_bins=20,             # número de cortes percentiles si stop_criteria="percentile"
     random_state=0
 )
 
@@ -97,11 +98,12 @@ reg = ModalBoundaryClustering(task="regression")
 4. Sobre cada rayo, **escanea radialmente** y calcula el punto donde detenerse
    según `direction` y `stop_criteria`:
     - `center_out`: desde el centro hacia fuera
-    - `outside_in`: desde el exterior hacia el centro
+   - `outside_in`: desde el exterior hacia el centro
    Opcionalmente aplica un promedio móvil (`smooth_window`) y registra además la
    **pendiente** (df/dt) en ese punto. Con `stop_criteria="percentile"` el
-   escaneo se detiene cuando el valor cae a un decil inferior de la
-   distribución. Si no se detecta un punto de inflexión o caída de decil, se usa
+   escaneo se detiene cuando el valor cae a un percentil inferior de la
+   distribución (20 cortes por defecto). Si no se detecta un punto de inflexión
+   o caída de percentil, se usa
    el primer valor donde la función cae por debajo de `drop_fraction` del
    máximo.
 5. Conecta los puntos de inflexión para formar la **frontera** de la región de alta probabilidad/valor.
@@ -209,7 +211,8 @@ plt.show()
 ## Benchmark
 
 La regla basada en percentiles evita el punto de inflexión y se detiene cuando
-el valor cae a un decil inferior. La implementación actual en bucle es
+el valor cae a un percentil inferior (20 cortes por defecto). La implementación
+actual en bucle es
 considerablemente más rápida que la versión vectorizada anterior. En el dataset
 de Iris:
 

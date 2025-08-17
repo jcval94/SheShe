@@ -300,13 +300,13 @@ def find_percentile_drop(
     ts: np.ndarray,
     vals: np.ndarray,
     direction: str,
-    deciles: np.ndarray,
+    percentiles: np.ndarray,
     drop_fraction: float = 0.5,
 ) -> Tuple[float, float]:
-    """Return ``(t_drop, slope_at_drop)`` based on decile decrease.
+    """Return ``(t_drop, slope_at_drop)`` based on percentile decrease.
 
-    Stops when the evaluated value falls to a lower decile defined by
-    ``deciles``. If no such drop is found, falls back to a fractional
+    Stops when the evaluated value falls to a lower percentile bin defined by
+    ``percentiles``. If no such drop is found, falls back to a fractional
     drop of the initial value as in :func:`find_inflection`.
     """
     if direction not in ("center_out", "outside_in"):
@@ -321,10 +321,10 @@ def find_percentile_drop(
         ts_scan = ts
         vals_scan = vals
 
-    prev = int(np.searchsorted(deciles, vals_scan[0], side="right") - 1)
+    prev = int(np.searchsorted(percentiles, vals_scan[0], side="right") - 1)
     idx = None
     for j in range(1, len(vals_scan)):
-        curr = int(np.searchsorted(deciles, vals_scan[j], side="right") - 1)
+        curr = int(np.searchsorted(percentiles, vals_scan[j], side="right") - 1)
         if curr < prev:
             idx = j
             break
@@ -482,6 +482,7 @@ class ModalBoundaryClustering(BaseEstimator):
         base_2d_rays: int = 24,
         direction: str = "center_out",
         stop_criteria: str = "inflexion",  # "inflexion" | "percentile"
+        percentile_bins: int = 20,         # number of percentile bins when stop_criteria='percentile'
         scan_radius_factor: float = 3.0,   # multiples of the global std
         scan_steps: int = 24,
         smooth_window: int | None = None,
@@ -513,6 +514,8 @@ class ModalBoundaryClustering(BaseEstimator):
             raise ValueError("drop_fraction must be in (0, 1)")
         if stop_criteria not in ("inflexion", "percentile"):
             raise ValueError("stop_criteria must be 'inflexion' or 'percentile'")
+        if percentile_bins < 1:
+            raise ValueError("percentile_bins must be at least 1")
         if not (0.0 <= density_alpha <= 1.0):
             raise ValueError("density_alpha must be in [0, 1]")
         if density_k < 1:
@@ -523,6 +526,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.base_2d_rays = base_2d_rays
         self.direction = direction
         self.stop_criteria = stop_criteria
+        self.percentile_bins = percentile_bins
         self.scan_radius_factor = scan_radius_factor
         self.scan_steps = scan_steps
         self.smooth_window = smooth_window
@@ -710,12 +714,12 @@ class ModalBoundaryClustering(BaseEstimator):
         f,
         directions: np.ndarray,
         X_std: np.ndarray,
-        deciles: Optional[np.ndarray] = None,
+        percentiles: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """For each direction ``u``: radial scan ``t∈[0,T]`` and stopping point.
 
         The stopping point is either the first inflection (``stop_criteria='inflexion'``)
-        or the first drop to a lower decile (``stop_criteria='percentile'``).
+        or the first drop to a lower percentile bin (``stop_criteria='percentile'``).
         Returns ``(radii, points, slopes)``.
         """
         d = center.shape[0]
@@ -774,13 +778,13 @@ class ModalBoundaryClustering(BaseEstimator):
             a, b = cuts[i], cuts[i + 1]
             ts, vs = ts_blocks[i], vals_all[a:b]
             if self.stop_criteria == "percentile":
-                if deciles is None:
-                    raise ValueError("deciles must be provided when stop_criteria='percentile'")
+                if percentiles is None:
+                    raise ValueError("percentiles must be provided when stop_criteria='percentile'")
                 r, m = find_percentile_drop(
                     ts,
                     vs,
                     self.direction,
-                    deciles,
+                    percentiles,
                     self.drop_fraction,
                 )
             else:
@@ -859,7 +863,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 _ = self.pipeline_.predict(X[:2])  # asegura classes_
                 self.classes_ = self.estimator_.classes_
                 if self.stop_criteria == "percentile":
-                    self.deciles_ = {}
+                    self.percentiles_ = {}
                 for ci, label in enumerate(self.classes_):
                     stats = self._build_norm_stats(X, class_idx=ci)
                     f = self._build_value_fn(class_idx=ci, norm_stats=stats)
@@ -869,9 +873,13 @@ class ModalBoundaryClustering(BaseEstimator):
                         vmin, vmax = stats["min"], stats["max"]
                         rng = vmax - vmin if vmax > vmin else 1.0
                         vals_norm = (vals - vmin) / rng
-                        dec = np.quantile(vals_norm, np.linspace(0.0, 1.0, 11))
-                        self.deciles_[ci] = dec
-                        radii, infl, slopes = self._scan_radii(center, f, dirs, X_std, deciles=dec)
+                        perc = np.quantile(
+                            vals_norm, np.linspace(0.0, 1.0, self.percentile_bins + 1)
+                        )
+                        self.percentiles_[ci] = perc
+                        radii, infl, slopes = self._scan_radii(
+                            center, f, dirs, X_std, percentiles=perc
+                        )
                     else:
                         radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
                     peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
@@ -891,9 +899,13 @@ class ModalBoundaryClustering(BaseEstimator):
                     vmin, vmax = stats["min"], stats["max"]
                     rng = vmax - vmin if vmax > vmin else 1.0
                     vals_norm = (vals - vmin) / rng
-                    dec = np.quantile(vals_norm, np.linspace(0.0, 1.0, 11))
-                    self.deciles_ = dec
-                    radii, infl, slopes = self._scan_radii(center, f, dirs, X_std, deciles=dec)
+                    perc = np.quantile(
+                        vals_norm, np.linspace(0.0, 1.0, self.percentile_bins + 1)
+                    )
+                    self.percentiles_ = perc
+                    radii, infl, slopes = self._scan_radii(
+                        center, f, dirs, X_std, percentiles=perc
+                    )
                 else:
                     radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
                 peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
@@ -1334,8 +1346,8 @@ class ModalBoundaryClustering(BaseEstimator):
                 class_idx=cls_idx,
                 norm_stats=self._build_norm_stats(X, cls_idx),
             )
-            dec = self.deciles_[cls_idx] if self.stop_criteria == "percentile" else None
-            _, pts, _ = self._scan_radii(center2, f, D, X_std, deciles=dec)
+            perc = self.percentiles_[cls_idx] if self.stop_criteria == "percentile" else None
+            _, pts, _ = self._scan_radii(center2, f, D, X_std, percentiles=perc)
             pts = pts[:, [i, j]]
             ctr = center2[[i, j]]
             ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
@@ -1421,8 +1433,8 @@ class ModalBoundaryClustering(BaseEstimator):
             class_idx=None,
             norm_stats=self._build_norm_stats(X, class_idx=None),
         )
-        dec = self.deciles_ if self.stop_criteria == "percentile" else None
-        _, pts, _ = self._scan_radii(center2, f, D, X_std, deciles=dec)
+        perc = self.percentiles_ if self.stop_criteria == "percentile" else None
+        _, pts, _ = self._scan_radii(center2, f, D, X_std, percentiles=perc)
         pts = pts[:, [i, j]]
         ctr = center2[[i, j]]
         ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])

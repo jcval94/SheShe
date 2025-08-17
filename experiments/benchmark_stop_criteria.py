@@ -15,7 +15,7 @@ from sklearn.datasets import load_iris
 from sheshe.sheshe import ModalBoundaryClustering, find_percentile_drop
 
 
-def _vectorized_find_percentile_drop(ts, vals, direction, deciles, drop_fraction=0.5):
+def _vectorized_find_percentile_drop(ts, vals, direction, percentiles, drop_fraction=0.5):
     """Vectorized version used previously (kept here for benchmarking)."""
     if direction == "outside_in":
         ts_scan = ts[::-1]
@@ -24,7 +24,7 @@ def _vectorized_find_percentile_drop(ts, vals, direction, deciles, drop_fraction
         ts_scan = ts
         vals_scan = vals
 
-    dec_idx = np.searchsorted(deciles, vals_scan, side="right") - 1
+    dec_idx = np.searchsorted(percentiles, vals_scan, side="right") - 1
     dec_drops = np.where(np.diff(dec_idx) < 0)[0]
 
     if dec_drops.size > 0:
@@ -58,21 +58,21 @@ def benchmark_functions():
     rng = np.random.default_rng(0)
     ts = np.linspace(0, 5, 500)
     vals = np.linspace(1.0, 0.0, 500) + rng.normal(scale=0.01, size=500)
-    deciles = np.linspace(0.0, 1.0, 11)
+    percentiles = np.linspace(0.0, 1.0, 21)
     reps = 2000
 
     t0 = time.time()
     for _ in range(reps):
-        _vectorized_find_percentile_drop(ts, vals, "center_out", deciles)
+        _vectorized_find_percentile_drop(ts, vals, "center_out", percentiles)
     t_vec = time.time() - t0
 
     t0 = time.time()
     for _ in range(reps):
-        find_percentile_drop(ts, vals, "center_out", deciles)
+        find_percentile_drop(ts, vals, "center_out", percentiles)
     t_loop = time.time() - t0
 
-    res_old = _vectorized_find_percentile_drop(ts, vals, "center_out", deciles)
-    res_new = find_percentile_drop(ts, vals, "center_out", deciles)
+    res_old = _vectorized_find_percentile_drop(ts, vals, "center_out", percentiles)
+    res_new = find_percentile_drop(ts, vals, "center_out", percentiles)
     assert np.allclose(res_old, res_new)
 
     print(f"vectorized implementation: {t_vec:.4f}s")
