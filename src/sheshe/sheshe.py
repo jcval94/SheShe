@@ -516,6 +516,7 @@ class ModalBoundaryClustering(BaseEstimator):
         density_k: int = 15,
         cluster_metrics_cls: Optional[Dict[str, Callable]] = None,
         cluster_metrics_reg: Optional[Dict[str, Callable]] = None,
+        fast_membership: bool = False,
     ):
         if scan_steps < 2:
             raise ValueError("scan_steps must be at least 2")
@@ -562,6 +563,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.density_k = density_k
         self.cluster_metrics_cls = cluster_metrics_cls
         self.cluster_metrics_reg = cluster_metrics_reg
+        self.fast_membership = fast_membership
 
     # ---------- helpers ----------
 
@@ -1025,7 +1027,28 @@ class ModalBoundaryClustering(BaseEstimator):
         """
         X = np.asarray(X, dtype=float)
         n = len(X)
-        R = np.zeros((n, len(self.regions_)), dtype=int)
+        n_regions = len(self.regions_)
+
+        if self.fast_membership and n_regions:
+            centers = np.stack([reg.center for reg in self.regions_])
+            V = X[:, None, :] - centers[None, :, :]
+            norms = np.linalg.norm(V, axis=2) + 1e-12
+            R = np.zeros((n, n_regions), dtype=int)
+            for k, reg in enumerate(self.regions_):
+                if reg.directions.size == 0:
+                    warnings.warn(
+                        "Región sin direcciones; se marca como fuera de la región",
+                        RuntimeWarning,
+                    )
+                    continue
+                U = V[:, k, :] / norms[:, k][:, None]
+                dots = U @ reg.directions.T
+                idx = np.argmax(dots, axis=1)
+                r_boundary = reg.radii[idx]
+                R[:, k] = (norms[:, k] <= r_boundary + 1e-12).astype(int)
+            return R
+
+        R = np.zeros((n, n_regions), dtype=int)
         for k, reg in enumerate(self.regions_):
             if reg.directions.size == 0:
                 warnings.warn(
