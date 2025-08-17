@@ -468,6 +468,26 @@ Output:
   'weight': 0.4193}]
 ```
 
+#### `plot_pairs(X, y=None, model_idx=0, max_pairs=None)`
+
+Visualize 2D decision surfaces of a given submodel using the same plotting
+utilities as `ModalBoundaryClustering`.
+
+```python
+feats = mse.features_[0]
+mse.plot_pairs(X, y, model_idx=0, max_pairs=1)
+```
+
+#### `plot_pair_3d(X, pair, model_idx=0, class_label=None, grid_res=50, alpha_surface=0.6, engine="matplotlib")`
+
+Render probability (classification) or predicted value (regression) as a 3D
+surface for a specific submodel.
+
+```python
+feats = mse.features_[0]
+mse.plot_pair_3d(X, (feats[0], feats[1]), model_idx=0, class_label=mse.classes_[0])
+```
+
 ### Experiments and benchmark
 
 The experiments comparing against **unsupervised** algorithms are located in
