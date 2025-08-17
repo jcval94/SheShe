@@ -1354,6 +1354,13 @@ class ModalBoundaryClustering(BaseEstimator):
             order = np.argsort(ang)
             poly = pts[order]
             col = class_colors[label]
+            plt.fill(
+                poly[:, 0],
+                poly[:, 1],
+                color=col,
+                alpha=0.15,
+                zorder=1,
+            )
             plt.plot(
                 np.r_[poly[:, 0], poly[0, 0]],
                 np.r_[poly[:, 1], poly[0, 1]],
@@ -1440,6 +1447,13 @@ class ModalBoundaryClustering(BaseEstimator):
         ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
         order = np.argsort(ang)
         poly = pts[order]
+        plt.fill(
+            poly[:, 0],
+            poly[:, 1],
+            color="black",
+            alpha=0.15,
+            zorder=1,
+        )
         plt.plot(
             np.r_[poly[:, 0], poly[0, 0]],
             np.r_[poly[:, 1], poly[0, 1]],
