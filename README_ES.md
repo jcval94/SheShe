@@ -96,6 +96,25 @@ atributo `regions_`. Cada `ClusterRegion` incluye:
 - `metrics`: diccionario opcional con métricas adicionales por clúster como
   precision, recall, F1, MSE o MAE.
 
+### Descripciones en lenguaje natural con OpenAI
+
+Instala la dependencia opcional ``openai`` (versión ``>=1``) y proporciona una
+clave ya sea con el argumento ``api_key`` o mediante variables de entorno. El
+intérprete busca ``OPENAI_API_KEY`` o ``OPENAI_KEY`` y, al ejecutarse en Google
+Colab, también revisa ``google.colab.userdata``. Puedes fijar idioma y
+temperatura por defecto en el intérprete y sobreescribirlos al llamar
+``describe_cards``. Además, el parámetro ``layout`` permite sugerir un formato
+específico o dejar que el modelo responda libremente.
+
+```python
+from sheshe import RegionInterpreter, OpenAIRegionInterpreter
+
+cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
+explicador = OpenAIRegionInterpreter(model="gpt-4o-mini", language="es", temperature=0.2)
+textos = explicador.describe_cards(cards, layout="lista con viñetas", temperature=0.5)
+print(textos[0])
+```
+
 ---
 
 ## ¿Cómo funciona?
