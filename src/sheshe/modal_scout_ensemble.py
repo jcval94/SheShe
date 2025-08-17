@@ -575,3 +575,67 @@ class ModalScoutEnsemble(BaseEstimator):
       info.append(row)
     info.sort(key=lambda d: d["weight"], reverse=True)
     return info
+
+  # ---------- Visualización ----------
+
+  def _get_submodel(self, model_idx: int = 0) -> Tuple[ModalBoundaryClustering, Tuple[int, ...]]:
+    """Retorna el submodelo y las features asociadas.
+
+    Parameters
+    ----------
+    model_idx : int, default=0
+        Índice del submodelo dentro del ensamble.
+    """
+    if not self.models_:
+      raise RuntimeError("Modelo no ajustado.")
+    if not (0 <= model_idx < len(self.models_)):
+      raise IndexError("model_idx fuera de rango.")
+    return self.models_[model_idx], self.features_[model_idx]
+
+  def plot_pairs(self, X: np.ndarray, y: Optional[np.ndarray] = None,
+                 *, model_idx: int = 0, max_pairs: Optional[int] = None) -> None:
+    """Visualiza superficies 2D para un submodelo específico.
+
+    Esta función delega en :meth:`ModalBoundaryClustering.plot_pairs`, por lo
+    que acepta los mismos parámetros, añadiendo ``model_idx`` para seleccionar
+    el submodelo dentro del ensamble.
+    """
+    mbc, feats = self._get_submodel(model_idx)
+    if hasattr(X, "iloc"):
+      Xs = X.iloc[:, list(feats)]
+    else:
+      Xs = np.asarray(X)[:, feats]
+    mbc.plot_pairs(Xs, y, max_pairs=max_pairs)
+
+  def plot_pair_3d(
+    self,
+    X: np.ndarray,
+    pair: Tuple[int, int],
+    *,
+    model_idx: int = 0,
+    **kwargs: Any,
+  ):
+    """Superficie 3D de probabilidad/valor predicho para un submodelo.
+
+    Parameters
+    ----------
+    X : ndarray of shape (n_samples, n_features)
+        Datos usados para definir el rango de los ejes.
+    pair : tuple of int
+        Índices globales ``(i, j)`` de las features a visualizar.
+    model_idx : int, default=0
+        Submodelo dentro del ensamble a utilizar.
+    **kwargs : dict
+        Parámetros adicionales pasados a
+        :meth:`ModalBoundaryClustering.plot_pair_3d`.
+    """
+    mbc, feats = self._get_submodel(model_idx)
+    feats_list = list(feats)
+    if pair[0] not in feats_list or pair[1] not in feats_list:
+      raise ValueError("pair debe pertenecer a las features del submodelo")
+    local_pair = (feats_list.index(pair[0]), feats_list.index(pair[1]))
+    if hasattr(X, "iloc"):
+      Xs = X.iloc[:, feats_list]
+    else:
+      Xs = np.asarray(X)[:, feats_list]
+    return mbc.plot_pair_3d(Xs, local_pair, **kwargs)

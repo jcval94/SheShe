@@ -343,12 +343,32 @@ Salida:
   'order': 2,
   'scout_score': -0.2368,
   'weight': 0.4336},
- {'cv_score': 0.8467,
+{'cv_score': 0.8467,
   'feat_importance': 7.3800,
   'features': (2, 1),
   'order': 2,
   'scout_score': -0.1543,
   'weight': 0.4193}]
+```
+
+#### `plot_pairs(X, y=None, model_idx=0, max_pairs=None)`
+
+Visualiza las superficies 2D de un submodelo concreto reutilizando las
+funciones de graficado de `ModalBoundaryClustering`.
+
+```python
+feats = mse.features_[0]
+mse.plot_pairs(X, y, model_idx=0, max_pairs=1)
+```
+
+#### `plot_pair_3d(X, pair, model_idx=0, class_label=None, grid_res=50, alpha_surface=0.6, engine="matplotlib")`
+
+Muestra como superficie 3D la probabilidad (clasificación) o el valor predicho
+(regresión) para un submodelo específico.
+
+```python
+feats = mse.features_[0]
+mse.plot_pair_3d(X, (feats[0], feats[1]), model_idx=0, class_label=mse.classes_[0])
 ```
 
 ### Experimentos y benchmark
