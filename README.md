@@ -126,6 +126,8 @@ After fitting, `ModalBoundaryClustering` stores the discovered regions in the
 - `metrics`: optional dictionary with additional per-cluster metrics such as
   precision, recall, F1, MSE or MAE
 
+## Interpretability
+
 ### RegionInterpreter – interpret cluster regions
 
 ```python
@@ -142,15 +144,16 @@ RegionInterpreter.pretty_print(cards[:1])
 
 Each card includes a `cluster_id` to identify the region and the class `label`.
 
-#### OpenAIRegionInterpreter – describe regions with LLMs
+### OpenAIRegionInterpreter – describe regions with LLMs
 
 Install the optional ``openai`` dependency (version ``>=1``) and provide an API
 key using the ``api_key`` argument or via environment variables. The interpreter
 looks for ``OPENAI_API_KEY`` or ``OPENAI_KEY`` and, when running on Google
 Colab, also checks ``google.colab.userdata``. Language and temperature defaults
-can be configured on the interpreter and overridden at call time. Pass ``layout``
-to hint a specific output format or omit it for free‑form text. Then call
-``describe_cards`` to obtain natural‑language explanations for the region cards.
+can be configured on the interpreter and overridden at call time. The ``layout``
+parameter lets you enforce a general output template (for example, ``"bullet list"``)
+or omit it for free‑form text. Then call ``describe_cards`` to obtain natural‑
+language explanations for the region cards.
 
 ```python
 from sheshe import OpenAIRegionInterpreter
@@ -160,7 +163,7 @@ texts = expl.describe_cards(cards, layout="bullet list", temperature=0.5)
 print(texts[0])
 ```
 
-#### Visualización 3D
+## Visualización 3D
 `plot_pair_3d` visualiza la probabilidad de una clase o el valor predicho como
 una superficie tridimensional para un par de características.
 

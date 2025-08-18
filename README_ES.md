@@ -96,6 +96,24 @@ atributo `regions_`. Cada `ClusterRegion` incluye:
 - `metrics`: diccionario opcional con métricas adicionales por clúster como
   precision, recall, F1, MSE o MAE.
 
+## Interpretabilidad
+
+### Interpretación de regiones
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering, RegionInterpreter
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+sh = ModalBoundaryClustering().fit(X, y)
+cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
+RegionInterpreter.pretty_print(cards[:1])
+```
+
+Cada tarjeta incluye un `cluster_id` para identificar la región y la clase `label`.
+
 ### Descripciones en lenguaje natural con OpenAI
 
 Instala la dependencia opcional ``openai`` (versión ``>=1``) y proporciona una
@@ -103,8 +121,8 @@ clave ya sea con el argumento ``api_key`` o mediante variables de entorno. El
 intérprete busca ``OPENAI_API_KEY`` o ``OPENAI_KEY`` y, al ejecutarse en Google
 Colab, también revisa ``google.colab.userdata``. Puedes fijar idioma y
 temperatura por defecto en el intérprete y sobreescribirlos al llamar
-``describe_cards``. Además, el parámetro ``layout`` permite sugerir un formato
-específico o dejar que el modelo responda libremente.
+``describe_cards``. El parámetro ``layout`` permite fijar un template general
+(por ejemplo, ``"lista con viñetas"``) o dejar que el modelo responda libremente.
 
 ```python
 from sheshe import RegionInterpreter, OpenAIRegionInterpreter
