@@ -84,7 +84,9 @@ reg = ModalBoundaryClustering(task="regression")
   - `Category`: class (or "NA" in regression)
   - `slope`: df/dt at the inflection point
   - `real_value` / `norm_value`
-  - `coord_0..coord_{d-1}` or feature names
+ - `coord_0..coord_{d-1}` or feature names
+- `predict_regions(X, label_path=None)` → cluster ID(s) for each sample
+- `get_cluster(cluster_id)` → retrieve a stored `ClusterRegion`
 - `plot_pairs(X, y=None, max_pairs=None)` → 2D plots for all pair combinations
 - `save(filepath)` → save the model using `joblib`
 - `ModalBoundaryClustering.load(filepath)` → load a saved instance
@@ -114,6 +116,29 @@ from sheshe import ModalBoundaryClustering
 X, y = load_iris(return_X_y=True)
 sh = ModalBoundaryClustering().fit(X, y)
 print(sh.decision_function(X[:5]))
+```
+
+#### `predict_regions(X, label_path=None)`
+
+Return cluster identifiers for each sample based solely on the discovered
+regions.
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+print(sh.predict_regions(X[:3]))
+```
+
+#### `get_cluster(cluster_id)`
+
+Fetch a stored :class:`ClusterRegion` by its identifier.
+
+```python
+reg = sh.get_cluster(0)
+print(reg.center)
 ```
 
 ### Per-cluster metrics
@@ -453,6 +478,15 @@ of class probabilities from all submodels in the ensemble.
 ```python
 mse.fit(X, y)
 print(mse.predict_proba(X[:5]))
+```
+
+#### `predict_regions(X)`
+
+Return the predicted label and cluster identifier for each sample.
+
+```python
+labels, cluster_ids = mse.predict_regions(X[:3])
+print(cluster_ids)
 ```
 
 #### `report()`
