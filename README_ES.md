@@ -82,9 +82,34 @@ reg = ModalBoundaryClustering(task="regression")
   - `pendiente`: df/dt en el punto de inflexión
   - `valor_real` / `valor_norm`
   - `coord_0..coord_{d-1}` o nombres de features
+- `predict_regions(X, label_path=None)` → ID(s) de clúster por muestra
+- `get_cluster(cluster_id)` → obtiene la `ClusterRegion` con ese ID
 - `plot_pairs(X, y=None, max_pairs=None)` → gráficos 2D para todas las combinaciones de pares
 - `save(filepath)` → guarda el modelo mediante `joblib`
 - `ModalBoundaryClustering.load(filepath)` → carga una instancia guardada
+
+#### `predict_regions(X, label_path=None)`
+
+Devuelve el identificador de clúster para cada muestra basándose únicamente en
+las regiones descubiertas.
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+print(sh.predict_regions(X[:3]))
+```
+
+#### `get_cluster(cluster_id)`
+
+Obtiene la :class:`ClusterRegion` asociada al identificador indicado.
+
+```python
+reg = sh.get_cluster(0)
+print(reg.center)
+```
 
 ### Métricas por clúster
 
@@ -337,6 +362,25 @@ mse = ModalScoutEnsemble(
 )
 mse.fit(X, y)
 print(mse.predict(X[:5]))
+```
+
+#### `predict_proba(X)`
+
+Solo disponible para tareas de clasificación, devuelve la mezcla ponderada de
+probabilidades de clase de todos los submodelos.
+
+```python
+mse.fit(X, y)
+print(mse.predict_proba(X[:5]))
+```
+
+#### `predict_regions(X)`
+
+Devuelve la etiqueta y el `cluster_id` estimados para cada muestra.
+
+```python
+labels, cluster_ids = mse.predict_regions(X[:3])
+print(cluster_ids)
 ```
 
 #### `report()`
