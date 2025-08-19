@@ -115,6 +115,29 @@ labels = ModalBoundaryClustering().fit_predict(X, y)
 print(labels[:5])
 ```
 
+#### Regression example with retraining
+
+```python
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sheshe import ModalBoundaryClustering
+
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+
+# initial training with the default estimator
+reg = ModalBoundaryClustering(task="regression").fit(X_train, y_train)
+print(reg.predict(X_test)[:3])
+
+# retrain using a different base estimator
+reg_retrained = ModalBoundaryClustering(
+    base_estimator=RandomForestRegressor(random_state=0),
+    task="regression",
+).fit(X_train, y_train)
+print(reg_retrained.predict(X_test)[:3])
+```
+
 #### `decision_function(X)`
 
 Returns decision values from the underlying estimator. For classification it
