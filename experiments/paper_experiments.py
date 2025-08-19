@@ -27,11 +27,12 @@ import argparse
 import numpy as np
 import pandas as pd
 from sklearn.datasets import load_iris, load_wine, make_classification
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 
 from sheshe import ModalBoundaryClustering
@@ -43,12 +44,13 @@ def _save(df: pd.DataFrame, path: Path) -> None:
 
 
 def supervised_comparison(out_dir: Path, seeds: Sequence[int]) -> pd.DataFrame:
-    """Compare SheShe with supervised baselines.
+    """Compare SheShe with supervised baselines using cross-validation.
 
     Datasets: Iris and Wine from scikit-learn.
-    Algorithms: Logistic Regression, k-Nearest Neighbours, Random Forest and
-    SheShe (using LogisticRegression as base estimator).
-    Metrics: classification accuracy and training+prediction runtime.
+    Algorithms: Logistic Regression, k-Nearest Neighbours, Random Forest,
+    linear and kernel SVMs, Gradient Boosting and SheShe (using
+    ``LogisticRegression`` as base estimator).
+    Metrics: classification accuracy and separate fit/predict runtimes.
     """
 
     datasets = {
@@ -61,53 +63,71 @@ def supervised_comparison(out_dir: Path, seeds: Sequence[int]) -> pd.DataFrame:
             "LogReg": LogisticRegression(max_iter=500, random_state=seed),
             "KNN": KNeighborsClassifier(),
             "RF": RandomForestClassifier(random_state=seed),
+            "SVM-linear": SVC(kernel="linear"),
+            "SVM-rbf": SVC(kernel="rbf"),
+            "GBC": GradientBoostingClassifier(random_state=seed),
         }
         for dname, (X, y) in datasets.items():
-            Xtr, Xte, ytr, yte = train_test_split(
-                X, y, test_size=0.3, random_state=seed, stratify=y
-            )
-            # Baselines
-            for aname, algo in algos.items():
+            skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
+            for fold, (tr_idx, te_idx) in enumerate(skf.split(X, y), start=1):
+                Xtr, Xte = X[tr_idx], X[te_idx]
+                ytr, yte = y[tr_idx], y[te_idx]
+                # Baselines
+                for aname, algo in algos.items():
+                    start = time.perf_counter()
+                    algo.fit(Xtr, ytr)
+                    fit_time = time.perf_counter() - start
+                    start = time.perf_counter()
+                    y_pred = algo.predict(Xte)
+                    predict_time = time.perf_counter() - start
+                    acc = accuracy_score(yte, y_pred)
+                    results.append(
+                        {
+                            "dataset": dname,
+                            "algorithm": aname,
+                            "seed": seed,
+                            "fold": fold,
+                            "accuracy": acc,
+                            "fit_time_sec": fit_time,
+                            "predict_time_sec": predict_time,
+                        }
+                    )
+                # SheShe
                 start = time.perf_counter()
-                algo.fit(Xtr, ytr)
-                y_pred = algo.predict(Xte)
-                runtime = time.perf_counter() - start
+                sh = ModalBoundaryClustering(
+                    base_estimator=LogisticRegression(max_iter=500, random_state=seed),
+                    task="classification",
+                    random_state=seed,
+                ).fit(Xtr, ytr)
+                fit_time = time.perf_counter() - start
+                start = time.perf_counter()
+                y_pred = sh.predict(Xte)
+                predict_time = time.perf_counter() - start
                 acc = accuracy_score(yte, y_pred)
                 results.append(
                     {
                         "dataset": dname,
-                        "algorithm": aname,
+                        "algorithm": "SheShe",
                         "seed": seed,
+                        "fold": fold,
                         "accuracy": acc,
-                        "runtime_sec": runtime,
+                        "fit_time_sec": fit_time,
+                        "predict_time_sec": predict_time,
                     }
                 )
-            # SheShe
-            start = time.perf_counter()
-            sh = ModalBoundaryClustering(
-                base_estimator=LogisticRegression(max_iter=500, random_state=seed),
-                task="classification",
-                random_state=seed,
-            ).fit(Xtr, ytr)
-            y_pred = sh.predict(Xte)
-            runtime = time.perf_counter() - start
-            acc = accuracy_score(yte, y_pred)
-            results.append(
-                {
-                    "dataset": dname,
-                    "algorithm": "SheShe",
-                    "seed": seed,
-                    "accuracy": acc,
-                    "runtime_sec": runtime,
-                }
-            )
 
     df = pd.DataFrame(results)
     _save(df, out_dir / "supervised_results.csv")
 
     summary = (
         df.groupby(["dataset", "algorithm"])
-        .agg({"accuracy": ["mean", "std"], "runtime_sec": ["mean", "std"]})
+        .agg(
+            {
+                "accuracy": ["mean", "std"],
+                "fit_time_sec": ["mean", "std"],
+                "predict_time_sec": ["mean", "std"],
+            }
+        )
     )
     summary.columns = ["_".join(col).strip("_") for col in summary.columns.values]
     summary.reset_index(inplace=True)
