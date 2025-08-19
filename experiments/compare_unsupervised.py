@@ -3,13 +3,15 @@ Compara SheShe con algoritmos no supervisados en varios conjuntos de datos.
 
 Genera métricas de *clustering* (ARI, homogeneidad, completitud y V-measure)
 para cinco dataframes distintos y diferentes configuraciones de parámetros.
-Cada ejecución registra además el **tiempo de ejecución** de la fase de
-entrenamiento/predicción, almacenado en ``runtime_sec``.
+Cada ejecución registra de manera separada los tiempos y memoria consumida en
+las fases de entrenamiento y predicción, almacenados en ``fit_time_sec``,
+``predict_time_sec``, ``fit_mem_mb`` y ``predict_mem_mb``.
 Los resultados se guardan en ``benchmark/unsupervised_results.csv``.
 """
 from pathlib import Path
 import math
 import time
+import psutil
 from typing import Iterable, Tuple, Optional, Sequence
 
 import argparse
@@ -124,8 +126,9 @@ def run(
 
             # SheShe: barridos de C, max_order, jaccard_threshold y base_2d_rays
             def _run_sheshe(*, C: float, max_order: int, jacc: float, rays: int) -> None:
-                start = time.perf_counter()
                 try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
                     sh = ModalScoutEnsemble(
                         base_estimator=LogisticRegression(
                             max_iter=500, C=C, random_state=seed
@@ -135,14 +138,18 @@ def run(
                         max_order=max_order,
                         jaccard_threshold=jacc,
                         base_2d_rays=rays,
-                        scout_kwargs={
-                            "max_order": max_order,
-                            "top_m": 4,
-                            "sample_size": None,
-                        },
+                        scout_kwargs={"max_order": max_order, "top_m": 4, "sample_size": None},
                         cv=2,
                     ).fit(X, y)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
                     y_pred = sh.predict(X)
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
                     metrics_dict = _evaluate(y, y_pred, metrics)
                     _save_labels(
                         y_pred,
@@ -151,20 +158,25 @@ def run(
                 except Exception as exc:
                     y_pred = []
                     metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
                     if verbose:
                         print(
                             "SheShe falló en "
                             f"{name} (C={C}, max_order={max_order}, jt={jacc}, rays={rays}, seed={seed}): {exc}",
                         )
-                runtime = time.perf_counter() - start
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
                 record = {
                     "dataset": name,
                     "algorithm": "SheShe",
                     "params": (
-                        f"C={C},max_order={max_order},jaccard_threshold={jacc},"
+                        f"C={C},max_order={max_order},jaccard_threshold={jacc},",
                         f"base_2d_rays={rays}"
                     ),
                     "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
                     "runtime_sec": runtime,
                 }
                 record.update(metrics_dict)
@@ -174,7 +186,6 @@ def run(
                         "SheShe "
                         f"{name} C={C} max_order={max_order} jt={jacc} rays={rays} seed={seed} → {runtime:.4f}s",
                     )
-
             # Barrido sobre C (manteniendo el resto en valores por defecto)
             for C in [0.01, 0.1, 1.0, 10.0, 100.0]:
                 _run_sheshe(C=C, max_order=3, jacc=0.55, rays=24)
@@ -194,24 +205,38 @@ def run(
             # KMeans: variar n_clusters (más valores)
             for k in [n_classes - 2, n_classes - 1, n_classes, n_classes + 1, n_classes + 2]:
                 k = max(k, 1)
-                start = time.perf_counter()
                 try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
                     km = KMeans(n_clusters=k, random_state=seed)
                     km.fit(X)
-                    y_pred = km.labels_
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
+                    y_pred = km.predict(X)
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
                     metrics_dict = _evaluate(y, y_pred, metrics)
                     _save_labels(y_pred, f"{name}_KMeans_k-{k}_seed-{seed}.labels")
                 except Exception as exc:
                     y_pred = []
                     metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
                     if verbose:
                         print(f"KMeans falló en {name} (k={k}, seed={seed}): {exc}")
-                runtime = time.perf_counter() - start
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
                 record = {
                     "dataset": name,
                     "algorithm": "KMeans",
                     "params": f"n_clusters={k}",
                     "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
                     "runtime_sec": runtime,
                 }
                 record.update(metrics_dict)
@@ -223,24 +248,38 @@ def run(
 
             # DBSCAN: variar eps (rango ampliado)
             for eps in [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]:
-                start = time.perf_counter()
                 try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
                     db = DBSCAN(eps=eps, min_samples=5)
                     db.fit(X)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
                     y_pred = db.labels_
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
                     metrics_dict = _evaluate(y, y_pred, metrics)
                     _save_labels(y_pred, f"{name}_DBSCAN_eps-{eps}_seed-{seed}.labels")
                 except Exception as exc:
                     y_pred = []
                     metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
                     if verbose:
                         print(f"DBSCAN falló en {name} (eps={eps}, seed={seed}): {exc}")
-                runtime = time.perf_counter() - start
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
                 record = {
                     "dataset": name,
                     "algorithm": "DBSCAN",
                     "params": f"eps={eps}",
                     "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
                     "runtime_sec": runtime,
                 }
                 record.update(metrics_dict)
@@ -258,6 +297,10 @@ def run(
         df.groupby(["dataset", "algorithm", "params"])
         .agg(
             {
+                "fit_time_sec": ["mean", "std"],
+                "predict_time_sec": ["mean", "std"],
+                "fit_mem_mb": ["mean", "std"],
+                "predict_mem_mb": ["mean", "std"],
                 "runtime_sec": ["mean", "std"],
                 "ARI": ["mean", "std"],
                 "homogeneity": ["mean", "std"],
