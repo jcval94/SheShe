@@ -1693,6 +1693,9 @@ class ModalBoundaryClustering(BaseEstimator):
             )
             return fig
 
+        if engine != "matplotlib":
+            raise ValueError("engine must be 'matplotlib' or 'plotly'")
+
         fig = plt.figure(figsize=(6, 5))
         ax = fig.add_subplot(111, projection="3d")
         ax.plot_surface(XI, XJ, Z, cmap="viridis", alpha=alpha_surface)
