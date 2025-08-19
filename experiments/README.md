@@ -58,8 +58,11 @@ utilizadas en el artículo de SheShe.
   `"percentile"`.
 - **Ejecución:**
   ```bash
-  PYTHONPATH=src python experiments/benchmark_stop_criteria.py
+  PYTHONPATH=src python experiments/benchmark_stop_criteria.py \\
+    --reps 5 --warmup 2 --sizes 500 1000 --directions center_out outside_in
   ```
+  Los parámetros `--reps`, `--warmup`, `--sizes` y `--directions` permiten
+  explorar distintas configuraciones del benchmark.
 
 ## Sugerencias de experimentos adicionales
 - **Variación de parámetros:** explorar el impacto de `auto_rays_by_dim`,
