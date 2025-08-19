@@ -314,9 +314,10 @@ def find_percentile_drop(
 ) -> Tuple[float, float]:
     """Return ``(t_drop, slope_at_drop)`` based on percentile decrease.
 
-    Stops when the evaluated value falls to a lower percentile bin defined by
-    ``percentiles``. If no such drop is found, falls back to a fractional
-    drop of the initial value as in :func:`find_inflection`.
+    This vectorized implementation avoids Python loops by relying on
+    ``numpy`` operations. If no drop to a lower percentile bin is found,
+    it falls back to a fractional drop of the initial value as in
+    :func:`find_inflection`.
     """
     if direction not in ("center_out", "outside_in"):
         raise ValueError("direction must be 'center_out' or 'outside_in'.")
@@ -330,16 +331,11 @@ def find_percentile_drop(
         ts_scan = ts
         vals_scan = vals
 
-    prev = int(np.searchsorted(percentiles, vals_scan[0], side="right") - 1)
-    idx = None
-    for j in range(1, len(vals_scan)):
-        curr = int(np.searchsorted(percentiles, vals_scan[j], side="right") - 1)
-        if curr < prev:
-            idx = j
-            break
-        prev = curr
+    dec_idx = np.searchsorted(percentiles, vals_scan, side="right") - 1
+    dec_drops = np.where(np.diff(dec_idx) < 0)[0]
 
-    if idx is not None:
+    if dec_drops.size > 0:
+        idx = int(dec_drops[0] + 1)
         t_scan = ts_scan[idx]
         m_scan = (vals_scan[idx] - vals_scan[idx - 1]) / (
             ts_scan[idx] - ts_scan[idx - 1] + 1e-12
@@ -350,16 +346,16 @@ def find_percentile_drop(
         m_scan = (vals_scan[-1] - vals_scan[0]) / (
             ts_scan[-1] - ts_scan[0] + 1e-12
         )
-        for j in range(1, len(vals_scan)):
-            if vals_scan[j] <= target:
-                t0, t1 = ts_scan[j - 1], ts_scan[j]
-                v0, v1 = vals_scan[j - 1], vals_scan[j]
-                alpha = float(
-                    np.clip((target - v0) / (v1 - v0 + 1e-12), 0.0, 1.0)
-                )
-                t_scan = t0 + alpha * (t1 - t0)
-                m_scan = (v1 - v0) / (t1 - t0 + 1e-12)
-                break
+        idxs = np.where(vals_scan <= target)[0]
+        if idxs.size > 0:
+            j = int(idxs[0])
+            t0, t1 = ts_scan[j - 1], ts_scan[j]
+            v0, v1 = vals_scan[j - 1], vals_scan[j]
+            alpha = float(
+                np.clip((target - v0) / (v1 - v0 + 1e-12), 0.0, 1.0)
+            )
+            t_scan = t0 + alpha * (t1 - t0)
+            m_scan = (v1 - v0) / (t1 - t0 + 1e-12)
 
     t_abs = t_scan if direction == "center_out" else (ts[-1] - t_scan)
     return float(t_abs), float(m_scan)
