@@ -570,7 +570,7 @@ class ModalBoundaryClustering(BaseEstimator):
     def _fit_estimator(self, X: np.ndarray, y: Optional[np.ndarray]):
         if self.base_estimator is None:
             if self.task == "classification":
-                est = LogisticRegression(multi_class="auto", max_iter=1000)
+                est = LogisticRegression(max_iter=1000)
             else:
                 est = GradientBoostingRegressor(random_state=self.random_state)
         else:
