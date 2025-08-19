@@ -20,7 +20,7 @@ métricas de distancia arbitrarias.
 - Extrae reglas interpretables a través de `RegionInterpreter`.
 - Incluye utilidades de graficado 2D y 3D integradas.
 
-![Resumen de características](images/feature-overview.png)
+*Figura de resumen de características omitida (no se permiten archivos binarios).* 
 
 ---
 
@@ -55,13 +55,7 @@ La librería expone cinco objetos principales:
 - `ModalScoutEnsemble`
 - `RegionInterpreter` – convierte `ClusterRegion` en reglas interpretables
 
-Espacios para las imágenes de los objetos anteriores:
-
-![ModalBoundaryClustering](images/modalboundaryclustering.png)
-![ClusterRegion](images/clusterregion.png)
-![SubspaceScout](images/subspacescout.png)
-![ModalScoutEnsemble](images/modalscoutensemble.png)
-![RegionInterpreter](images/regioninterpreter.png)
+Las figuras ilustrativas de estos objetos se omiten porque el repositorio no admite archivos binarios.
 
 ```python
 from sheshe import (
@@ -536,7 +530,7 @@ python experiments/paper_experiments.py
 
 ## Imágenes
 
-Las imágenes mostradas en este README se almacenan en la carpeta [`images/`](images/). Esta carpeta está vacía por el momento y se poblará en futuras actualizaciones. Para evitar problemas con archivos binarios grandes, todos estos recursos se gestionan con [Git LFS](https://git-lfs.com).
+Las figuras se han omitido deliberadamente porque este repositorio no permite almacenar archivos binarios.
 
 ---
 

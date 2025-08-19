@@ -20,7 +20,7 @@ distance metrics.
 - Provides human-readable rule extraction through `RegionInterpreter`.
 - Includes built-in plotting utilities for pairwise and 3D visualizations.
 
-![Feature overview](images/feature-overview.png)
+*Feature overview figure omitted (binary assets are not allowed).* 
 
 ---
 
@@ -55,13 +55,7 @@ The library exposes five main objects:
 - `ModalScoutEnsemble`
 - `RegionInterpreter` – turn `ClusterRegion` objects into human-readable rules
 
-Image placeholders for the above objects:
-
-![ModalBoundaryClustering](images/modalboundaryclustering.png)
-![ClusterRegion](images/clusterregion.png)
-![SubspaceScout](images/subspacescout.png)
-![ModalScoutEnsemble](images/modalscoutensemble.png)
-![RegionInterpreter](images/regioninterpreter.png)
+Figures illustrating these objects are omitted because binary assets are not allowed in this repository.
 
 ```python
 from sheshe import (
@@ -636,7 +630,7 @@ python experiments/paper_experiments.py --runs 5
 
 ## Images
 
-Images shown in this README are stored in the [`images/`](images/) directory. The folder is currently empty and will be populated in future updates. To avoid bloating the repository with binary files, all assets in this folder are tracked with [Git LFS](https://git-lfs.com).
+Figures have been intentionally omitted because this repository does not permit storing binary assets.
 
 ---
 
