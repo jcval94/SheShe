@@ -409,9 +409,9 @@ import matplotlib.pyplot as plt
 out_dir = Path("images")
 out_dir.mkdir(exist_ok=True)
 for i, fig_num in enumerate(plt.get_fignums()):
-    plt.figure(fig_num)
-    plt.savefig(out_dir / f"pair_{i}.png")
-plt.close(fig_num)
+    fig = plt.figure(fig_num)
+    fig.savefig(out_dir / f"pair_{i}.png")
+    plt.close(fig)
 ```
 
 ### Plotting with pandas DataFrames
