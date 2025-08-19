@@ -58,62 +58,77 @@ def _vectorized_find_percentile_drop(ts, vals, direction, percentiles, drop_frac
     return float(t_abs), float(m_scan)
 
 
-def benchmark_functions(sizes, direction, reps, warmup):
-    rng = np.random.default_rng(0)
+def benchmark_functions(sizes, directions, reps, warmup):
+    """Benchmark ``find_percentile_drop`` implementations.
+
+    Parameters
+    ----------
+    sizes : list[int]
+        Synthetic time series sizes to generate.
+    directions : list[str]
+        Scan directions to test (``"center_out"`` or ``"outside_in"``).
+    reps : int
+        Number of timing repetitions.
+    warmup : int
+        Number of warm-up iterations before timing.
+    """
+
     percentiles = np.linspace(0.0, 1.0, 21)
     results = []
 
-    for n in sizes:
-        ts = np.linspace(0, 5, n)
-        vals = np.linspace(1.0, 0.0, n) + rng.normal(scale=0.01, size=n)
+    for direction in directions:
+        rng = np.random.default_rng(0)
+        for n in sizes:
+            ts = np.linspace(0, 5, n)
+            vals = np.linspace(1.0, 0.0, n) + rng.normal(scale=0.01, size=n)
 
-        vec_stmt = lambda: _vectorized_find_percentile_drop(
-            ts, vals, direction, percentiles
-        )
-        loop_stmt = lambda: find_percentile_drop(ts, vals, direction, percentiles)
+            vec_stmt = lambda: _vectorized_find_percentile_drop(
+                ts, vals, direction, percentiles
+            )
+            loop_stmt = lambda: find_percentile_drop(ts, vals, direction, percentiles)
 
-        assert np.allclose(vec_stmt(), loop_stmt())
+            assert np.allclose(vec_stmt(), loop_stmt())
 
-        for _ in range(warmup):
-            vec_stmt()
-            loop_stmt()
+            for _ in range(warmup):
+                vec_stmt()
+                loop_stmt()
 
-        t_vec = timeit.repeat(vec_stmt, number=1, repeat=reps)
-        t_loop = timeit.repeat(loop_stmt, number=1, repeat=reps)
+            t_vec = timeit.repeat(vec_stmt, number=1, repeat=reps)
+            t_loop = timeit.repeat(loop_stmt, number=1, repeat=reps)
 
-        mean_vec = np.mean(t_vec)
-        std_vec = np.std(t_vec, ddof=1) if reps > 1 else 0.0
-        mean_loop = np.mean(t_loop)
-        std_loop = np.std(t_loop, ddof=1) if reps > 1 else 0.0
-        speedup = mean_vec / mean_loop if mean_loop > 0 else float("inf")
+            mean_vec = np.mean(t_vec)
+            std_vec = np.std(t_vec, ddof=1) if reps > 1 else 0.0
+            mean_loop = np.mean(t_loop)
+            std_loop = np.std(t_loop, ddof=1) if reps > 1 else 0.0
+            speedup = mean_vec / mean_loop if mean_loop > 0 else float("inf")
 
-        results.extend(
-            [
-                {
-                    "size": n,
-                    "direction": direction,
-                    "implementation": "vectorized",
-                    "mean": mean_vec,
-                    "std": std_vec,
-                    "speedup": 1.0,
-                },
-                {
-                    "size": n,
-                    "direction": direction,
-                    "implementation": "loop",
-                    "mean": mean_loop,
-                    "std": std_loop,
-                    "speedup": speedup,
-                },
-            ]
-        )
+            results.extend(
+                [
+                    {
+                        "size": n,
+                        "direction": direction,
+                        "implementation": "vectorized",
+                        "mean": mean_vec,
+                        "std": std_vec,
+                        "speedup": 1.0,
+                    },
+                    {
+                        "size": n,
+                        "direction": direction,
+                        "implementation": "loop",
+                        "mean": mean_loop,
+                        "std": std_loop,
+                        "speedup": speedup,
+                    },
+                ]
+            )
 
-        print(
-            f"n={n} direction={direction} -> "
-            f"vectorized {mean_vec:.6f}s ± {std_vec:.6f}, "
-            f"loop {mean_loop:.6f}s ± {std_loop:.6f}, "
-            f"speedup {speedup:.2f}x"
-        )
+            print(
+                f"n={n} direction={direction} -> "
+                f"vectorized {mean_vec:.6f}s ± {std_vec:.6f}, "
+                f"loop {mean_loop:.6f}s ± {std_loop:.6f}, "
+                f"speedup {speedup:.2f}x"
+            )
 
     return results
 
@@ -190,10 +205,11 @@ def parse_args():
         help="Sizes of the synthetic time series to test",
     )
     parser.add_argument(
-        "--direction",
+        "--directions",
         choices=["center_out", "outside_in"],
-        default="center_out",
-        help="Direction used in find_percentile_drop",
+        nargs="+",
+        default=["center_out"],
+        help="Directions used in find_percentile_drop",
     )
     return parser.parse_args()
 
@@ -201,7 +217,9 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     rows = []
-    rows.extend(benchmark_functions(args.sizes, args.direction, args.reps, args.warmup))
+    rows.extend(
+        benchmark_functions(args.sizes, args.directions, args.reps, args.warmup)
+    )
     rows.extend(benchmark_model_fit(args.reps, args.warmup))
     out_path = os.path.join("benchmark", "stop_criteria_results.csv")
     save_results(rows, out_path)
