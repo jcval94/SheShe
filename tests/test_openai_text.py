@@ -1,6 +1,9 @@
 import pytest
 
-from sheshe.openai_text import OpenAIRegionInterpreter
+from sheshe import OpenAIRegionInterpreter
+
+if OpenAIRegionInterpreter is None:  # pragma: no cover - optional dependency
+    pytest.skip("OpenAIRegionInterpreter not available", allow_module_level=True)
 
 
 class DummyClient:
