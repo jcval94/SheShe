@@ -408,10 +408,18 @@ def main():
 
     df_final = pd.concat(todo, ignore_index=True)
     df_final = df_final.sort_values(["dataset", "macro_f1", "nmi"], ascending=[True, False, False])
-    df_final.to_csv("ab_results_clustering.csv", index=False)
+
+    # Escribir CSV con metadatos de plataforma como encabezado comentado
+    with open("ab_results_clustering.csv", "w", encoding="utf-8") as f:
+        for k, v in PLATFORM_INFO.items():
+            f.write(f"# {k}: {v}\n")
+        df_final.to_csv(f, index=False)
+
+    # Guardar los metadatos también en un JSON acompañante
     with open("ab_results_clustering_meta.json", "w") as f:
         json.dump(PLATFORM_INFO, f, indent=2)
-    print("\n✅ Resultados guardados en: ab_results_clustering.csv")
+
+    print("\n✅ Resultados guardados en: ab_results_clustering.csv (incluye metadatos de plataforma)")
     print("📄 Metadatos de plataforma guardados en: ab_results_clustering_meta.json")
     # Top-3 por dataset (macro_f1)
     print("\n🏁 Top-3 por dataset (macro_f1):")
