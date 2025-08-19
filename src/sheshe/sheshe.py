@@ -1362,12 +1362,13 @@ class ModalBoundaryClustering(BaseEstimator):
         X: np.ndarray,
         y: np.ndarray,
         pair: Tuple[int, int],
+        class_label: Any,
         class_colors: Dict[Any, str],
         feature_names: Sequence[str],
         grid_res: int = 200,
         alpha_surface: float = 0.6,
-    ):
-        """Draw the probability surface for a pair of features.
+    ) -> plt.Figure:
+        """Draw the probability surface for a pair of features and one class.
 
         Parameters
         ----------
@@ -1377,6 +1378,8 @@ class ModalBoundaryClustering(BaseEstimator):
             Class labels.
         pair : tuple of int
             Indices ``(i, j)`` of the features to plot.
+        class_label : Any
+            Class whose probability surface is drawn.
         class_colors : dict
             Mapping from class to color for scatter points.
         feature_names : sequence of str
@@ -1388,12 +1391,13 @@ class ModalBoundaryClustering(BaseEstimator):
 
         Returns
         -------
-        None
+        fig : :class:`matplotlib.figure.Figure`
+            Figure containing the plot.
 
         Examples
         --------
         >>> sh = ModalBoundaryClustering().fit(X, y)
-        >>> sh._plot_single_pair_classif(X, y, (0, 1), {0: 'red', 1: 'blue'})
+        >>> sh._plot_single_pair_classif(X, y, (0, 1), 0, {0: 'red', 1: 'blue'})
         """
         i, j = pair
         xi, xj = X[:, i], X[:, j]
@@ -1401,30 +1405,37 @@ class ModalBoundaryClustering(BaseEstimator):
         xj_lin = np.linspace(xj.min(), xj.max(), grid_res)
         XI, XJ = np.meshgrid(xi_lin, xj_lin)
 
+        cls_idx = list(self.classes_).index(class_label)
         d = X.shape[1]
         fixed = np.mean(X, axis=0)
         X_std = X.std(0)
-        for reg in self.regions_:
-            label = reg.label
-            cls_idx = list(self.classes_).index(label)
-            X_grid = np.tile(fixed, (grid_res * grid_res, 1))
-            X_grid[:, i] = XI.ravel()
-            X_grid[:, j] = XJ.ravel()
-            Z = self._predict_value_real(X_grid, class_idx=cls_idx).reshape(XI.shape)
+        X_grid = np.tile(fixed, (grid_res * grid_res, 1))
+        X_grid[:, i] = XI.ravel()
+        X_grid[:, j] = XJ.ravel()
+        Z = self._predict_value_real(X_grid, class_idx=cls_idx).reshape(XI.shape)
 
-            plt.figure(figsize=(6, 5))
-            plt.title(
-                f"Cluster {reg.cluster_id} - Prob. clase '{label}' vs ({feature_names[i]},{feature_names[j]})"
+        fig, ax = plt.subplots(figsize=(6, 5))
+        ax.set_title(
+            f"Prob. clase '{class_label}' vs ({feature_names[i]},{feature_names[j]})"
+        )
+        cf = ax.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
+        fig.colorbar(cf, ax=ax, label=f"P({class_label})")
+
+        # puntos
+        for c in self.classes_:
+            mask = (y == c)
+            ax.scatter(
+                X[mask, i],
+                X[mask, j],
+                s=18,
+                c=class_colors[c],
+                label=str(c),
+                edgecolor='k',
+                linewidths=0.3,
             )
-            cf = plt.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
-            plt.colorbar(cf, label=f"P({label})")
 
-            # puntos
-            for c in self.classes_:
-                mask = (y == c)
-                plt.scatter(X[mask, i], X[mask, j], s=18, c=class_colors[c], label=str(c), edgecolor='k', linewidths=0.3)
-
-            # frontera (poli 2D)
+        # fronteras de las regiones de esta clase
+        for reg in [r for r in self.regions_ if r.label == class_label]:
             center2 = reg.center.copy()
             mask_others = np.ones(d, dtype=bool)
             mask_others[[i, j]] = False
@@ -1446,46 +1457,49 @@ class ModalBoundaryClustering(BaseEstimator):
             ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
             order = np.argsort(ang)
             poly = pts[order]
-            col = class_colors[label]
-            plt.fill(
+            col = class_colors[class_label]
+            ax.fill(
                 poly[:, 0],
                 poly[:, 1],
                 color=col,
                 alpha=0.15,
                 zorder=1,
             )
-            plt.plot(
+            ax.plot(
                 np.r_[poly[:, 0], poly[0, 0]],
                 np.r_[poly[:, 1], poly[0, 1]],
                 color=col,
                 linewidth=2,
-                label=f"frontera {reg.cluster_id} ({label})",
+                label=f"frontera {reg.cluster_id} ({class_label})",
             )
-            plt.scatter(
+            ax.scatter(
                 ctr[0],
                 ctr[1],
                 c=col,
                 marker='X',
                 s=80,
-                label=f"centro {reg.cluster_id} ({label})",
+                label=f"centro {reg.cluster_id} ({class_label})",
             )
 
-            plt.xlabel(feature_names[i])
-            plt.ylabel(feature_names[j])
-            plt.xlim(xi.min(), xi.max())
-            plt.ylim(xj.min(), xj.max())
-            plt.legend(loc="best")
-            plt.tight_layout()
+        ax.set_xlabel(feature_names[i])
+        ax.set_ylabel(feature_names[j])
+        ax.set_xlim(xi.min(), xi.max())
+        ax.set_ylim(xj.min(), xj.max())
+        ax.legend(loc="best")
+        fig.tight_layout()
+        return fig
 
     def _plot_single_pair_reg(
         self,
         X: np.ndarray,
         pair: Tuple[int, int],
         feature_names: Sequence[str],
+        y: Optional[np.ndarray] = None,
         grid_res: int = 200,
         alpha_surface: float = 0.6,
-    ):
-        """Draw the predicted-value surface for a pair of features.
+        max_classes: Optional[int] = None,
+    ) -> plt.Figure:
+        """Draw predicted-value surface and decile regions for a feature pair.
 
         Parameters
         ----------
@@ -1495,6 +1509,9 @@ class ModalBoundaryClustering(BaseEstimator):
             Indices ``(i, j)`` of the features to plot.
         feature_names : sequence of str
             Names corresponding to the columns of ``X``.
+        y : ndarray of shape (n_samples,), optional
+            Values used to compute deciles. If ``None``, the model predictions
+            for ``X`` are used instead.
         grid_res : int, default=200
             Resolution of the mesh used for the surface.
         alpha_surface : float, default=0.6
@@ -1502,7 +1519,8 @@ class ModalBoundaryClustering(BaseEstimator):
 
         Returns
         -------
-        None
+        fig : :class:`matplotlib.figure.Figure`
+            Figure containing the plot.
 
         Examples
         --------
@@ -1516,67 +1534,61 @@ class ModalBoundaryClustering(BaseEstimator):
         XI, XJ = np.meshgrid(xi_lin, xj_lin)
         d = X.shape[1]
         fixed = np.mean(X, axis=0)
-        X_std = X.std(0)
         X_grid = np.tile(fixed, (grid_res * grid_res, 1))
         X_grid[:, i] = XI.ravel()
         X_grid[:, j] = XJ.ravel()
         Z = self._predict_value_real(X_grid, class_idx=None).reshape(XI.shape)
 
-        reg = self.regions_[0]
-        plt.figure(figsize=(6, 5))
-        plt.title(
-            f"Cluster {reg.cluster_id} - Valor predicho vs ({feature_names[i]},{feature_names[j]})"
-        )
-        cf = plt.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
-        plt.colorbar(cf, label="y_pred")
-        center2 = reg.center.copy()
-        mask_others = np.ones(d, dtype=bool)
-        mask_others[[i, j]] = False
-        center2[mask_others] = fixed[mask_others]
+        vals = y if y is not None else self._predict_value_real(X, class_idx=None)
+        dec = np.percentile(vals, np.linspace(0, 100, 11))
+        bins = dec[1:-1]
+        ids = np.digitize(vals, bins, right=True)
+        palette = [
+            "#e41a1c",
+            "#377eb8",
+            "#4daf4a",
+            "#984ea3",
+            "#ff7f00",
+            "#a65628",
+            "#f781bf",
+            "#999999",
+            "#66c2a5",
+            "#ffd92f",
+        ]
+        n_dec = 10 if max_classes is None else min(10, max_classes)
 
-        U2 = np.linspace(0, 2 * np.pi, 32, endpoint=False)
-        D = np.zeros((len(U2), d))
-        D[:, i] = np.cos(U2)
-        D[:, j] = np.sin(U2)
+        fig, ax = plt.subplots(figsize=(6, 5))
+        ax.set_title(
+            f"Deciles de y_pred vs ({feature_names[i]},{feature_names[j]})"
+        )
+        cf = ax.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
+        fig.colorbar(cf, ax=ax, label="y_pred")
 
-        f = self._build_value_fn(
-            class_idx=None,
-            norm_stats=self._build_norm_stats(X, class_idx=None),
-        )
-        perc = self.percentiles_ if self.stop_criteria == "percentile" else None
-        _, pts, _ = self._scan_radii(center2, f, D, X_std, percentiles=perc)
-        pts = pts[:, [i, j]]
-        ctr = center2[[i, j]]
-        ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
-        order = np.argsort(ang)
-        poly = pts[order]
-        plt.fill(
-            poly[:, 0],
-            poly[:, 1],
-            color="black",
-            alpha=0.15,
-            zorder=1,
-        )
-        plt.plot(
-            np.r_[poly[:, 0], poly[0, 0]],
-            np.r_[poly[:, 1], poly[0, 1]],
-            color="black",
-            linewidth=2,
-            label=f"frontera {reg.cluster_id}",
-        )
-        plt.scatter(
-            ctr[0],
-            ctr[1],
-            c="black",
-            marker='X',
-            s=80,
-            label=f"centro {reg.cluster_id}",
-        )
+        # decile boundaries
+        levels = dec[1:n_dec]
+        for lvl, col in zip(levels, palette[: len(levels)]):
+            ax.contour(XI, XJ, Z, levels=[lvl], colors=[col], linewidths=2)
 
-        plt.xlabel(feature_names[i])
-        plt.ylabel(feature_names[j])
-        plt.legend(loc="best")
-        plt.tight_layout()
+        # scatter points coloured by decile
+        for k in range(10):
+            mask = ids == k
+            if not np.any(mask):
+                continue
+            ax.scatter(
+                X[mask, i],
+                X[mask, j],
+                s=18,
+                c=palette[k],
+                label=f"dec {k+1}" if k < n_dec else None,
+                edgecolor='k',
+                linewidths=0.3,
+            )
+
+        ax.set_xlabel(feature_names[i])
+        ax.set_ylabel(feature_names[j])
+        ax.legend(loc="best")
+        fig.tight_layout()
+        return fig
 
     def plot_pairs(
         self,
@@ -1584,12 +1596,14 @@ class ModalBoundaryClustering(BaseEstimator):
         y: Optional[np.ndarray] = None,
         max_pairs: Optional[int] = None,
         feature_names: Optional[Sequence[str]] = None,
+        block_size: Optional[int] = None,
+        max_classes: Optional[int] = None,
     ):
         """Visualize 2D surfaces for feature pairs.
 
         Generates one figure for each ``(i, j)`` feature combination up to
         ``max_pairs``. In classification, the probability of each class is shown;
-        in regression, the predicted value.
+        in regression, decile regions of the predicted value are drawn.
 
         Parameters
         ----------
@@ -1604,6 +1618,15 @@ class ModalBoundaryClustering(BaseEstimator):
             Names for each feature to use on axis labels. If ``None`` and ``X``
             is a ``DataFrame`` its column names are used; otherwise generic
             ``feat i`` labels are shown.
+        block_size : int, optional
+            If provided, figures are displayed and closed in blocks of this size
+            to avoid keeping too many open at once. When set, plots are shown
+            automatically and it is not necessary to call ``plt.show()``
+            afterwards. If ``None`` (default), all figures remain open and the
+            caller should invoke ``plt.show()``.
+        max_classes : int, optional
+            Maximum number of classes (or deciles in regression) to visualize.
+            If ``None`` all are shown.
 
         Returns
         -------
@@ -1643,17 +1666,54 @@ class ModalBoundaryClustering(BaseEstimator):
         if max_pairs is not None:
             pairs = pairs[:max_pairs]
 
+        block_figs: List[plt.Figure] = []
         if self.task == "classification":
             assert y is not None, "y required to plot classification."
             assert len(y) == len(X), "X e y deben tener la misma longitud."
-            palette = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3",
-                       "#ff7f00", "#a65628", "#f781bf", "#999999"]
+            palette = [
+                "#e41a1c",
+                "#377eb8",
+                "#4daf4a",
+                "#984ea3",
+                "#ff7f00",
+                "#a65628",
+                "#f781bf",
+                "#999999",
+            ]
             class_colors = {c: palette[i % len(palette)] for i, c in enumerate(self.classes_)}
+            labels = list(self.classes_)
+            if max_classes is not None:
+                labels = labels[:max_classes]
             for pair in pairs:
-                self._plot_single_pair_classif(X_arr, y, pair, class_colors, feature_names)
+                for label in labels:
+                    fig = self._plot_single_pair_classif(
+                        X_arr, y, pair, label, class_colors, feature_names
+                    )
+                    if block_size:
+                        block_figs.append(fig)
+                        if len(block_figs) >= block_size:
+                            plt.show()
+                            for f in block_figs:
+                                plt.close(f)
+                            block_figs.clear()
         else:
+            y_vals = y if y is not None else self._predict_value_real(X_arr, class_idx=None)
             for pair in pairs:
-                self._plot_single_pair_reg(X_arr, pair, feature_names)
+                fig = self._plot_single_pair_reg(
+                    X_arr, pair, feature_names, y_vals, max_classes=max_classes
+                )
+                if block_size:
+                    block_figs.append(fig)
+                    if len(block_figs) >= block_size:
+                        plt.show()
+                        for f in block_figs:
+                            plt.close(f)
+                        block_figs.clear()
+
+        if block_size and block_figs:
+            plt.show()
+            for f in block_figs:
+                plt.close(f)
 
     def plot_pair_3d(
         self,

@@ -600,6 +600,8 @@ class ModalScoutEnsemble(BaseEstimator):
     model_idx: int = 0,
     max_pairs: Optional[int] = None,
     feature_names: Optional[Sequence[str]] = None,
+    block_size: Optional[int] = None,
+    max_classes: Optional[int] = None,
   ) -> None:
     """Visualiza superficies 2D para un submodelo específico.
 
@@ -620,7 +622,14 @@ class ModalScoutEnsemble(BaseEstimator):
       sub_names = [feature_names[f] for f in feats_list]
     else:
       sub_names = None
-    mbc.plot_pairs(Xs, y, max_pairs=max_pairs, feature_names=sub_names)
+    mbc.plot_pairs(
+      Xs,
+      y,
+      max_pairs=max_pairs,
+      feature_names=sub_names,
+      block_size=block_size,
+      max_classes=max_classes,
+    )
 
   def plot_pair_3d(
     self,
