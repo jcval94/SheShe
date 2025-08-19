@@ -572,9 +572,10 @@ Results are generated inside `benchmark/` (valores por repetición y medias en
 
 For the manuscript we provide additional scripts in
 [`paper_experiments.py`](experiments/paper_experiments.py) which perform
-supervised comparisons, ablation studies over `base_2d_rays` and `direction`,
-and sensitivity analyses w.r.t. dimensionality and Gaussian noise.  Executing
-the script generates tables with todas las repeticiones y un resumen (`*_summary.csv`),
+supervised comparisons, ablation studies over `base_2d_rays`, `direction`,
+`jaccard_threshold`, `drop_fraction` and `smooth_window`, and sensitivity
+analyses w.r.t. dimensionality and Gaussian noise.  Executing the script
+generates tables with todas las repeticiones y un resumen (`*_summary.csv`),
 además de figuras (`*.png`) bajo `benchmark/`:
 
 ```bash

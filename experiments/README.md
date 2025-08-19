@@ -21,8 +21,8 @@ utilizadas en el artículo de SheShe.
 - **Script:** `paper_experiments.py`
 - **Comparación supervisada:** Logistic Regression, KNN, Random Forest y SheShe
   (métrica: *accuracy*).
-- **Ablation:** variación de `base_2d_rays` y `direction` sobre el conjunto de
-  Iris.
+- **Ablation:** variación de `base_2d_rays`, `direction`, `jaccard_threshold`,
+  `drop_fraction` y `smooth_window` sobre el conjunto de Iris.
 - **Sensibilidad:** estudio de la dimensión (`n_features`) y robustez a ruido
   gaussiano.
 - **Ejecución:**
