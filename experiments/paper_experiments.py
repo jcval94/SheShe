@@ -13,7 +13,7 @@ Usage
 
 The following artefacts are generated inside ``benchmark/``:
 - ``supervised_results.csv`` and ``*_supervised.png``
-- ``ablation_results.csv`` and ``ablation_accuracy.png``
+- ``ablation_results.csv`` and ``ablation_accuracy_*.png``
 - ``sensitivity_results.csv`` and ``sensitivity_heatmap.png``
 """
 
@@ -153,7 +153,8 @@ def supervised_comparison(out_dir: Path, seeds: Sequence[int]) -> pd.DataFrame:
 
 
 def ablation_study(out_dir: Path, seeds: Sequence[int]) -> pd.DataFrame:
-    """Evaluate the effect of ``base_2d_rays`` and ``direction``.
+    """Evaluate the effect of ``base_2d_rays``, ``direction``, ``jaccard_threshold``,
+    ``drop_fraction`` and ``smooth_window``.
 
     Dataset: Iris.  Metric: accuracy.
     """
@@ -166,45 +167,79 @@ def ablation_study(out_dir: Path, seeds: Sequence[int]) -> pd.DataFrame:
         )
         for rays in [4, 8, 12]:
             for direction in ["center_out", "outside_in"]:
-                start = time.perf_counter()
-                sh = ModalBoundaryClustering(
-                    base_estimator=LogisticRegression(max_iter=500, random_state=seed),
-                    task="classification",
-                    base_2d_rays=rays,
-                    direction=direction,
-                    random_state=seed,
-                ).fit(Xtr, ytr)
-                y_pred = sh.predict(Xte)
-                runtime = time.perf_counter() - start
-                acc = accuracy_score(yte, y_pred)
-                results.append(
-                    {
-                        "base_2d_rays": rays,
-                        "direction": direction,
-                        "seed": seed,
-                        "accuracy": acc,
-                        "runtime_sec": runtime,
-                    }
-                )
+                for jaccard in [0.4, 0.55]:
+                    for drop in [0.3, 0.5]:
+                        for smooth in [1, 11]:
+                            start = time.perf_counter()
+                            sh = ModalBoundaryClustering(
+                                base_estimator=LogisticRegression(max_iter=500, random_state=seed),
+                                task="classification",
+                                base_2d_rays=rays,
+                                direction=direction,
+                                jaccard_threshold=jaccard,
+                                drop_fraction=drop,
+                                smooth_window=smooth,
+                                random_state=seed,
+                            ).fit(Xtr, ytr)
+                            y_pred = sh.predict(Xte)
+                            runtime = time.perf_counter() - start
+                            acc = accuracy_score(yte, y_pred)
+                            results.append(
+                                {
+                                    "base_2d_rays": rays,
+                                    "direction": direction,
+                                    "jaccard_threshold": jaccard,
+                                    "drop_fraction": drop,
+                                    "smooth_window": smooth,
+                                    "seed": seed,
+                                    "accuracy": acc,
+                                    "runtime_sec": runtime,
+                                }
+                            )
     df = pd.DataFrame(results)
     _save(df, out_dir / "ablation_results.csv")
 
     summary = (
-        df.groupby(["base_2d_rays", "direction"])
+        df.groupby(
+            [
+                "base_2d_rays",
+                "direction",
+                "jaccard_threshold",
+                "drop_fraction",
+                "smooth_window",
+            ]
+        )
         .agg({"accuracy": ["mean", "std"], "runtime_sec": ["mean", "std"]})
     )
     summary.columns = ["_".join(col).strip("_") for col in summary.columns.values]
     summary.reset_index(inplace=True)
     _save(summary, out_dir / "ablation_summary.csv")
 
-    pivot = summary.pivot(index="base_2d_rays", columns="direction", values="accuracy_mean")
-    err = summary.pivot(index="base_2d_rays", columns="direction", values="accuracy_std")
-    pivot.plot(kind="bar", yerr=err, capsize=4)
-    plt.ylabel("Accuracy")
-    plt.title("Ablation on Iris")
-    plt.tight_layout()
-    plt.savefig(out_dir / "ablation_accuracy.png")
-    plt.close()
+    for jaccard in summary["jaccard_threshold"].unique():
+        for drop in summary["drop_fraction"].unique():
+            for smooth in summary["smooth_window"].unique():
+                subset = summary[
+                    (summary["jaccard_threshold"] == jaccard)
+                    & (summary["drop_fraction"] == drop)
+                    & (summary["smooth_window"] == smooth)
+                ]
+                pivot = subset.pivot(
+                    index="base_2d_rays", columns="direction", values="accuracy_mean"
+                )
+                err = subset.pivot(
+                    index="base_2d_rays", columns="direction", values="accuracy_std"
+                )
+                pivot.plot(kind="bar", yerr=err, capsize=4)
+                plt.ylabel("Accuracy")
+                plt.title(
+                    f"Ablation on Iris (jt={jaccard}, df={drop}, sw={smooth})"
+                )
+                plt.tight_layout()
+                fname = (
+                    f"ablation_accuracy_jt{jaccard}_df{drop}_sw{smooth}.png"
+                )
+                plt.savefig(out_dir / fname)
+                plt.close()
     return summary
 
 
