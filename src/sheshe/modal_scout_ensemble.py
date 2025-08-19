@@ -592,20 +592,35 @@ class ModalScoutEnsemble(BaseEstimator):
       raise IndexError("model_idx fuera de rango.")
     return self.models_[model_idx], self.features_[model_idx]
 
-  def plot_pairs(self, X: np.ndarray, y: Optional[np.ndarray] = None,
-                 *, model_idx: int = 0, max_pairs: Optional[int] = None) -> None:
+  def plot_pairs(
+    self,
+    X: np.ndarray,
+    y: Optional[np.ndarray] = None,
+    *,
+    model_idx: int = 0,
+    max_pairs: Optional[int] = None,
+    feature_names: Optional[Sequence[str]] = None,
+  ) -> None:
     """Visualiza superficies 2D para un submodelo específico.
 
     Esta función delega en :meth:`ModalBoundaryClustering.plot_pairs`, por lo
     que acepta los mismos parámetros, añadiendo ``model_idx`` para seleccionar
     el submodelo dentro del ensamble.
+    ``feature_names`` permite especificar nombres globales de las features,
+    que se ajustarán al subespacio del modelo elegido.
     """
     mbc, feats = self._get_submodel(model_idx)
+    feats_list = list(feats)
     if hasattr(X, "iloc"):
-      Xs = X.iloc[:, list(feats)]
+      Xs = X.iloc[:, feats_list]
     else:
-      Xs = np.asarray(X)[:, feats]
-    mbc.plot_pairs(Xs, y, max_pairs=max_pairs)
+      Xs = np.asarray(X)[:, feats_list]
+    sub_names: Optional[Sequence[str]]
+    if feature_names is not None:
+      sub_names = [feature_names[f] for f in feats_list]
+    else:
+      sub_names = None
+    mbc.plot_pairs(Xs, y, max_pairs=max_pairs, feature_names=sub_names)
 
   def plot_pair_3d(
     self,
@@ -613,6 +628,7 @@ class ModalScoutEnsemble(BaseEstimator):
     pair: Tuple[int, int],
     *,
     model_idx: int = 0,
+    feature_names: Optional[Sequence[str]] = None,
     **kwargs: Any,
   ):
     """Superficie 3D de probabilidad/valor predicho para un submodelo.
@@ -625,6 +641,9 @@ class ModalScoutEnsemble(BaseEstimator):
         Índices globales ``(i, j)`` de las features a visualizar.
     model_idx : int, default=0
         Submodelo dentro del ensamble a utilizar.
+    feature_names : sequence of str, optional
+        Nombres globales de las features. Se extraerán los correspondientes al
+        submodelo antes de delegar en :meth:`ModalBoundaryClustering.plot_pair_3d`.
     **kwargs : dict
         Parámetros adicionales pasados a
         :meth:`ModalBoundaryClustering.plot_pair_3d`.
@@ -638,4 +657,9 @@ class ModalScoutEnsemble(BaseEstimator):
       Xs = X.iloc[:, feats_list]
     else:
       Xs = np.asarray(X)[:, feats_list]
-    return mbc.plot_pair_3d(Xs, local_pair, **kwargs)
+    sub_names: Optional[Sequence[str]]
+    if feature_names is not None:
+      sub_names = [feature_names[f] for f in feats_list]
+    else:
+      sub_names = None
+    return mbc.plot_pair_3d(Xs, local_pair, feature_names=sub_names, **kwargs)
