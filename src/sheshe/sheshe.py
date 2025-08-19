@@ -133,13 +133,16 @@ def gradient_ascent(
     lo, hi = bounds
     x = x0.copy()
     best = f(x)
+    no_improve = 0
     for _ in range(max_iter):
         if gradient is not None:
             g = gradient(x)
-        elif use_spsa:
-            g = spsa_gradient(f, x, eps=eps_grad, random_state=random_state)
         else:
-            g = finite_diff_gradient(f, x, eps=eps_grad)
+            g = (
+                spsa_gradient(f, x, eps=eps_grad, random_state=random_state)
+                if use_spsa
+                else finite_diff_gradient(f, x, eps=eps_grad)
+            )
         if np.linalg.norm(g) < tol:
             break
         g = project_step_with_barrier(x, g, lo, hi)
@@ -148,15 +151,22 @@ def gradient_ascent(
         step = lr * g / (np.linalg.norm(g) + 1e-12)
         x_new = np.clip(x + step, lo, hi)
         v_new = f(x_new)
-        if v_new <= best + 1e-12:
-            # backtracking
-            x_try = np.clip(x + 0.5 * step, lo, hi)
-            v_try = f(x_try)
-            if v_try <= best + 1e-12:
-                break
-            x, best = x_try, v_try
-        else:
+        if v_new > best + 1e-12:
             x, best = x_new, v_new
+            no_improve = 0
+            continue
+
+        # backtracking
+        x_try = np.clip(x + 0.5 * step, lo, hi)
+        v_try = f(x_try)
+        if v_try > best + 1e-12:
+            x, best = x_try, v_try
+            no_improve = 0
+            continue
+
+        no_improve += 1
+        if no_improve >= 3:
+            break
     return x
 
 def second_diff(arr: np.ndarray) -> np.ndarray:
@@ -865,6 +875,7 @@ class ModalBoundaryClustering(BaseEstimator):
             self.bounds_ = (lo.copy(), hi.copy())  # store bounds for radial scans
             X_std = np.std(X, axis=0) + 1e-12
             d = X.shape[1]
+            self.use_spsa = self.use_spsa or d >= 20
             base_rays_eff = self.base_2d_rays
             if self.auto_rays_by_dim:
                 if d >= 65:
