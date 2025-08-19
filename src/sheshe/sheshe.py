@@ -1322,15 +1322,15 @@ class ModalBoundaryClustering(BaseEstimator):
 
         rows = []
         for reg in self.regions_:
-            # centroide
+            # centroid
             row_c = {
-                "Tipo": "centroide",
-                "Distancia": 0.0,
+                "Type": "centroid",
+                "Distance": 0.0,
                 "ClusterID": reg.cluster_id,
-                "Categoria": reg.label,
-                "valor_real": reg.peak_value_real,
-                "valor_norm": reg.peak_value_norm,
-                "pendiente": np.nan,
+                "Category": reg.label,
+                "real_value": reg.peak_value_real,
+                "norm_value": reg.peak_value_norm,
+                "slope": np.nan,
             }
             for j in range(d):
                 row_c[feature_names[j]] = float(reg.center[j])
@@ -1342,13 +1342,13 @@ class ModalBoundaryClustering(BaseEstimator):
                 cls_index = None
             for r, p, m in zip(reg.radii, reg.inflection_points, reg.inflection_slopes):
                 row_i = {
-                    "Tipo": "inflexion_point",
-                    "Distancia": float(r),
+                    "Type": "inflection_point",
+                    "Distance": float(r),
                     "ClusterID": reg.cluster_id,
-                    "Categoria": reg.label,
-                    "valor_real": float(self._predict_value_real(p.reshape(1, -1), class_idx=cls_index)[0]),
-                    "valor_norm": np.nan,
-                    "pendiente": float(m),
+                    "Category": reg.label,
+                    "real_value": float(self._predict_value_real(p.reshape(1, -1), class_idx=cls_index)[0]),
+                    "norm_value": np.nan,
+                    "slope": float(m),
                 }
                 for j in range(d):
                     row_i[feature_names[j]] = float(p[j])
