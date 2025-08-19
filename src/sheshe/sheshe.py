@@ -315,6 +315,77 @@ def find_inflection(
     return float(t_abs), float(m_scan)
 
 
+def _eval_batch_safe(f, P: np.ndarray, batch: int = 8192) -> np.ndarray:
+    """Evalúa ``f`` sobre ``P`` en lotes para evitar picos de memoria.
+
+    Si ``f`` dispone del método ``batch``, éste se utiliza directamente.
+    En caso contrario se evalúa punto a punto.
+    """
+    P = np.asarray(P)
+    n = len(P)
+    out = np.empty(n, dtype=float)
+    if hasattr(f, "batch"):
+        for i in range(0, n, batch):
+            out[i:i + batch] = f.batch(P[i:i + batch])
+    else:
+        for i in range(0, n, batch):
+            out[i:i + batch] = np.array([f(p) for p in P[i:i + batch]])
+    return out
+
+
+def _first_drop_index(vals: np.ndarray, threshold: float) -> int:
+    """Índice del primer valor que cae por debajo de ``threshold``.
+
+    Si nunca cae, devuelve ``len(vals) - 1``.
+    """
+    keep = vals >= threshold
+    if not keep.all():
+        return int(np.argmax(~keep))
+    return int(len(vals) - 1)
+
+
+def _scan_ray_adaptive(center: np.ndarray, direction_unit: np.ndarray,
+                       r_min: float, r_max: float, f,
+                       threshold: float, batch_size: int = 8192,
+                       coarse_steps: int = 12, refine_steps: int = 4,
+                       early_exit_patience: int = 1) -> Tuple[float, float, int]:
+    """Explora una dirección con malla gruesa y refinamiento local.
+
+    Devuelve ``(r_boundary, slope, evals)`` donde ``r_boundary`` es el último
+    radio por encima del umbral ``threshold`` y ``slope`` la pendiente
+    estimada en la frontera.
+    """
+    rs = np.linspace(r_min, r_max, num=coarse_steps, dtype=float)
+    P = center[None, :] + rs[:, None] * direction_unit[None, :]
+    vals = _eval_batch_safe(f, P, batch=batch_size)
+    idx = _first_drop_index(vals, threshold)
+
+    evals = int(len(rs))
+    if idx < len(rs) - 1:
+        left = rs[max(0, idx - 1)]
+        right = rs[idx]
+        left_val = vals[max(0, idx - 1)]
+        right_val = vals[idx]
+    else:
+        return float(rs[-1]), float((vals[-1] - vals[0]) / (rs[-1] - rs[0] + 1e-12)), evals
+
+    for _ in range(refine_steps):
+        mid = 0.5 * (left + right)
+        Pm = center + mid * direction_unit
+        mv = float(_eval_batch_safe(f, Pm[None, :], batch=batch_size)[0])
+        evals += 1
+        if mv >= threshold:
+            left, left_val = mid, mv
+        else:
+            right, right_val = mid, mv
+        if right - left <= 1e-9:
+            break
+
+    r_boundary = left
+    slope = (right_val - left_val) / (right - left + 1e-12)
+    return float(r_boundary), float(slope), evals
+
+
 def find_percentile_drop(
     ts: np.ndarray,
     vals: np.ndarray,
@@ -517,7 +588,11 @@ class ModalBoundaryClustering(BaseEstimator):
         out_dir: Optional[Union[str, Path]] = None,
         auto_rays_by_dim: bool = True,
         use_spsa: bool = False,
-        use_adaptive_scan: bool = False,
+        use_adaptive_scan: Optional[bool] = None,
+        batch_size: int = 8192,
+        coarse_steps: int = 12,
+        refine_steps: int = 4,
+        early_exit_patience: int = 1,
         density_alpha: float = 0.0,
         density_k: int = 15,
         cluster_metrics_cls: Optional[Dict[str, Callable]] = None,
@@ -565,6 +640,10 @@ class ModalBoundaryClustering(BaseEstimator):
         self.auto_rays_by_dim = auto_rays_by_dim
         self.use_spsa = use_spsa
         self.use_adaptive_scan = use_adaptive_scan
+        self.batch_size = batch_size
+        self.coarse_steps = coarse_steps
+        self.refine_steps = refine_steps
+        self.early_exit_patience = early_exit_patience
         self.density_alpha = density_alpha
         self.density_k = density_k
         self.cluster_metrics_cls = cluster_metrics_cls
@@ -739,19 +818,17 @@ class ModalBoundaryClustering(BaseEstimator):
         X_std: np.ndarray,
         percentiles: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """For each direction ``u``: radial scan ``t∈[0,T]`` and stopping point.
+        """Radial scans for a set of ``directions`` starting at ``center``.
 
-        The stopping point is either the first inflection (``stop_criteria='inflexion'``)
-        or the first drop to a lower percentile bin (``stop_criteria='percentile'``).
-        Returns ``(radii, points, slopes)``.
+        Returns the boundary radius along each direction together with the
+        corresponding boundary points and slopes.
         """
         d = center.shape[0]
-        # base radius in units of std, kept for backward compatibility
         T_base = float(self.scan_radius_factor * np.linalg.norm(X_std))
         lo, hi = getattr(self, "bounds_", (None, None))
         assert lo is not None and hi is not None, "bounds_ not initialized."
 
-        def tmax_in_bounds(c: np.ndarray, u: np.ndarray, lo: np.ndarray, hi: np.ndarray) -> float:
+        def tmax_in_bounds(c: np.ndarray, u: np.ndarray) -> float:
             tmax = np.inf
             for k in range(d):
                 uk = u[k]
@@ -767,50 +844,68 @@ class ModalBoundaryClustering(BaseEstimator):
         if len(directions) == 0:
             return np.zeros(0), np.zeros((0, d)), np.zeros(0)
 
-        blocks: List[np.ndarray] = []
-        ts_blocks: List[np.ndarray] = []
-        cuts = [0]
-        for u in directions:
-            T_dir = min(T_base, tmax_in_bounds(center, u, lo, hi))
-            if self.use_adaptive_scan:
-                # f_line: evaluación rápida sobre puntos (batch interno)
-                def f_line(ts_arr: np.ndarray) -> np.ndarray:
-                    P = center[None, :] + ts_arr[:, None] * u[None, :]
-                    return f.batch(P) if hasattr(f, "batch") else np.array([f(p) for p in P])
-
-                ts, vs = _adaptive_scan_1d(f_line, T_dir, self.scan_steps, self.direction)
-                ts_blocks.append(ts)
-                blocks.append(center[None, :] + ts[:, None] * u[None, :])
-            else:
-                ts = np.linspace(0.0, T_dir, self.scan_steps)
-                P = center[None, :] + ts[:, None] * u[None, :]
-                ts_blocks.append(ts)
-                blocks.append(P)
-            cuts.append(cuts[-1] + len(ts))
-        P_all = np.vstack(blocks)
-
-        vals_all = (
-            f.batch(P_all) if hasattr(f, "batch") else np.array([f(p) for p in P_all])
-        )
+        use_adaptive = self.use_adaptive_scan
+        if use_adaptive is None:
+            use_adaptive = (len(directions) * self.coarse_steps > 512)
 
         n = len(directions)
         radii = np.zeros(n, float)
         slopes = np.zeros(n, float)
         pts = np.zeros((n, d), float)
+
+        threshold = None
+        if self.stop_criteria == "percentile":
+            if percentiles is None:
+                raise ValueError("percentiles must be provided when stop_criteria='percentile'")
+            v0 = float(f(center))
+            idx0 = int(np.searchsorted(percentiles, v0, side="right") - 1)
+            threshold = v0 * self.drop_fraction if idx0 <= 0 else float(percentiles[idx0 - 1])
+
         for i, u in enumerate(directions):
-            a, b = cuts[i], cuts[i + 1]
-            ts, vs = ts_blocks[i], vals_all[a:b]
-            if self.stop_criteria == "percentile":
-                if percentiles is None:
-                    raise ValueError("percentiles must be provided when stop_criteria='percentile'")
-                r, m = find_percentile_drop(
-                    ts,
-                    vs,
-                    self.direction,
-                    percentiles,
-                    self.drop_fraction,
-                )
+            T_dir = min(T_base, tmax_in_bounds(center, u))
+            if self.stop_criteria == "percentile" and threshold is not None:
+                if use_adaptive:
+                    r, m, _ = _scan_ray_adaptive(
+                        center,
+                        u,
+                        0.0,
+                        T_dir,
+                        f,
+                        threshold,
+                        batch_size=self.batch_size,
+                        coarse_steps=self.coarse_steps,
+                        refine_steps=self.refine_steps,
+                        early_exit_patience=self.early_exit_patience,
+                    )
+                else:
+                    n_steps = self.scan_steps
+                    rs = np.linspace(0.0, T_dir, num=n_steps, dtype=float)
+                    P = center[None, :] + rs[:, None] * u[None, :]
+                    vals = _eval_batch_safe(f, P, batch=self.batch_size)
+                    idx = _first_drop_index(vals, threshold)
+                    if idx < len(rs):
+                        r = rs[idx]
+                        if idx > 0:
+                            m = (vals[idx] - vals[idx - 1]) / (rs[idx] - rs[idx - 1] + 1e-12)
+                        else:
+                            m = 0.0
+                    else:
+                        r = rs[-1]
+                        m = (vals[-1] - vals[-2]) / (rs[-1] - rs[-2] + 1e-12)
+                p = center + r * u
+                p = np.minimum(np.maximum(p, lo), hi)
+                radii[i], slopes[i], pts[i, :] = float(r), float(m), p
             else:
+                if use_adaptive:
+                    def f_line(ts_arr: np.ndarray) -> np.ndarray:
+                        P = center[None, :] + ts_arr[:, None] * u[None, :]
+                        return _eval_batch_safe(f, P, batch=self.batch_size)
+
+                    ts, vs = _adaptive_scan_1d(f_line, T_dir, self.scan_steps, self.direction)
+                else:
+                    ts = np.linspace(0.0, T_dir, self.scan_steps)
+                    P = center[None, :] + ts[:, None] * u[None, :]
+                    vs = _eval_batch_safe(f, P, batch=self.batch_size)
                 r, m = find_inflection(
                     ts,
                     vs,
@@ -818,9 +913,9 @@ class ModalBoundaryClustering(BaseEstimator):
                     self.smooth_window,
                     self.drop_fraction,
                 )
-            p = center + r * u
-            p = np.minimum(np.maximum(p, lo), hi)
-            radii[i], slopes[i], pts[i, :] = float(r), float(m), p
+                p = center + r * u
+                p = np.minimum(np.maximum(p, lo), hi)
+                radii[i], slopes[i], pts[i, :] = float(r), float(m), p
         return radii, pts, slopes
 
     def _build_norm_stats(self, X: np.ndarray, class_idx: Optional[int]) -> Dict[str, float]:
