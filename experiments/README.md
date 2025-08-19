@@ -73,3 +73,7 @@ utilizadas en el artículo de SheShe.
   diferentes escalados de características y valores de `n_jobs`.
 - **Conjuntos de datos desafiantes:** probar datasets de mayor dimensionalidad
   o con ruido extremo para estudiar la robustez del algoritmo.
+
+## Imágenes
+
+Las imágenes utilizadas en este directorio se almacenan en [`../images/`](../images/). Actualmente la carpeta está vacía y se completará en el futuro. Para evitar que estos recursos binarios inflen el repositorio, se manejan con [Git LFS](https://git-lfs.com).

@@ -511,6 +511,12 @@ python experiments/paper_experiments.py
 
 ---
 
+## Imágenes
+
+Las imágenes mostradas en este README se almacenan en la carpeta [`images/`](images/). Esta carpeta está vacía por el momento y se poblará en futuras actualizaciones. Para evitar problemas con archivos binarios grandes, todos estos recursos se gestionan con [Git LFS](https://git-lfs.com).
+
+---
+
 ## Contribuir
 
 Las mejoras son bienvenidas. Para proponer cambios:

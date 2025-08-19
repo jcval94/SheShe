@@ -614,6 +614,12 @@ python experiments/paper_experiments.py --runs 5
 
 ---
 
+## Images
+
+Images shown in this README are stored in the [`images/`](images/) directory. The folder is currently empty and will be populated in future updates. To avoid bloating the repository with binary files, all assets in this folder are tracked with [Git LFS](https://git-lfs.com).
+
+---
+
 ## Contribute
 
 Improvements are welcome. To propose changes:
