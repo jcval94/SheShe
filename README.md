@@ -12,6 +12,16 @@ whose responses remain consistently high for a given class or target value.
 Clusters therefore follow the supervised decision surface instead of arbitrary
 distance metrics.
 
+## Features
+
+- Supervised clustering that leverages class probabilities or predicted values.
+- Works for both classification and regression tasks.
+- Explores informative subspaces via `SubspaceScout` and ensembles with `ModalScoutEnsemble`.
+- Provides human-readable rule extraction through `RegionInterpreter`.
+- Includes built-in plotting utilities for pairwise and 3D visualizations.
+
+![Feature overview](images/feature-overview.png)
+
 ---
 
 ## Installation
@@ -45,12 +55,21 @@ The library exposes five main objects:
 - `ModalScoutEnsemble`
 - `RegionInterpreter` – turn `ClusterRegion` objects into human-readable rules
 
+Image placeholders for the above objects:
+
+![ModalBoundaryClustering](images/modalboundaryclustering.png)
+![ClusterRegion](images/clusterregion.png)
+![SubspaceScout](images/subspacescout.png)
+![ModalScoutEnsemble](images/modalscoutensemble.png)
+![RegionInterpreter](images/regioninterpreter.png)
+
 ```python
 from sheshe import (
     ModalBoundaryClustering,
     SubspaceScout,
     ModalScoutEnsemble,
     ClusterRegion,
+    RegionInterpreter,
 )
 
 # classification

@@ -12,6 +12,16 @@ descubre regiones cuyas respuestas se mantienen altas para una clase o valor.
 Los clusters siguen así la superficie de decisión supervisada en lugar de
 métricas de distancia arbitrarias.
 
+## Características
+
+- Clustering supervisado que aprovecha probabilidades de clase o valores predichos.
+- Funciona tanto para tareas de clasificación como de regresión.
+- Explora subespacios informativos con `SubspaceScout` y ensamblados mediante `ModalScoutEnsemble`.
+- Extrae reglas interpretables a través de `RegionInterpreter`.
+- Incluye utilidades de graficado 2D y 3D integradas.
+
+![Resumen de características](images/feature-overview.png)
+
 ---
 
 ## Instalación
@@ -37,12 +47,21 @@ PYTHONPATH=src pytest -q
 
 ## API rápida
 
-La librería expone cuatro objetos principales:
+La librería expone cinco objetos principales:
 
 - `ModalBoundaryClustering`
 - `ClusterRegion` – dataclass con la información de cada región
 - `SubspaceScout`
 - `ModalScoutEnsemble`
+- `RegionInterpreter` – convierte `ClusterRegion` en reglas interpretables
+
+Espacios para las imágenes de los objetos anteriores:
+
+![ModalBoundaryClustering](images/modalboundaryclustering.png)
+![ClusterRegion](images/clusterregion.png)
+![SubspaceScout](images/subspacescout.png)
+![ModalScoutEnsemble](images/modalscoutensemble.png)
+![RegionInterpreter](images/regioninterpreter.png)
 
 ```python
 from sheshe import (
@@ -50,6 +69,7 @@ from sheshe import (
     SubspaceScout,
     ModalScoutEnsemble,
     ClusterRegion,
+    RegionInterpreter,
 )
 
 # clasificación
@@ -74,7 +94,9 @@ reg = ModalBoundaryClustering(task="regression")
 ### Métodos
 - `fit(X, y)`
 - `predict(X)`
+- `fit_predict(X, y=None)` → método de conveniencia equivalente a llamar a `fit` y luego a `predict` sobre los mismos datos
 - `predict_proba(X)`  → clasificación: probas por clase; regresión: valor normalizado [0,1]
+- `decision_function(X)` → valores de decisión del estimador base; recurre a `predict_proba` en clasificación o a `predict` en regresión
 - `interpretability_summary(feature_names=None)` → DataFrame con:
   - `Tipo`: "centroide" | "inflexion_point"
   - `Distancia`: radio desde el centro al punto de inflexión
