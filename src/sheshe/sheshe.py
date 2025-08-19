@@ -6,7 +6,7 @@ import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -1357,8 +1357,16 @@ class ModalBoundaryClustering(BaseEstimator):
 
     # -------- Visualization (2D pairs) --------
 
-    def _plot_single_pair_classif(self, X: np.ndarray, y: np.ndarray, pair: Tuple[int, int],
-                                  class_colors: Dict[Any, str], grid_res: int = 200, alpha_surface: float = 0.6):
+    def _plot_single_pair_classif(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        pair: Tuple[int, int],
+        class_colors: Dict[Any, str],
+        feature_names: Sequence[str],
+        grid_res: int = 200,
+        alpha_surface: float = 0.6,
+    ):
         """Draw the probability surface for a pair of features.
 
         Parameters
@@ -1371,6 +1379,8 @@ class ModalBoundaryClustering(BaseEstimator):
             Indices ``(i, j)`` of the features to plot.
         class_colors : dict
             Mapping from class to color for scatter points.
+        feature_names : sequence of str
+            Names corresponding to the columns of ``X``.
         grid_res : int, default=200
             Resolution of the mesh used for the surface.
         alpha_surface : float, default=0.6
@@ -1403,7 +1413,9 @@ class ModalBoundaryClustering(BaseEstimator):
             Z = self._predict_value_real(X_grid, class_idx=cls_idx).reshape(XI.shape)
 
             plt.figure(figsize=(6, 5))
-            plt.title(f"Cluster {reg.cluster_id} - Prob. clase '{label}' vs (feat {i},{j})")
+            plt.title(
+                f"Cluster {reg.cluster_id} - Prob. clase '{label}' vs ({feature_names[i]},{feature_names[j]})"
+            )
             cf = plt.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
             plt.colorbar(cf, label=f"P({label})")
 
@@ -1458,15 +1470,21 @@ class ModalBoundaryClustering(BaseEstimator):
                 label=f"centro {reg.cluster_id} ({label})",
             )
 
-            plt.xlabel(f"feat {i}")
-            plt.ylabel(f"feat {j}")
+            plt.xlabel(feature_names[i])
+            plt.ylabel(feature_names[j])
             plt.xlim(xi.min(), xi.max())
             plt.ylim(xj.min(), xj.max())
             plt.legend(loc="best")
             plt.tight_layout()
 
-    def _plot_single_pair_reg(self, X: np.ndarray, pair: Tuple[int, int],
-                              grid_res: int = 200, alpha_surface: float = 0.6):
+    def _plot_single_pair_reg(
+        self,
+        X: np.ndarray,
+        pair: Tuple[int, int],
+        feature_names: Sequence[str],
+        grid_res: int = 200,
+        alpha_surface: float = 0.6,
+    ):
         """Draw the predicted-value surface for a pair of features.
 
         Parameters
@@ -1475,6 +1493,8 @@ class ModalBoundaryClustering(BaseEstimator):
             Feature matrix.
         pair : tuple of int
             Indices ``(i, j)`` of the features to plot.
+        feature_names : sequence of str
+            Names corresponding to the columns of ``X``.
         grid_res : int, default=200
             Resolution of the mesh used for the surface.
         alpha_surface : float, default=0.6
@@ -1504,7 +1524,9 @@ class ModalBoundaryClustering(BaseEstimator):
 
         reg = self.regions_[0]
         plt.figure(figsize=(6, 5))
-        plt.title(f"Cluster {reg.cluster_id} - Valor predicho vs (feat {i},{j})")
+        plt.title(
+            f"Cluster {reg.cluster_id} - Valor predicho vs ({feature_names[i]},{feature_names[j]})"
+        )
         cf = plt.contourf(XI, XJ, Z, levels=20, alpha=alpha_surface)
         plt.colorbar(cf, label="y_pred")
         center2 = reg.center.copy()
@@ -1551,13 +1573,18 @@ class ModalBoundaryClustering(BaseEstimator):
             label=f"centro {reg.cluster_id}",
         )
 
-        plt.xlabel(f"feat {i}")
-        plt.ylabel(f"feat {j}")
+        plt.xlabel(feature_names[i])
+        plt.ylabel(feature_names[j])
         plt.legend(loc="best")
         plt.tight_layout()
 
-    def plot_pairs(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None,
-                   max_pairs: Optional[int] = None):
+    def plot_pairs(
+        self,
+        X: Union[np.ndarray, pd.DataFrame],
+        y: Optional[np.ndarray] = None,
+        max_pairs: Optional[int] = None,
+        feature_names: Optional[Sequence[str]] = None,
+    ):
         """Visualize 2D surfaces for feature pairs.
 
         Generates one figure for each ``(i, j)`` feature combination up to
@@ -1573,6 +1600,10 @@ class ModalBoundaryClustering(BaseEstimator):
         max_pairs : int, optional
             Maximum number of combinations to plot. If ``None`` all possible
             combinations are generated.
+        feature_names : sequence of str, optional
+            Names for each feature to use on axis labels. If ``None`` and ``X``
+            is a ``DataFrame`` its column names are used; otherwise generic
+            ``feat i`` labels are shown.
 
         Returns
         -------
@@ -1595,8 +1626,19 @@ class ModalBoundaryClustering(BaseEstimator):
             >>> sh.plot_pairs(X, max_pairs=1)
         """
         check_is_fitted(self, "regions_")
-        X = np.asarray(X, dtype=float)
-        d = X.shape[1]
+        if hasattr(X, "iloc"):
+            X_arr = X.to_numpy(dtype=float)
+        else:
+            X_arr = np.asarray(X, dtype=float)
+        d = X_arr.shape[1]
+        if feature_names is None:
+            if hasattr(X, "columns"):
+                feature_names = list(map(str, X.columns))
+            else:
+                feature_names = getattr(self, "feature_names_in_", None) or [f"feat {i}" for i in range(d)]
+        else:
+            if len(feature_names) != d:
+                raise ValueError("feature_names length must match number of features")
         pairs = list(itertools.combinations(range(d), 2))
         if max_pairs is not None:
             pairs = pairs[:max_pairs]
@@ -1608,14 +1650,21 @@ class ModalBoundaryClustering(BaseEstimator):
                        "#ff7f00", "#a65628", "#f781bf", "#999999"]
             class_colors = {c: palette[i % len(palette)] for i, c in enumerate(self.classes_)}
             for pair in pairs:
-                self._plot_single_pair_classif(X, y, pair, class_colors)
+                self._plot_single_pair_classif(X_arr, y, pair, class_colors, feature_names)
         else:
             for pair in pairs:
-                self._plot_single_pair_reg(X, pair)
+                self._plot_single_pair_reg(X_arr, pair, feature_names)
 
-    def plot_pair_3d(self, X: Union[np.ndarray, pd.DataFrame], pair: Tuple[int, int],
-                     class_label: Optional[Any] = None, grid_res: int = 50,
-                     alpha_surface: float = 0.6, engine: str = "matplotlib") -> Any:
+    def plot_pair_3d(
+        self,
+        X: Union[np.ndarray, pd.DataFrame],
+        pair: Tuple[int, int],
+        class_label: Optional[Any] = None,
+        grid_res: int = 50,
+        alpha_surface: float = 0.6,
+        engine: str = "matplotlib",
+        feature_names: Optional[Sequence[str]] = None,
+    ) -> Any:
         """Visualize probability (or predicted value) as 3D surface.
 
         Parameters
@@ -1633,6 +1682,10 @@ class ModalBoundaryClustering(BaseEstimator):
         engine : {"matplotlib", "plotly"}, default="matplotlib"
             Rendering engine. ``"plotly"`` produces an interactive figure
             (requires the optional ``plotly`` dependency).
+        feature_names : sequence of str, optional
+            Names for each feature to use on axis labels. If ``None`` and ``X``
+            is a ``DataFrame`` its column names are used; otherwise generic
+            ``feat i`` labels are shown.
 
         Returns
         -------
@@ -1640,9 +1693,21 @@ class ModalBoundaryClustering(BaseEstimator):
             Matplotlib ``Figure`` or Plotly ``Figure`` depending on ``engine``.
         """
         check_is_fitted(self, "regions_")
-        X = np.asarray(X, dtype=float)
+        if hasattr(X, "iloc"):
+            X_arr = X.to_numpy(dtype=float)
+        else:
+            X_arr = np.asarray(X, dtype=float)
+        d = X_arr.shape[1]
+        if feature_names is None:
+            if hasattr(X, "columns"):
+                feature_names = list(map(str, X.columns))
+            else:
+                feature_names = getattr(self, "feature_names_in_", None) or [f"feat {i}" for i in range(d)]
+        else:
+            if len(feature_names) != d:
+                raise ValueError("feature_names length must match number of features")
         i, j = pair
-        xi, xj = X[:, i], X[:, j]
+        xi, xj = X_arr[:, i], X_arr[:, j]
         xi_lin = np.linspace(xi.min(), xi.max(), grid_res)
         xj_lin = np.linspace(xj.min(), xj.max(), grid_res)
         XI, XJ = np.meshgrid(xi_lin, xj_lin)
@@ -1651,15 +1716,15 @@ class ModalBoundaryClustering(BaseEstimator):
             assert class_label is not None, "class_label required for classification."
             class_idx = list(self.classes_).index(class_label)
             zlabel = f"P({class_label})"
-            title = f"Prob. clase '{class_label}' vs (feat {i},{j})"
+            title = f"Prob. clase '{class_label}' vs ({feature_names[i]},{feature_names[j]})"
         else:
             class_idx = None
             zlabel = "y_pred"
-            title = f"Valor predicho vs (feat {i},{j})"
+            title = f"Valor predicho vs ({feature_names[i]},{feature_names[j]})"
 
         Z = np.zeros_like(XI, dtype=float)
         for r in range(grid_res):
-            X_full = np.tile(np.mean(X, axis=0), (grid_res, 1))
+            X_full = np.tile(np.mean(X_arr, axis=0), (grid_res, 1))
             X_full[:, i] = XI[r, :]
             X_full[:, j] = XJ[r, :]
             Z[r, :] = self._predict_value_real(X_full, class_idx=class_idx)
@@ -1686,8 +1751,8 @@ class ModalBoundaryClustering(BaseEstimator):
             fig.update_layout(
                 title=title,
                 scene=dict(
-                    xaxis_title=f"feat {i}",
-                    yaxis_title=f"feat {j}",
+                    xaxis_title=feature_names[i],
+                    yaxis_title=feature_names[j],
                     zaxis_title=zlabel,
                 ),
             )
@@ -1699,8 +1764,8 @@ class ModalBoundaryClustering(BaseEstimator):
         fig = plt.figure(figsize=(6, 5))
         ax = fig.add_subplot(111, projection="3d")
         ax.plot_surface(XI, XJ, Z, cmap="viridis", alpha=alpha_surface)
-        ax.set_xlabel(f"feat {i}")
-        ax.set_ylabel(f"feat {j}")
+        ax.set_xlabel(feature_names[i])
+        ax.set_ylabel(feature_names[j])
         ax.set_zlabel(zlabel)
         ax.set_title(title)
         plt.tight_layout()
