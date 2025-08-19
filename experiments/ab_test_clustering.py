@@ -13,11 +13,15 @@ from __future__ import annotations
 
 import time
 import warnings
+import platform
+import json
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Callable, Any
 
+import psutil
 import numpy as np
 import pandas as pd
+import sklearn
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
@@ -57,6 +61,13 @@ from sklearn.datasets import (
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 np.set_printoptions(suppress=True, linewidth=120)
+
+PLATFORM_INFO = {
+    "cpu": platform.processor(),
+    "ram_gb": round(psutil.virtual_memory().total / (1024 ** 3), 2),
+    "python_version": platform.python_version(),
+    "scikit_learn_version": sklearn.__version__,
+}
 
 # ==========================
 # Utilidades de evaluación
@@ -398,7 +409,10 @@ def main():
     df_final = pd.concat(todo, ignore_index=True)
     df_final = df_final.sort_values(["dataset", "macro_f1", "nmi"], ascending=[True, False, False])
     df_final.to_csv("ab_results_clustering.csv", index=False)
+    with open("ab_results_clustering_meta.json", "w") as f:
+        json.dump(PLATFORM_INFO, f, indent=2)
     print("\n✅ Resultados guardados en: ab_results_clustering.csv")
+    print("📄 Metadatos de plataforma guardados en: ab_results_clustering_meta.json")
     # Top-3 por dataset (macro_f1)
     print("\n🏁 Top-3 por dataset (macro_f1):")
     for nombre in sorted(df_final["dataset"].unique()):
@@ -406,6 +420,9 @@ def main():
             3, "macro_f1"
         )[["modelo", "tipo", "macro_f1", "nmi", "runtime_s"]]
         print(f"\n{nombre}:\n{top3.round(4).to_string(index=False)}")
+    print("\n🔧 Configuración de plataforma:")
+    for k, v in PLATFORM_INFO.items():
+        print(f"{k}: {v}")
 
 if __name__ == "__main__":
     main()
