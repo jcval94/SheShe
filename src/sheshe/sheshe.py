@@ -581,6 +581,9 @@ class ModalBoundaryClustering(BaseEstimator):
         grad_eps: float = 5e-3,
         n_max_seeds: int = 2,
         random_state: Optional[int] = 42,
+        percentile_sample_size: Optional[int] = 50000,
+        percentile_method: str = "auto",
+        hist_bins: int = 2048,
         max_subspaces: int = 20,
         verbose: bool = False,
         save_labels: bool = False,
@@ -632,6 +635,9 @@ class ModalBoundaryClustering(BaseEstimator):
         self.grad_eps = grad_eps
         self.n_max_seeds = n_max_seeds
         self.random_state = random_state
+        self.percentile_sample_size = percentile_sample_size
+        self.percentile_method = percentile_method
+        self.hist_bins = hist_bins
         self.max_subspaces = max_subspaces
         self.verbose = verbose
         self.save_labels = save_labels
@@ -649,6 +655,9 @@ class ModalBoundaryClustering(BaseEstimator):
         self.cluster_metrics_cls = cluster_metrics_cls
         self.cluster_metrics_reg = cluster_metrics_reg
         self.fast_membership = fast_membership
+        self._P_all: Optional[np.ndarray] = None
+        self._yhat_all: Optional[np.ndarray] = None
+        self._X_train_shape: Optional[Tuple[int, int]] = None
 
     # ---------- helpers ----------
 
@@ -668,24 +677,34 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def _predict_value_real(self, X: np.ndarray, class_idx: Optional[int] = None) -> np.ndarray:
         X = np.asarray(X, dtype=np.float64, order="C")
+        if self._X_train_shape is not None and X.shape == self._X_train_shape:
+            if self.task == "classification":
+                if class_idx is None:
+                    raise ValueError("class_idx required for classification.")
+                if self._P_all is not None:
+                    return self._P_all[:, class_idx]
+                if self._yhat_all is not None:
+                    scores = self._yhat_all
+                    if scores.ndim == 1:
+                        if class_idx not in (0, 1):
+                            raise ValueError("class_idx must be 0 or 1 for binary decision_function")
+                        return scores if class_idx == 1 else -scores
+                    return scores[:, class_idx]
+            else:
+                if self._yhat_all is not None:
+                    return self._yhat_all
         Xs = self.scaler_.transform(X)
         if self.task == "classification":
             if class_idx is None:
                 raise ValueError("class_idx required for classification.")
             if hasattr(self.estimator_, "predict_proba"):
-                proba = self.estimator_.predict_proba(Xs)
-                return proba[:, class_idx]
-            if hasattr(self.estimator_, "decision_function"):
-                scores = self.estimator_.decision_function(Xs)
-                if scores.ndim == 1:
-                    # binary case -> two classes
-                    if class_idx not in (0, 1):
-                        raise ValueError("class_idx must be 0 or 1 for binary decision_function")
-                    return scores if class_idx == 1 else -scores
-                return scores[:, class_idx]
-            raise NotImplementedError(
-                "Base estimator must implement predict_proba or decision_function"
-            )
+                return self.estimator_.predict_proba(Xs)[:, class_idx]
+            scores = self.estimator_.decision_function(Xs)
+            if scores.ndim == 1:
+                if class_idx not in (0, 1):
+                    raise ValueError("class_idx must be 0 or 1 for binary decision_function")
+                return scores if class_idx == 1 else -scores
+            return scores[:, class_idx]
         else:
             return self.estimator_.predict(Xs)
 
@@ -962,6 +981,21 @@ class ModalBoundaryClustering(BaseEstimator):
             self._fit_estimator(X, y)
             if self.density_alpha > 0.0:
                 self._setup_density(X)
+            Xs_all = self.scaler_.transform(np.asarray(X, dtype=float))
+            P_all = None
+            yhat_all = None
+            if self.task == "classification":
+                if hasattr(self.estimator_, "predict_proba"):
+                    P_all = self.estimator_.predict_proba(Xs_all).astype(np.float32, copy=False)
+                elif hasattr(self.estimator_, "decision_function"):
+                    yhat_all = self.estimator_.decision_function(Xs_all).astype(np.float32, copy=False)
+                else:
+                    raise RuntimeError("Base estimator must implement predict_proba or decision_function")
+            else:
+                yhat_all = self.estimator_.predict(Xs_all).astype(np.float32, copy=False)
+            self._X_train_shape = Xs_all.shape
+            self._P_all = P_all
+            self._yhat_all = yhat_all
             lo, hi = self._bounds_from_data(X)
             self.bounds_ = (lo.copy(), hi.copy())  # store bounds for radial scans
             X_std = np.std(X, axis=0) + 1e-12
@@ -975,26 +1009,67 @@ class ModalBoundaryClustering(BaseEstimator):
                     base_rays_eff = min(base_rays_eff, 16)
             dirs = generate_directions(d, base_rays_eff, self.random_state, self.max_subspaces)
 
+            rng = np.random.default_rng(self.random_state)
+
+            def _pick_sample_idx(y_vals, n_total, n_sample):
+                if n_sample is None or n_sample >= n_total:
+                    return np.arange(n_total)
+                if (y_vals is not None) and (self.task == "classification"):
+                    cls, yi = np.unique(y_vals, return_inverse=True)
+                    counts = np.bincount(yi)
+                    props = counts / counts.sum()
+                    take = np.maximum(1, np.floor(props * n_sample)).astype(int)
+                    idx = []
+                    for c in range(len(cls)):
+                        ids = np.flatnonzero(yi == c)
+                        k = min(len(ids), take[c])
+                        idx.append(rng.choice(ids, size=k, replace=False))
+                    out = np.concatenate(idx)
+                    if out.size > n_sample:
+                        out = rng.choice(out, size=n_sample, replace=False)
+                    return np.sort(out)
+                return np.sort(rng.choice(n_total, size=n_sample, replace=False))
+
             self.regions_: List[ClusterRegion] = []
             self.classes_ = None
 
             if self.task == "classification":
                 _ = self.pipeline_.predict(X[:2])  # asegura classes_
                 self.classes_ = self.estimator_.classes_
+                P_s = None
+                scores_s = None
                 if self.stop_criteria == "percentile":
                     self.percentiles_ = {}
+                    idx_sample = _pick_sample_idx(y, len(X), self.percentile_sample_size)
+                    if self._P_all is not None:
+                        P_s = self._P_all[idx_sample]
+                    else:
+                        if self._yhat_all is not None:
+                            scores_s = self._yhat_all[idx_sample]
+                        else:
+                            scores_s = self.estimator_.decision_function(Xs_all[idx_sample])
                 for ci, label in enumerate(self.classes_):
                     stats = self._build_norm_stats(X, class_idx=ci)
                     f = self._build_value_fn(class_idx=ci, norm_stats=stats)
                     center = self._find_maximum(X, f, (lo, hi))
                     if self.stop_criteria == "percentile":
-                        vals = self._predict_value_real(X, class_idx=ci)
-                        vmin, vmax = stats["min"], stats["max"]
-                        rng = vmax - vmin if vmax > vmin else 1.0
-                        vals_norm = (vals - vmin) / rng
+                        if P_s is not None:
+                            vals = P_s[:, ci].astype(np.float32, copy=False)
+                        else:
+                            scores = scores_s
+                            if scores.ndim == 1:
+                                if ci not in (0, 1):
+                                    raise ValueError("class_idx must be 0 or 1 for binary decision_function")
+                                vals = scores if ci == 1 else -scores
+                            else:
+                                vals = scores[:, ci]
+                            vals = vals.astype(np.float32, copy=False)
+                        vmin, vmax = float(vals.min()), float(vals.max())
+                        rngv = (vmax - vmin) if vmax > vmin else 1.0
+                        vals_norm = (vals - vmin) / rngv
                         perc = np.quantile(
                             vals_norm, np.linspace(0.0, 1.0, self.percentile_bins + 1)
-                        )
+                        ).astype(np.float32, copy=False)
                         self.percentiles_[ci] = perc
                         radii, infl, slopes = self._scan_radii(
                             center, f, dirs, X_std, percentiles=perc
@@ -1014,13 +1089,15 @@ class ModalBoundaryClustering(BaseEstimator):
                 f = self._build_value_fn(class_idx=None, norm_stats=stats)
                 center = self._find_maximum(X, f, (lo, hi))
                 if self.stop_criteria == "percentile":
-                    vals = self._predict_value_real(X, class_idx=None)
-                    vmin, vmax = stats["min"], stats["max"]
-                    rng = vmax - vmin if vmax > vmin else 1.0
-                    vals_norm = (vals - vmin) / rng
+                    idx_sample = _pick_sample_idx(None, len(X), self.percentile_sample_size)
+                    vals = (self._yhat_all[idx_sample] if self._yhat_all is not None
+                            else self.estimator_.predict(Xs_all[idx_sample])).astype(np.float32, copy=False)
+                    vmin, vmax = float(vals.min()), float(vals.max())
+                    rngv = (vmax - vmin) if vmax > vmin else 1.0
+                    vals_norm = (vals - vmin) / rngv
                     perc = np.quantile(
                         vals_norm, np.linspace(0.0, 1.0, self.percentile_bins + 1)
-                    )
+                    ).astype(np.float32, copy=False)
                     self.percentiles_ = perc
                     radii, infl, slopes = self._scan_radii(
                         center, f, dirs, X_std, percentiles=perc
