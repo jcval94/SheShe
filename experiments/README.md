@@ -3,11 +3,24 @@
 Este directorio contiene scripts reproducibles que generan las tablas y figuras
 utilizadas en el artículo de SheShe.
 
+### Datasets
+
+| Nombre | Enlace | Licencia | Citación |
+| --- | --- | --- | --- |
+| Iris | [UCI](https://archive.ics.uci.edu/ml/datasets/iris) | CC BY 4.0 | R. A. Fisher, 1936 |
+| Wine | [UCI](https://archive.ics.uci.edu/ml/datasets/wine) | CC BY 4.0 | Forina et al., 1991 |
+| Breast Cancer Wisconsin (Diagnostic) | [UCI](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagnostic)) | CC BY 4.0 | Street et al., 1993 |
+| Digits | [UCI](https://archive.ics.uci.edu/ml/datasets/Optical+Recognition+of+Handwritten+Digits) | CC BY 4.0 | C. Kaynak, 1995 |
+| Moons (sintético) | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_moons.html) | BSD-3-Clause | Pedregosa et al., 2011 |
+| Blobs (sintético) | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_blobs.html) | BSD-3-Clause | Pedregosa et al., 2011 |
+| Synthetic24D_4c / make_classification | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_classification.html) | BSD-3-Clause | Pedregosa et al., 2011 |
+
 ## Comparación no supervisada
 - **Script:** `compare_unsupervised.py`
 - **Datasets:** Iris, Wine, Breast Cancer, Moons y Blobs.
 - **Algoritmos:** SheShe, KMeans y DBSCAN.
 - **Métricas:** ARI, homogeneity, completeness, v_measure y tiempo de ejecución.
+- **Preprocesamiento:** sin normalización ni división; cada algoritmo se entrena y evalúa sobre el conjunto completo.
 - **Ejecución:**
   ```bash
   python experiments/compare_unsupervised.py --runs 5
@@ -25,6 +38,9 @@ utilizadas en el artículo de SheShe.
   `drop_fraction` y `smooth_window` sobre el conjunto de Iris.
 - **Sensibilidad:** estudio de la dimensión (`n_features`) y robustez a ruido
   gaussiano.
+- **Preprocesamiento:**
+  - Comparación supervisada: `StratifiedKFold` de 5 particiones sin escalado.
+  - Ablation y sensibilidad: `train_test_split` (70/30) sin normalización.
 - **Ejecución:**
   ```bash
   python experiments/paper_experiments.py --runs 5
@@ -43,6 +59,7 @@ utilizadas en el artículo de SheShe.
 - **Métricas:** accuracy (Hungarian), F1 macro/ponderado, purity, BCubed,
   ARI, AMI, NMI, homogeneity, completeness, V-measure, Fowlkes–Mallows y
   silhouette.
+- **Preprocesamiento:** `StandardScaler` previo a los modelos no supervisados; SheShe usa las características crudas y no se realiza partición train/test.
 - **Ejecución:**
   ```bash
   PYTHONPATH=src python experiments/ab_test_clustering.py
@@ -56,6 +73,7 @@ utilizadas en el artículo de SheShe.
   `find_percentile_drop` con la versión optimizada en bucle y medir el tiempo de
   ajuste de `ModalBoundaryClustering` usando `stop_criteria` `"inflexion"` y
   `"percentile"`.
+- **Preprocesamiento:** utiliza el dataset completo de Iris sin escalado ni partición.
 - **Ejecución:**
   ```bash
   PYTHONPATH=src python experiments/benchmark_stop_criteria.py \\
