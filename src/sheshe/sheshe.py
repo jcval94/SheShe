@@ -4,6 +4,7 @@ from __future__ import annotations
 import itertools
 import math
 import time
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence
@@ -561,6 +562,7 @@ class ModalBoundaryClustering(BaseEstimator):
       - Ascent with boundary barriers.
       - Optional smoothing of radial scans via ``smooth_window``.
       - Fallback radius via ``drop_fraction`` when no inflection is found.
+      - ``verbose`` levels: ``0`` silencia, ``1`` tiempos resumidos, ``2`` detalle completo.
     """
 
     def __init__(
@@ -585,7 +587,7 @@ class ModalBoundaryClustering(BaseEstimator):
         percentile_method: str = "auto",
         hist_bins: int = 2048,
         max_subspaces: int = 20,
-        verbose: bool = False,
+        verbose: int = 0,
         save_labels: bool = False,
         prediction_within_region: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
@@ -640,6 +642,15 @@ class ModalBoundaryClustering(BaseEstimator):
         self.hist_bins = hist_bins
         self.max_subspaces = max_subspaces
         self.verbose = verbose
+        self.logger = logging.getLogger(self.__class__.__name__)
+        if not self.logger.handlers:
+            self.logger.addHandler(logging.StreamHandler())
+        if verbose >= 2:
+            self.logger.setLevel(logging.DEBUG)
+        elif verbose == 1:
+            self.logger.setLevel(logging.INFO)
+        else:
+            self.logger.setLevel(logging.WARNING)
         self.save_labels = save_labels
         self.prediction_within_region = prediction_within_region
         self.out_dir = Path(out_dir) if out_dir is not None else None
@@ -941,9 +952,8 @@ class ModalBoundaryClustering(BaseEstimator):
         vals = self._predict_value_real(X, class_idx=class_idx)
         return {"min": float(np.min(vals)), "max": float(np.max(vals))}
 
-    def _log(self, msg: str) -> None:
-        if self.verbose:
-            print(msg)
+    def _log(self, msg: str, level: int = logging.INFO) -> None:
+        self.logger.log(level, msg)
 
     def _maybe_save_labels(self, labels: np.ndarray, label_path: Optional[Union[str, Path]]) -> None:
         if label_path is None:
@@ -960,13 +970,15 @@ class ModalBoundaryClustering(BaseEstimator):
         try:
             np.savetxt(label_path, labels, fmt="%s")
         except Exception as exc:  # pragma: no cover - auxiliary logging
-            self._log(f"Could not save labels to {label_path}: {exc}")
+            self._log(f"Could not save labels to {label_path}: {exc}", level=logging.WARNING)
 
     # ---------- Public API ----------
 
     def fit(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None):
         start = time.perf_counter()
+        self._log("Starting fit", level=logging.DEBUG)
         try:
+            prep_start = time.perf_counter()
             X = np.asarray(X, dtype=float)
             self.n_features_in_ = X.shape[1]
             self.feature_names_in_ = list(X.columns) if isinstance(X, pd.DataFrame) else None
@@ -977,10 +989,17 @@ class ModalBoundaryClustering(BaseEstimator):
                 y_arr = np.asarray(y)
                 if np.unique(y_arr).size < 2:
                     raise ValueError("y must contain at least two classes for classification")
+            prep_time = time.perf_counter() - prep_start
+            self._log(f"Data preparation in {prep_time:.4f}s", level=logging.DEBUG)
 
+            t = time.perf_counter()
             self._fit_estimator(X, y)
+            self._log(f"Base estimator fit in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
             if self.density_alpha > 0.0:
+                t = time.perf_counter()
                 self._setup_density(X)
+                self._log(f"Density setup in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
+            t = time.perf_counter()
             Xs_all = self.scaler_.transform(np.asarray(X, dtype=float))
             P_all = None
             yhat_all = None
@@ -993,6 +1012,7 @@ class ModalBoundaryClustering(BaseEstimator):
                     raise RuntimeError("Base estimator must implement predict_proba or decision_function")
             else:
                 yhat_all = self.estimator_.predict(Xs_all).astype(np.float32, copy=False)
+            self._log(f"Initial predictions in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
             self._X_train_shape = Xs_all.shape
             self._P_all = P_all
             self._yhat_all = yhat_all
@@ -1032,7 +1052,7 @@ class ModalBoundaryClustering(BaseEstimator):
 
             self.regions_: List[ClusterRegion] = []
             self.classes_ = None
-
+            t = time.perf_counter()
             if self.task == "classification":
                 _ = self.pipeline_.predict(X[:2])  # asegura classes_
                 self.classes_ = self.estimator_.classes_
@@ -1112,8 +1132,11 @@ class ModalBoundaryClustering(BaseEstimator):
                     inflection_points=infl, inflection_slopes=slopes,
                     peak_value_real=peak_real, peak_value_norm=peak_norm
                 ))
+            region_time = time.perf_counter() - t
+            self._log(f"Region discovery in {region_time:.4f}s", level=logging.DEBUG)
             # Calcular la efectividad de cada región (score)
             if y is not None:
+                t = time.perf_counter()
                 X_arr = np.asarray(X, float)
                 M = self._membership_matrix(X_arr)
                 for k, reg in enumerate(self.regions_):
@@ -1155,8 +1178,11 @@ class ModalBoundaryClustering(BaseEstimator):
                                 reg.metrics[name] = float(func(y_true, y_pred))
                             except Exception:
                                 reg.metrics[name] = float("nan")
+                score_time = time.perf_counter() - t
+                self._log(f"Region scoring in {score_time:.4f}s", level=logging.DEBUG)
             # Guardar etiquetas de entrenamiento para compatibilidad con
             # la API estándar de clustering de scikit-learn
+            t = time.perf_counter()
             save_flag = self.save_labels
             self.save_labels = False
             try:
@@ -1166,11 +1192,12 @@ class ModalBoundaryClustering(BaseEstimator):
                     self.labels_ = self.predict(X)
             finally:
                 self.save_labels = save_flag
+            self._log(f"Label prediction in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
         except Exception as exc:
-            self._log(f"Error in fit: {exc}")
+            self._log(f"Error in fit: {exc}", level=logging.ERROR)
             raise
         runtime = time.perf_counter() - start
-        self._log(f"fit completed in {runtime:.4f}s")
+        self._log(f"fit completed in {runtime:.4f}s", level=logging.INFO)
         return self
 
     def fit_predict(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None) -> np.ndarray:
@@ -1257,11 +1284,14 @@ class ModalBoundaryClustering(BaseEstimator):
         predicted value from the base estimator.
         """
         start = time.perf_counter()
+        self._log("Starting predict", level=logging.DEBUG)
         try:
             check_is_fitted(self, "regions_")
             X = np.asarray(X, dtype=float)
             if self.task == "classification":
+                t = time.perf_counter()
                 M = self._membership_matrix(X)
+                self._log(f"Membership matrix computed in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
                 labels = np.array([reg.label for reg in self.regions_])
                 pred = np.empty(len(X), dtype=labels.dtype)
                 some = M.sum(axis=1) > 0
@@ -1274,16 +1304,20 @@ class ModalBoundaryClustering(BaseEstimator):
                         pred[i] = labels[ks[np.argmin(dists)]]
                 none = ~some
                 if np.any(none):
+                    t = time.perf_counter()
                     base_pred = self.pipeline_.predict(X[none])
+                    self._log(f"Fallback base prediction in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
                     pred[none] = base_pred
                 result = pred
             else:
+                t = time.perf_counter()
                 result = self.pipeline_.predict(X)
+                self._log(f"Base estimator prediction in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
         except Exception as exc:
-            self._log(f"Error in predict: {exc}")
+            self._log(f"Error in predict: {exc}", level=logging.ERROR)
             raise
         runtime = time.perf_counter() - start
-        self._log(f"predict completed in {runtime:.4f}s")
+        self._log(f"predict completed in {runtime:.4f}s", level=logging.INFO)
         self._maybe_save_labels(result, label_path)
         return result
 
@@ -1305,10 +1339,13 @@ class ModalBoundaryClustering(BaseEstimator):
         discovered regions.
         """
         start = time.perf_counter()
+        self._log("Starting predict_regions", level=logging.DEBUG)
         try:
             check_is_fitted(self, "regions_")
             X = np.asarray(X, dtype=float)
+            t = time.perf_counter()
             M = self._membership_matrix(X)
+            self._log(f"Membership matrix computed in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
             ids = np.array([reg.cluster_id for reg in self.regions_])
             pred: np.ndarray = np.empty(len(X), dtype=object)
             for i in range(len(X)):
@@ -1321,10 +1358,10 @@ class ModalBoundaryClustering(BaseEstimator):
                     pred[i] = ids[ks].tolist()
             result = pred
         except Exception as exc:
-            self._log(f"Error in predict_regions: {exc}")
+            self._log(f"Error in predict_regions: {exc}", level=logging.ERROR)
             raise
         runtime = time.perf_counter() - start
-        self._log(f"predict_regions completed in {runtime:.4f}s")
+        self._log(f"predict_regions completed in {runtime:.4f}s", level=logging.INFO)
         self._maybe_save_labels(result, label_path)
         return result
 
@@ -1359,10 +1396,14 @@ class ModalBoundaryClustering(BaseEstimator):
         Regression: normalized value in ``[0, 1]``.
         """
         start = time.perf_counter()
+        self._log("Starting predict_proba", level=logging.DEBUG)
         try:
             check_is_fitted(self, "regions_")
+            t = time.perf_counter()
             Xs = self.scaler_.transform(np.asarray(X, dtype=float))
+            self._log(f"Data scaling in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
             if self.task == "classification":
+                t = time.perf_counter()
                 if hasattr(self.estimator_, "predict_proba"):
                     result = self.estimator_.predict_proba(Xs)
                 elif hasattr(self.estimator_, "decision_function"):
@@ -1376,17 +1417,20 @@ class ModalBoundaryClustering(BaseEstimator):
                     raise NotImplementedError(
                         "Base estimator must implement predict_proba or decision_function"
                     )
+                self._log(f"Estimator call in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
             else:
+                t = time.perf_counter()
                 vals = self.estimator_.predict(Xs)
+                self._log(f"Estimator call in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
                 vmin = min(reg.peak_value_real for reg in self.regions_)
                 vmax = max(reg.peak_value_real for reg in self.regions_)
                 rng = vmax - vmin if vmax > vmin else 1.0
                 result = ((vals - vmin) / rng).reshape(-1, 1)
         except Exception as exc:
-            self._log(f"Error in predict_proba: {exc}")
+            self._log(f"Error in predict_proba: {exc}", level=logging.ERROR)
             raise
         runtime = time.perf_counter() - start
-        self._log(f"predict_proba completed in {runtime:.4f}s")
+        self._log(f"predict_proba completed in {runtime:.4f}s", level=logging.INFO)
         return result
 
     def decision_function(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
@@ -1439,9 +1483,13 @@ class ModalBoundaryClustering(BaseEstimator):
         """
 
         start = time.perf_counter()
+        self._log("Starting decision_function", level=logging.DEBUG)
         try:
             check_is_fitted(self, "regions_")
+            t = time.perf_counter()
             Xs = self.scaler_.transform(np.asarray(X, dtype=float))
+            self._log(f"Data scaling in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
+            t = time.perf_counter()
             if hasattr(self.estimator_, "decision_function"):
                 result = self.estimator_.decision_function(Xs)
             else:
@@ -1449,11 +1497,12 @@ class ModalBoundaryClustering(BaseEstimator):
                     result = self.estimator_.predict_proba(Xs)
                 else:
                     result = self.estimator_.predict(Xs)
+            self._log(f"Estimator call in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
         except Exception as exc:
-            self._log(f"Error in decision_function: {exc}")
+            self._log(f"Error in decision_function: {exc}", level=logging.ERROR)
             raise
         runtime = time.perf_counter() - start
-        self._log(f"decision_function completed in {runtime:.4f}s")
+        self._log(f"decision_function completed in {runtime:.4f}s", level=logging.INFO)
         return result
 
     def score(self, X: Union[np.ndarray, pd.DataFrame], y: np.ndarray) -> float:

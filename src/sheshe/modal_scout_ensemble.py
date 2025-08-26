@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import List, Tuple, Dict, Any, Optional, Sequence, Callable
+import logging
 import math, time
 import numpy as np
 
@@ -210,6 +211,15 @@ class ModalScoutEnsemble(BaseEstimator):
     self.scout_kwargs = scout_kwargs or {}
     self.mbc_kwargs = mbc_kwargs or {}
     self.verbose = verbose
+    self.logger = logging.getLogger(self.__class__.__name__)
+    if not self.logger.handlers:
+      self.logger.addHandler(logging.StreamHandler())
+    if verbose >= 2:
+      self.logger.setLevel(logging.DEBUG)
+    elif verbose == 1:
+      self.logger.setLevel(logging.INFO)
+    else:
+      self.logger.setLevel(logging.WARNING)
     self.prediction_within_region = prediction_within_region
 
     # Atributos post-fit
@@ -373,8 +383,7 @@ class ModalScoutEnsemble(BaseEstimator):
       results = []
       for s in self.selected_:
         if self.time_budget_s is not None and (time.time() - t0) >= self.time_budget_s:
-          if self.verbose:
-            print("[ModalScoutEnsemble] Budget de tiempo alcanzado; se detiene.")
+          self.logger.info("Budget de tiempo alcanzado; se detiene.")
           break
         results.append(_train_one(s))
 
@@ -436,8 +445,7 @@ class ModalScoutEnsemble(BaseEstimator):
     else:
       self.labels_ = self.predict(X)
 
-    if self.verbose:
-      print(f"[ModalScoutEnsemble] Submodelos={len(self.models_)} | Pesos≈{np.round(self.weights_, 3)}")
+    self.logger.info("Submodelos=%d | Pesos≈%s", len(self.models_), np.round(self.weights_, 3))
     return self
 
   def predict_proba(self, X: np.ndarray) -> np.ndarray:
