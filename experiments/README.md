@@ -11,13 +11,15 @@ utilizadas en el artículo de SheShe.
 | Wine | [UCI](https://archive.ics.uci.edu/ml/datasets/wine) | CC BY 4.0 | Forina et al., 1991 |
 | Breast Cancer Wisconsin (Diagnostic) | [UCI](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagnostic)) | CC BY 4.0 | Street et al., 1993 |
 | Digits | [UCI](https://archive.ics.uci.edu/ml/datasets/Optical+Recognition+of+Handwritten+Digits) | CC BY 4.0 | C. Kaynak, 1995 |
+| California Housing | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.fetch_california_housing.html) | CC BY 4.0 | Pace & Barry, 1997 |
 | Moons (sintético) | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_moons.html) | BSD-3-Clause | Pedregosa et al., 2011 |
 | Blobs (sintético) | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_blobs.html) | BSD-3-Clause | Pedregosa et al., 2011 |
+| Circles (sintético) | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_circles.html) | BSD-3-Clause | Pedregosa et al., 2011 |
 | Synthetic24D_4c / make_classification | [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_classification.html) | BSD-3-Clause | Pedregosa et al., 2011 |
 
 ## Comparación no supervisada
 - **Script:** `compare_unsupervised.py`
-- **Datasets:** Iris, Wine, Breast Cancer, Moons y Blobs.
+- **Datasets:** Iris, Wine, Breast Cancer, Digits, California Housing, Moons, Blobs y Circles.
 - **Algoritmos:** SheShe, KMeans y DBSCAN.
 - **Métricas:** ARI, homogeneity, completeness, v_measure y tiempo de ejecución.
 - **Preprocesamiento:** sin normalización ni división; cada algoritmo se entrena y evalúa sobre el conjunto completo.
@@ -52,8 +54,8 @@ utilizadas en el artículo de SheShe.
 
 ## A/B testing de *clustering*
 - **Script:** `ab_test_clustering.py`
-- **Datasets:** Iris, Wine, Breast Cancer, Digits (64D) y un conjunto sintético
-  multiclase.
+- **Datasets:** Iris, Wine, Breast Cancer, Digits (64D), California Housing,
+  Circles y un conjunto sintético multiclase.
 - **Modelos:** ModalBoundaryClustering y cuatro algoritmos no supervisados
   (KMeans, AgglomerativeClustering, SpectralClustering y GaussianMixture).
 - **Métricas:** accuracy (Hungarian), F1 macro/ponderado, purity, BCubed,

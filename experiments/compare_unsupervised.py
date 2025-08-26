@@ -2,7 +2,7 @@
 Compara SheShe con algoritmos no supervisados en varios conjuntos de datos.
 
 Genera métricas de *clustering* (ARI, homogeneidad, completitud y V-measure)
-para cinco dataframes distintos y diferentes configuraciones de parámetros.
+para ocho dataframes distintos y diferentes configuraciones de parámetros.
 Cada ejecución registra de manera separada los tiempos y memoria consumida en
 las fases de entrenamiento y predicción, almacenados en ``fit_time_sec``,
 ``predict_time_sec``, ``fit_mem_mb`` y ``predict_mem_mb``.
@@ -18,10 +18,13 @@ import argparse
 import numpy as np
 import pandas as pd
 from sklearn.datasets import (
+    fetch_california_housing,
     load_breast_cancer,
+    load_digits,
     load_iris,
     load_wine,
     make_blobs,
+    make_circles,
     make_moons,
 )
 from sklearn.cluster import DBSCAN, KMeans
@@ -90,13 +93,27 @@ def run(
     seeds = list(seeds or range(5))
 
     def _datasets(seed: int):
-        return {
+        data = {
             "iris": load_iris(return_X_y=True),
             "wine": load_wine(return_X_y=True),
             "breast_cancer": load_breast_cancer(return_X_y=True),
+            "digits": load_digits(return_X_y=True),
             "moons": make_moons(n_samples=300, noise=0.05, random_state=seed),
             "blobs": make_blobs(n_samples=300, centers=3, random_state=seed),
+            "circles": make_circles(n_samples=300, noise=0.05, factor=0.5, random_state=seed),
         }
+        try:
+            X_housing, y_housing = fetch_california_housing(return_X_y=True)
+            rng = np.random.default_rng(seed)
+            idx = rng.choice(len(y_housing), size=300, replace=False)
+            X_housing, y_housing = X_housing[idx], y_housing[idx]
+            bins = np.quantile(y_housing, [0.25, 0.5, 0.75])
+            y_housing = np.digitize(y_housing, bins)
+            data["california_housing"] = (X_housing, y_housing)
+        except Exception as exc:
+            if verbose:
+                print(f"[run] California housing no disponible: {exc}")
+        return data
 
     metrics: Iterable[Metric] = [
         ("ARI", adjusted_rand_score),

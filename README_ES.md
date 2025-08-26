@@ -505,8 +505,9 @@ mse.plot_pair_3d(X, (feats[0], feats[1]), model_idx=0, class_label=mse.classes_[
 
 Los experimentos de comparación con algoritmos **no supervisados** se encuentran
 en la carpeta [`experiments/`](experiments/). El script
-[`compare_unsupervised.py`](experiments/compare_unsupervised.py) evalúa cinco
-conjuntos de datos distintos, explora parámetros de **SheShe**, **KMeans** y
+[`compare_unsupervised.py`](experiments/compare_unsupervised.py) evalúa ocho
+conjuntos de datos distintos (Iris, Wine, Breast Cancer, Digits, California
+Housing, Moons, Blobs y Circles), explora parámetros de **SheShe**, **KMeans** y
 **DBSCAN**, y almacena cuatro métricas (`ARI`, `homogeneity`, `completeness`,
 `v_measure`) junto con el tiempo de ejecución (`runtime_sec`).
 

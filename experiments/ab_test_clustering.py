@@ -2,7 +2,8 @@
 """
 AB Testing: ModalBoundaryClustering (SheShe) vs 4 modelos no supervisados
 
-- Datasets: Iris, Wine, Breast Cancer, Digits(64D), Sintético multiclase
+- Datasets: Iris, Wine, Breast Cancer, Digits(64D), California Housing,
+             Circles y un conjunto sintético multiclase
 - Métricas: accuracy (Hungarian), macro/weighted F1, purity, BCubed,
             ARI/AMI/NMI, homogeneity/completeness/V-measure,
             Fowlkes–Mallows, silhouette
@@ -36,7 +37,6 @@ from sklearn.metrics import (
     fowlkes_mallows_score,
 )
 from sklearn.metrics.cluster import contingency_matrix
-from sklearn.utils.linear_assignment_ import linear_assignment as _deprecated  # old alias if needed
 from scipy.optimize import linear_sum_assignment
 
 # ---- Modelos no supervisados ----
@@ -56,6 +56,8 @@ from sklearn.datasets import (
     load_wine,
     load_breast_cancer,
     load_digits,
+    fetch_california_housing,
+    make_circles,
     make_classification,
 )
 
@@ -249,6 +251,18 @@ def cargar_datasets() -> List[Tuple[str, np.ndarray, np.ndarray]]:
     data.append(("BreastCancer30D", X, y))
     X, y = load_digits(return_X_y=True)
     data.append(("Digits64D", X, y))
+    try:
+        X, y = fetch_california_housing(return_X_y=True)
+        rng = np.random.default_rng(123)
+        idx = rng.choice(len(y), size=1200, replace=False)
+        X, y = X[idx], y[idx]
+        bins = np.quantile(y, [0.25, 0.5, 0.75])
+        y = np.digitize(y, bins)
+        data.append(("CaliforniaHousing", X, y))
+    except Exception as exc:
+        print(f"[cargar_datasets] California Housing no disponible: {exc}")
+    X, y = make_circles(n_samples=1200, noise=0.05, factor=0.5, random_state=123)
+    data.append(("Circles", X, y))
     # Sintético multiclase (más “realista” que blobs)
     X, y = make_classification(
         n_samples=1200,
