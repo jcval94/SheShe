@@ -518,6 +518,10 @@ cat benchmark/unsupervised_results.csv | head
 
 se generan los resultados dentro de `benchmark/`.
 
+El nuevo modo de rayos `grad` reemplaza al anterior `grid`, logrando hasta
+~9× de aceleración sin pérdida de exactitud (ver
+[benchmark/README.md](benchmark/README.md)).
+
 Para los experimentos del manuscrito se incluye además
 [`paper_experiments.py`](experiments/paper_experiments.py), que compara con
 algoritmos **supervisados**, realiza estudios de *ablation* sobre
