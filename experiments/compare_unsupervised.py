@@ -27,8 +27,17 @@ from sklearn.datasets import (
     make_circles,
     make_moons,
 )
-from sklearn.cluster import DBSCAN, KMeans
+from sklearn.cluster import (
+    DBSCAN,
+    KMeans,
+    OPTICS,
+    Birch,
+    MeanShift,
+    estimate_bandwidth,
+)
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
 from sklearn.metrics import (
     adjusted_rand_score,
     completeness_score,
@@ -304,6 +313,266 @@ def run(
                 if verbose:
                     print(
                         f"DBSCAN {name} eps={eps} seed={seed} → {runtime:.4f}s",
+                    )
+
+            # OPTICS: variar min_samples
+            for ms in [5, 10]:
+                try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
+                    optics = OPTICS(min_samples=ms)
+                    optics.fit(X)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
+                    y_pred = optics.labels_
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_OPTICS_ms-{ms}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
+                    if verbose:
+                        print(f"OPTICS falló en {name} (min_samples={ms}, seed={seed}): {exc}")
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
+                record = {
+                    "dataset": name,
+                    "algorithm": "OPTICS",
+                    "params": f"min_samples={ms}",
+                    "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
+                if verbose:
+                    print(
+                        f"OPTICS {name} min_samples={ms} seed={seed} → {runtime:.4f}s",
+                    )
+
+            # Birch: variar threshold
+            for thr in [0.3, 0.5, 0.7]:
+                try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
+                    br = Birch(threshold=thr, n_clusters=n_classes)
+                    br.fit(X)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
+                    y_pred = br.predict(X)
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_Birch_thr-{thr}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
+                    if verbose:
+                        print(f"Birch falló en {name} (threshold={thr}, seed={seed}): {exc}")
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
+                record = {
+                    "dataset": name,
+                    "algorithm": "Birch",
+                    "params": f"threshold={thr}",
+                    "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
+                if verbose:
+                    print(
+                        f"Birch {name} threshold={thr} seed={seed} → {runtime:.4f}s",
+                    )
+
+            # MeanShift: variar cuantiles para el bandwidth
+            for q in [0.2, 0.3]:
+                try:
+                    bw = estimate_bandwidth(X, quantile=q)
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
+                    ms = MeanShift(bandwidth=bw, bin_seeding=True)
+                    ms.fit(X)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
+                    y_pred = ms.labels_
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_MeanShift_q-{q}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
+                    if verbose:
+                        print(f"MeanShift falló en {name} (q={q}, seed={seed}): {exc}")
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
+                record = {
+                    "dataset": name,
+                    "algorithm": "MeanShift",
+                    "params": f"quantile={q}",
+                    "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
+                if verbose:
+                    print(
+                        f"MeanShift {name} q={q} seed={seed} → {runtime:.4f}s",
+                    )
+
+            # Métodos supervisados adicionales
+            # Logistic Regression
+            for C in [0.1, 1.0, 10.0]:
+                try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
+                    lr = LogisticRegression(max_iter=500, C=C, random_state=seed)
+                    lr.fit(X, y)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
+                    y_pred = lr.predict(X)
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_LogReg_C-{C}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
+                    if verbose:
+                        print(f"LogisticRegression falló en {name} (C={C}, seed={seed}): {exc}")
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
+                record = {
+                    "dataset": name,
+                    "algorithm": "LogisticRegression",
+                    "params": f"C={C}",
+                    "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
+                if verbose:
+                    print(
+                        f"LogReg {name} C={C} seed={seed} → {runtime:.4f}s",
+                    )
+
+            # Random Forest
+            for n_est in [50, 100]:
+                try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
+                    rf = RandomForestClassifier(n_estimators=n_est, random_state=seed)
+                    rf.fit(X, y)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
+                    y_pred = rf.predict(X)
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_RandomForest_ne-{n_est}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
+                    if verbose:
+                        print(f"RandomForest falló en {name} (n_est={n_est}, seed={seed}): {exc}")
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
+                record = {
+                    "dataset": name,
+                    "algorithm": "RandomForest",
+                    "params": f"n_estimators={n_est}",
+                    "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
+                if verbose:
+                    print(
+                        f"RandomForest {name} n_estimators={n_est} seed={seed} → {runtime:.4f}s",
+                    )
+
+            # Support Vector Classifier
+            for C in [0.5, 1.0]:
+                try:
+                    mem_before_fit = psutil.Process().memory_info().rss
+                    start_fit = time.perf_counter()
+                    svc = SVC(C=C, gamma="scale", random_state=seed)
+                    svc.fit(X, y)
+                    fit_time = time.perf_counter() - start_fit
+                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
+
+                    mem_before_pred = psutil.Process().memory_info().rss
+                    start_pred = time.perf_counter()
+                    y_pred = svc.predict(X)
+                    predict_time = time.perf_counter() - start_pred
+                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
+
+                    metrics_dict = _evaluate(y, y_pred, metrics)
+                    _save_labels(y_pred, f"{name}_SVC_C-{C}_seed-{seed}.labels")
+                except Exception as exc:
+                    y_pred = []
+                    metrics_dict = {name: math.nan for name, _ in metrics}
+                    fit_time = predict_time = fit_mem = predict_mem = math.nan
+                    if verbose:
+                        print(f"SVC falló en {name} (C={C}, seed={seed}): {exc}")
+                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
+                record = {
+                    "dataset": name,
+                    "algorithm": "SVC",
+                    "params": f"C={C}",
+                    "seed": seed,
+                    "fit_time_sec": fit_time,
+                    "predict_time_sec": predict_time,
+                    "fit_mem_mb": fit_mem,
+                    "predict_mem_mb": predict_mem,
+                    "runtime_sec": runtime,
+                }
+                record.update(metrics_dict)
+                results.append(record)
+                if verbose:
+                    print(
+                        f"SVC {name} C={C} seed={seed} → {runtime:.4f}s",
                     )
 
     df = pd.DataFrame(results)

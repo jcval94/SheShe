@@ -40,8 +40,18 @@ from sklearn.metrics.cluster import contingency_matrix
 from scipy.optimize import linear_sum_assignment
 
 # ---- Modelos no supervisados ----
-from sklearn.cluster import KMeans, AgglomerativeClustering, SpectralClustering
+from sklearn.cluster import (
+    KMeans,
+    AgglomerativeClustering,
+    SpectralClustering,
+    OPTICS,
+    Birch,
+    MeanShift,
+)
 from sklearn.mixture import GaussianMixture
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
 
 # ---- Tu modelo (SheShe) ----
 try:
@@ -196,7 +206,7 @@ def preparar_modelos(n_clusters: int, random_state: int = 42) -> List[Modelo]:
     """
     modelos: List[Modelo] = []
 
-    # 1) SheShe (supervisado) - tu modelo
+    # Modelos supervisados
     def crear_sheshe():
         # Defaults optimizados (ya incorporados en tu lib); se puede ajustar base_2d_rays para d altos.
         return ModalBoundaryClustering(
@@ -207,30 +217,63 @@ def preparar_modelos(n_clusters: int, random_state: int = 42) -> List[Modelo]:
 
     modelos.append(Modelo("SheShe_ModalBoundaryClustering", "supervisado", crear_sheshe))
 
-    # 2) KMeans
+    def crear_logreg():
+        return LogisticRegression(max_iter=500, random_state=random_state)
+
+    modelos.append(Modelo("LogisticRegression", "supervisado", crear_logreg))
+
+    def crear_rf():
+        return RandomForestClassifier(n_estimators=100, random_state=random_state)
+
+    modelos.append(Modelo("RandomForest", "supervisado", crear_rf))
+
+    def crear_svc():
+        return SVC(kernel="rbf", gamma="scale", C=1.0, random_state=random_state)
+
+    modelos.append(Modelo("SVC", "supervisado", crear_svc))
+
+    # Modelos no supervisados
     def crear_kmeans():
         return KMeans(n_clusters=n_clusters, n_init=10, random_state=random_state)
 
     modelos.append(Modelo("KMeans", "no_supervisado", crear_kmeans))
 
-    # 3) GaussianMixture (usamos argmax de responsabilidades)
     def crear_gmm():
         return GaussianMixture(n_components=n_clusters, covariance_type="full", random_state=random_state, n_init=1)
 
     modelos.append(Modelo("GaussianMixture", "no_supervisado", crear_gmm))
 
-    # 4) Agglomerative (Ward)
     def crear_aggl():
         return AgglomerativeClustering(n_clusters=n_clusters, linkage="ward")
 
     modelos.append(Modelo("Agglomerative", "no_supervisado", crear_aggl))
 
-    # 5) Spectral
     def crear_spec():
         # defaults razonables; k-means en el embedding
-        return SpectralClustering(n_clusters=n_clusters, affinity="rbf", assign_labels="kmeans", random_state=random_state, n_init=10)
+        return SpectralClustering(
+            n_clusters=n_clusters,
+            affinity="rbf",
+            assign_labels="kmeans",
+            random_state=random_state,
+            n_init=10,
+        )
 
     modelos.append(Modelo("SpectralClustering", "no_supervisado", crear_spec))
+
+    def crear_optics():
+        return OPTICS(min_samples=10)
+
+    modelos.append(Modelo("OPTICS", "no_supervisado", crear_optics))
+
+    def crear_birch():
+        return Birch(n_clusters=n_clusters)
+
+    modelos.append(Modelo("Birch", "no_supervisado", crear_birch))
+
+    def crear_meanshift():
+        return MeanShift()
+
+    modelos.append(Modelo("MeanShift", "no_supervisado", crear_meanshift))
 
     return modelos
 
