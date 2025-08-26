@@ -1,0 +1,7 @@
+dataset,variant,mean_time_s
+digits,baseline,0.0567
+digits,subspace,0.0233
+digits,subspace_light_escape,0.0222
+iris,baseline,0.004
+iris,subspace,0.00262
+iris,subspace_light_escape,0.00268

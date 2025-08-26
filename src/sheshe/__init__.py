@@ -2,6 +2,7 @@ from .sheshe import ModalBoundaryClustering, ClusterRegion
 from .subspace_scout import SubspaceScout
 from .modal_scout_ensemble import ModalScoutEnsemble
 from .region_interpretability import RegionInterpreter
+from .meta_optimization import random_search
 
 # ``OpenAIRegionInterpreter`` relies on the optional ``openai`` dependency.  In
 # environments where that dependency (or the module itself) is missing we still
@@ -19,6 +20,7 @@ __all__ = [
     "SubspaceScout",
     "ModalScoutEnsemble",
     "RegionInterpreter",
+    "random_search",
     "OpenAIRegionInterpreter",
 ]
 

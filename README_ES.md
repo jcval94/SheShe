@@ -518,6 +518,15 @@ cat benchmark/unsupervised_results.csv | head
 
 se generan los resultados dentro de `benchmark/`.
 
+Se añadió una comparación A/B de la búsqueda guiada por subespacios en
+[benchmark/subspace_ab_results.csv](benchmark/subspace_ab_results.csv); la tabla
+resumen muestra los tiempos promedio (segundos) sobre 5 semillas.
+
+| dataset | baseline | subspace | subspace + light + escape |
+| --- | --- | --- | --- |
+| digits | 0.0567 | 0.0233 | 0.0222 |
+| iris | 0.0040 | 0.00262 | 0.00268 |
+=======
 El nuevo modo de rayos `grad` reemplaza al anterior `grid`, logrando hasta
 ~9× de aceleración sin pérdida de exactitud (ver
 [benchmark/README.md](benchmark/README.md)).
