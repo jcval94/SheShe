@@ -632,6 +632,7 @@ cat benchmark/unsupervised_results_summary.csv | head
 Results are generated inside `benchmark/` (valores por repetición y medias en
 `*_summary.csv`).
 
+
 An additional A/B comparison for the subspace-guided search is available in
 [benchmark/subspace_ab_results.csv](benchmark/subspace_ab_results.csv); the table
 below reports mean runtimes in seconds (5 seeds).
@@ -640,6 +641,11 @@ below reports mean runtimes in seconds (5 seeds).
 | --- | --- | --- | --- |
 | digits | 0.0567 | 0.0233 | 0.0222 |
 | iris | 0.0040 | 0.00262 | 0.00268 |
+=======
+The new `grad` ray mode replaces the former `grid` approach, delivering up to
+~9× faster fits with identical accuracy (see
+[benchmark/README.md](benchmark/README.md)).
+
 
 For the manuscript we provide additional scripts in
 [`paper_experiments.py`](experiments/paper_experiments.py) which perform

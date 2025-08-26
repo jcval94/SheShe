@@ -526,6 +526,10 @@ resumen muestra los tiempos promedio (segundos) sobre 5 semillas.
 | --- | --- | --- | --- |
 | digits | 0.0567 | 0.0233 | 0.0222 |
 | iris | 0.0040 | 0.00262 | 0.00268 |
+=======
+El nuevo modo de rayos `grad` reemplaza al anterior `grid`, logrando hasta
+~9× de aceleración sin pérdida de exactitud (ver
+[benchmark/README.md](benchmark/README.md)).
 
 Para los experimentos del manuscrito se incluye además
 [`paper_experiments.py`](experiments/paper_experiments.py), que compara con
