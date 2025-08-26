@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 from typing import Any, Dict, List, Sequence, Tuple, Optional
+import logging
 import numpy as np
 
 try:
@@ -13,6 +14,10 @@ try:
     _HAS_PANDAS = True
 except Exception:
     _HAS_PANDAS = False
+
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler())
 
 
 # ==================== Utilidades geométricas ====================
@@ -412,18 +417,18 @@ class RegionInterpreter:
     def pretty_print(cards: List[Dict[str, Any]]) -> None:
         """Impresión amigable en consola."""
         for c in cards:
-            print(f"\n=== Región {c['cluster_id']} (label {c['label']}) ===")
-            print("Center:", c["center"])
-            print("Headline:", c["headline"])
+            logger.info("\n=== Región %s (label %s) ===", c['cluster_id'], c['label'])
+            logger.info("Center: %s", c["center"])
+            logger.info("Headline: %s", c["headline"])
             if c.get("box_rules"):
-                print("Caja por ejes:")
+                logger.info("Caja por ejes:")
                 for r in c["box_rules"]:
-                    print(" •", r)
+                    logger.info(" • %s", r)
             if c.get("pairwise_rules"):
-                print("Proyecciones clave:")
+                logger.info("Proyecciones clave:")
                 for pr in c["pairwise_rules"]:
-                    print(f"  {pr['pair']}:")
+                    logger.info("  %s:", pr["pair"])
                     for r in pr["rules"]:
-                        print("   -", r)
+                        logger.info("   - %s", r)
             if c.get("notes"):
-                print("Notas:", "; ".join(c["notes"]))
+                logger.info("Notas: %s", "; ".join(c["notes"]))
