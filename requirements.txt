@@ -1,8 +1,8 @@
-numpy
-pandas
-scikit-learn>=1.1
-matplotlib
-hnswlib
-lightgbm
-shap
-interpret
+numpy==2.2.6
+pandas==2.3.2
+scikit-learn==1.7.1
+matplotlib==3.10.5
+hnswlib==0.8.0
+lightgbm==4.6.0
+shap==0.48.0
+interpret==0.7.2
