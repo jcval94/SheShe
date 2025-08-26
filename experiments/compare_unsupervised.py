@@ -165,6 +165,7 @@ def run(
                         jaccard_threshold=jacc,
                         base_2d_rays=rays,
                         scout_kwargs={"max_order": max_order, "top_m": 4, "sample_size": None},
+                        mbc_kwargs={"ray_mode": "grad"},
                         cv=2,
                     ).fit(X, y)
                     fit_time = time.perf_counter() - start_fit

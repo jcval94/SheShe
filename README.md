@@ -625,6 +625,10 @@ cat benchmark/unsupervised_results_summary.csv | head
 Results are generated inside `benchmark/` (valores por repetición y medias en
 `*_summary.csv`).
 
+The new `grad` ray mode replaces the former `grid` approach, delivering up to
+~9× faster fits with identical accuracy (see
+[benchmark/README.md](benchmark/README.md)).
+
 For the manuscript we provide additional scripts in
 [`paper_experiments.py`](experiments/paper_experiments.py) which perform
 supervised comparisons, ablation studies over `base_2d_rays`, `direction`,
