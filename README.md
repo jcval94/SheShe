@@ -396,6 +396,13 @@ sh.plot_pairs(X, max_pairs=3)
 plt.show()
 ```
 
+### Meta-optimization — Random search
+
+The ``examples/meta_optimization.py`` script showcases a gradient-free meta-
+optimization routine.  It evaluates random hyperparameter configurations for
+``ModalBoundaryClustering`` directly instead of relying on first-order
+approximations, providing a simple way to tune the algorithm.
+
 ---
 
 ## Benchmark
@@ -624,6 +631,15 @@ cat benchmark/unsupervised_results_summary.csv | head
 
 Results are generated inside `benchmark/` (valores por repetición y medias en
 `*_summary.csv`).
+
+An additional A/B comparison for the subspace-guided search is available in
+[benchmark/subspace_ab_results.csv](benchmark/subspace_ab_results.csv); the table
+below reports mean runtimes in seconds (5 seeds).
+
+| dataset | baseline | subspace | subspace + light + escape |
+| --- | --- | --- | --- |
+| digits | 0.0567 | 0.0233 | 0.0222 |
+| iris | 0.0040 | 0.00262 | 0.00268 |
 
 For the manuscript we provide additional scripts in
 [`paper_experiments.py`](experiments/paper_experiments.py) which perform
