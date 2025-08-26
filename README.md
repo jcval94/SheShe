@@ -43,6 +43,24 @@ pip install -e ".[dev]"
 PYTHONPATH=src pytest -q
 ```
 
+## Reproducibility
+
+This project was developed and tested on:
+
+- **OS:** Ubuntu 24.04.2 LTS
+- **CPU:** Intel(R) Xeon(R) Platinum 8171M CPU @ 2.60GHz
+- **GPU:** None
+- **Python:** 3.12.10
+
+To recreate the environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+PYTHONPATH=src pytest -q
+```
+
 ---
 
 ## Quick API
