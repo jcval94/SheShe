@@ -29,6 +29,7 @@ def test_labels_attribute_after_fit():
         base_estimator=LogisticRegression(max_iter=200),
         task="classification",
         random_state=0,
+        ray_mode="grid",
     )
     sh.fit(X, y)
     assert hasattr(sh, "labels_")
@@ -43,6 +44,7 @@ def test_fit_predict_sets_labels_attribute():
         base_estimator=LogisticRegression(max_iter=200),
         task="classification",
         random_state=0,
+        ray_mode="grid",
     )
     labels = sh.fit_predict(X, y)
     assert hasattr(sh, "labels_")
@@ -102,6 +104,7 @@ def test_cluster_region_metrics_classification():
         base_estimator=LogisticRegression(max_iter=200),
         task="classification",
         random_state=0,
+        ray_mode="grid",
     )
     sh.fit(X, y)
     reg = sh.regions_[0]
@@ -222,6 +225,7 @@ def test_membership_matrix_no_directions():
         task="classification",
         base_2d_rays=0,
         random_state=0,
+        ray_mode="grid",
     )
     sh.fit(X, y)
     M = sh._membership_matrix(X)

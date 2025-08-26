@@ -51,6 +51,13 @@ Comparación entre la implementación base y una versión optimizada.
 | 1000 | 0.35× |
 | 10000 | 0.17× |
 
+## Prueba A/B de `ray_mode`
+
+| n_samples | Speedup | Acc. grid | Acc. grad |
+| --- | --- | --- | --- |
+| 100 | 7.37× | 0.67 | 0.67 |
+| 400 | 5.51× | 0.66 | 0.66 |
+
 ## Criterios de parada
 
 | Tamaño | Dirección | Implementación | Speedup |
