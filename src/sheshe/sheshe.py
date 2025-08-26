@@ -580,7 +580,7 @@ class ModalBoundaryClustering(BaseEstimator):
         grad_lr: float = 0.2,
         grad_max_iter: int = 80,
         grad_tol: float = 1e-5,
-        grad_eps: float = 5e-3,
+        grad_eps: float = 1e-3,
         n_max_seeds: int = 2,
         random_state: Optional[int] = 42,
         percentile_sample_size: Optional[int] = 50000,
@@ -592,9 +592,18 @@ class ModalBoundaryClustering(BaseEstimator):
         prediction_within_region: bool = False,
         out_dir: Optional[Union[str, Path]] = None,
         auto_rays_by_dim: bool = True,
-        use_spsa: bool = False,
+        ray_mode: str = "grad",
+        use_spsa: bool = True,
+        spsa_delta: float = 1e-2,
+        spsa_avg: int = 4,
+        ls_alpha0: float = 0.5,
+        ls_shrink: float = 0.5,
+        ls_min_alpha: float = 1e-3,
+        arc_max_steps: int = 64,
+        arc_len_max: float = 3.0,
+        line_refine_steps: int = 8,
         use_adaptive_scan: Optional[bool] = None,
-        batch_size: int = 8192,
+        batch_size: int = 16384,
         coarse_steps: int = 12,
         refine_steps: int = 4,
         early_exit_patience: int = 1,
@@ -614,6 +623,8 @@ class ModalBoundaryClustering(BaseEstimator):
             raise ValueError("drop_fraction must be in (0, 1)")
         if stop_criteria not in ("inflexion", "percentile"):
             raise ValueError("stop_criteria must be 'inflexion' or 'percentile'")
+        if ray_mode not in ("grid", "grad"):
+            raise ValueError("ray_mode must be 'grid' or 'grad'")
         if percentile_bins < 1:
             raise ValueError("percentile_bins must be at least 1")
         if not (0.0 <= density_alpha <= 1.0):
@@ -655,7 +666,16 @@ class ModalBoundaryClustering(BaseEstimator):
         self.prediction_within_region = prediction_within_region
         self.out_dir = Path(out_dir) if out_dir is not None else None
         self.auto_rays_by_dim = auto_rays_by_dim
+        self.ray_mode = ray_mode
         self.use_spsa = use_spsa
+        self.spsa_delta = spsa_delta
+        self.spsa_avg = spsa_avg
+        self.ls_alpha0 = ls_alpha0
+        self.ls_shrink = ls_shrink
+        self.ls_min_alpha = ls_min_alpha
+        self.arc_max_steps = arc_max_steps
+        self.arc_len_max = arc_len_max
+        self.line_refine_steps = line_refine_steps
         self.use_adaptive_scan = use_adaptive_scan
         self.batch_size = batch_size
         self.coarse_steps = coarse_steps
@@ -948,6 +968,126 @@ class ModalBoundaryClustering(BaseEstimator):
                 radii[i], slopes[i], pts[i, :] = float(r), float(m), p
         return radii, pts, slopes
 
+    def _spsa_grad(self, f, x: np.ndarray, delta: Optional[float] = None, avg: int = 4) -> np.ndarray:
+        """Estimate gradient of ``f`` at ``x`` using SPSA.
+
+        Parameters
+        ----------
+        f : callable
+            Function accepting batches.
+        x : ndarray of shape (d,)
+            Point where the gradient is estimated.
+        delta : float, optional
+            Relative perturbation size. Defaults to ``self.spsa_delta``.
+        avg : int, optional
+            Number of perturbation pairs to average. Defaults to ``self.spsa_avg``.
+        """
+        d = x.shape[0]
+        delta = self.spsa_delta if delta is None else float(delta)
+        scale = getattr(self, "_feature_scale", np.ones(d))
+        step = delta * np.maximum(scale, 1e-8)
+
+        K = max(1, int(avg))
+        R = np.random.choice([-1.0, 1.0], size=(K, d))
+        Xp = x[None, :] + R * step[None, :]
+        Xm = x[None, :] - R * step[None, :]
+        lb = getattr(self, "_lb", None)
+        ub = getattr(self, "_ub", None)
+        if lb is not None and ub is not None:
+            Xp = np.minimum(ub, np.maximum(lb, Xp))
+            Xm = np.minimum(ub, np.maximum(lb, Xm))
+
+        fp = f(Xp)
+        fm = f(Xm)
+        denom = 2.0 * step[None, :]
+        G = ((fp - fm)[:, None] / np.maximum(denom, 1e-12)) * R
+        g = np.median(G, axis=0)
+        return g
+
+    def _stop_crossed_on_segment(self, x0: np.ndarray, x1: np.ndarray) -> bool:
+        """Check whether the stopping criteria is crossed between ``x0`` and ``x1``."""
+        S = min(32, max(8, self.line_refine_steps * 2))
+        t = np.linspace(0.0, 1.0, S)
+        Z = x0[None, :] + t[:, None] * (x1 - x0)[None, :]
+        fz = self._f(Z)
+        if self.stop_criteria == "percentile":
+            thr = getattr(self, "_percentile_threshold", None)
+            if thr is None:
+                return False
+            idx = np.nonzero(fz < thr)[0]
+            return len(idx) > 0
+        if self.stop_criteria == "inflexion":
+            df = np.diff(fz)
+            return np.any(df[:-1] * df[1:] < 0.0)
+        return fz[-1] < fz[0] - 1e-2
+
+    def _refine_boundary_bisection(self, x0: np.ndarray, x1: np.ndarray, steps: int = 8) -> np.ndarray:
+        """Refine boundary between ``x0`` and ``x1`` using 1D bisection."""
+        a, b = x0.copy(), x1.copy()
+        fa = self._f(a[None, :])[0]
+        fb = self._f(b[None, :])[0]
+        thr = getattr(self, "_percentile_threshold", None)
+        for _ in range(int(steps)):
+            m = 0.5 * (a + b)
+            fm = self._f(m[None, :])[0]
+            if self.stop_criteria == "percentile" and thr is not None:
+                crossed_left = (fa >= thr) and (fm < thr)
+            else:
+                crossed_left = fm < fa
+            if crossed_left:
+                b, fb = m, fm
+            else:
+                a, fa = m, fm
+        return 0.5 * (a + b)
+
+    def _trace_boundary_grad(self, x0: np.ndarray) -> np.ndarray:
+        """Gradient-guided boundary tracing starting from ``x0``."""
+        x = x0.copy()
+        v_prev = None
+        arc_len = 0.0
+        pts: List[np.ndarray] = []
+        f = self._f
+        scale = getattr(self, "_feature_scale", np.ones_like(x))
+        for it in range(self.arc_max_steps):
+            if self.use_spsa:
+                g = self._spsa_grad(f, x, delta=self.spsa_delta, avg=self.spsa_avg)
+            else:
+                g = np.random.randn(*x.shape)
+            g_norm = float(np.linalg.norm(g))
+            if g_norm < self.grad_eps:
+                v = np.random.randn(*x.shape)
+            else:
+                v = g / g_norm
+            if v_prev is not None:
+                v = 0.2 * v_prev + 0.8 * v
+                v /= (np.linalg.norm(v) + 1e-12)
+            alpha = self.ls_alpha0
+            moved = False
+            while alpha >= self.ls_min_alpha:
+                x_prop = x + alpha * scale * v
+                lb = getattr(self, "_lb", None)
+                ub = getattr(self, "_ub", None)
+                if lb is not None and ub is not None:
+                    x_prop = np.minimum(ub, np.maximum(lb, x_prop))
+                if self._stop_crossed_on_segment(x, x_prop):
+                    x_star = self._refine_boundary_bisection(x, x_prop, steps=self.line_refine_steps)
+                    pts.append(x_star)
+                    x = x_star
+                    moved = True
+                    break
+                fx = f(x[None, :])[0]
+                fxp = f(x_prop[None, :])[0]
+                if fxp >= fx - 1e-12:
+                    x = x_prop
+                    moved = True
+                    break
+                alpha *= self.ls_shrink
+            arc_len += alpha
+            v_prev = v
+            if not moved or arc_len >= self.arc_len_max:
+                break
+        return np.asarray(pts) if pts else np.empty((0, x.size))
+
     def _build_norm_stats(self, X: np.ndarray, class_idx: Optional[int]) -> Dict[str, float]:
         vals = self._predict_value_real(X, class_idx=class_idx)
         return {"min": float(np.min(vals)), "max": float(np.max(vals))}
@@ -1018,6 +1158,9 @@ class ModalBoundaryClustering(BaseEstimator):
             self._yhat_all = yhat_all
             lo, hi = self._bounds_from_data(X)
             self.bounds_ = (lo.copy(), hi.copy())  # store bounds for radial scans
+            self._lb = lo.astype(float, copy=True)
+            self._ub = hi.astype(float, copy=True)
+            self._feature_scale = np.maximum(self._ub - self._lb, 1e-8)
             X_std = np.std(X, axis=0) + 1e-12
             d = X.shape[1]
             self.use_spsa = self.use_spsa or d >= 20
@@ -1072,6 +1215,7 @@ class ModalBoundaryClustering(BaseEstimator):
                     stats = self._build_norm_stats(X, class_idx=ci)
                     f = self._build_value_fn(class_idx=ci, norm_stats=stats)
                     center = self._find_maximum(X, f, (lo, hi))
+                    self._f = lambda Z: _eval_batch_safe(f, np.asarray(Z, float), batch=self.batch_size)
                     if self.stop_criteria == "percentile":
                         if P_s is not None:
                             vals = P_s[:, ci].astype(np.float32, copy=False)
@@ -1091,16 +1235,37 @@ class ModalBoundaryClustering(BaseEstimator):
                             vals_norm, np.linspace(0.0, 1.0, self.percentile_bins + 1)
                         ).astype(np.float32, copy=False)
                         self.percentiles_[ci] = perc
-                        radii, infl, slopes = self._scan_radii(
-                            center, f, dirs, X_std, percentiles=perc
-                        )
+                        v0 = float(f(center))
+                        idx0 = int(np.searchsorted(perc, v0, side="right") - 1)
+                        thr = v0 * self.drop_fraction if idx0 <= 0 else float(perc[idx0 - 1])
+                        self._percentile_threshold = thr
+                        if self.ray_mode == "grad":
+                            infl = self._trace_boundary_grad(center)
+                            vecs = infl - center
+                            radii = np.linalg.norm(vecs, axis=1)
+                            dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
+                            slopes = np.zeros_like(radii)
+                            dirs_use = dirs_reg
+                        else:
+                            radii, infl, slopes = self._scan_radii(center, f, dirs, X_std, percentiles=perc)
+                            dirs_use = dirs
                     else:
-                        radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
+                        self._percentile_threshold = None
+                        if self.ray_mode == "grad":
+                            infl = self._trace_boundary_grad(center)
+                            vecs = infl - center
+                            radii = np.linalg.norm(vecs, axis=1)
+                            dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
+                            slopes = np.zeros_like(radii)
+                            dirs_use = dirs_reg
+                        else:
+                            radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
+                            dirs_use = dirs
                     peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
                     peak_norm = float(f(center))
                     self.regions_.append(ClusterRegion(
                         cluster_id=len(self.regions_),
-                        label=label, center=center, directions=dirs, radii=radii,
+                        label=label, center=center, directions=dirs_use, radii=radii,
                         inflection_points=infl, inflection_slopes=slopes,
                         peak_value_real=peak_real, peak_value_norm=peak_norm
                     ))
@@ -1108,6 +1273,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 stats = self._build_norm_stats(X, class_idx=None)
                 f = self._build_value_fn(class_idx=None, norm_stats=stats)
                 center = self._find_maximum(X, f, (lo, hi))
+                self._f = lambda Z: _eval_batch_safe(f, np.asarray(Z, float), batch=self.batch_size)
                 if self.stop_criteria == "percentile":
                     idx_sample = _pick_sample_idx(None, len(X), self.percentile_sample_size)
                     vals = (self._yhat_all[idx_sample] if self._yhat_all is not None
@@ -1119,16 +1285,39 @@ class ModalBoundaryClustering(BaseEstimator):
                         vals_norm, np.linspace(0.0, 1.0, self.percentile_bins + 1)
                     ).astype(np.float32, copy=False)
                     self.percentiles_ = perc
-                    radii, infl, slopes = self._scan_radii(
-                        center, f, dirs, X_std, percentiles=perc
-                    )
+                    v0 = float(f(center))
+                    idx0 = int(np.searchsorted(perc, v0, side="right") - 1)
+                    thr = v0 * self.drop_fraction if idx0 <= 0 else float(perc[idx0 - 1])
+                    self._percentile_threshold = thr
+                    if self.ray_mode == "grad":
+                        infl = self._trace_boundary_grad(center)
+                        vecs = infl - center
+                        radii = np.linalg.norm(vecs, axis=1)
+                        dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
+                        slopes = np.zeros_like(radii)
+                        dirs_use = dirs_reg
+                    else:
+                        radii, infl, slopes = self._scan_radii(
+                            center, f, dirs, X_std, percentiles=perc
+                        )
+                        dirs_use = dirs
                 else:
-                    radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
+                    self._percentile_threshold = None
+                    if self.ray_mode == "grad":
+                        infl = self._trace_boundary_grad(center)
+                        vecs = infl - center
+                        radii = np.linalg.norm(vecs, axis=1)
+                        dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
+                        slopes = np.zeros_like(radii)
+                        dirs_use = dirs_reg
+                    else:
+                        radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
+                        dirs_use = dirs
                 peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
                 peak_norm = float(f(center))
                 self.regions_.append(ClusterRegion(
                     cluster_id=len(self.regions_),
-                    label="NA", center=center, directions=dirs, radii=radii,
+                    label="NA", center=center, directions=dirs_use, radii=radii,
                     inflection_points=infl, inflection_slopes=slopes,
                     peak_value_real=peak_real, peak_value_norm=peak_norm
                 ))
