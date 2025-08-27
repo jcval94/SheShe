@@ -662,8 +662,8 @@ python experiments/paper_experiments.py --runs 5
 ---
 
 ## Key parameters
-- `base_2d_rays` → controls angular resolution in 2D (24 by default). 3D scales
-  to ~26; d>3 uses subspaces.
+- `base_2d_rays` → controls angular resolution in 2D (32 by default). 3D scales
+  to ~34; d>3 uses subspaces.
 - `direction` → "center_out" | "outside_in" to locate the inflection point.
 - `scan_radius_factor`, `scan_steps` → size and resolution of the radial scan.
 - `grad_*` → hyperparameters of gradient ascent (rate, iterations, tolerances).
@@ -676,7 +676,7 @@ python experiments/paper_experiments.py --runs 5
 ---
 
 ## Performance tips
-- Defaults favour speed: `base_2d_rays=24`, `scan_steps=24` and `n_max_seeds=2`.
+- Defaults favour speed: `base_2d_rays=32`, `scan_steps=24` and `n_max_seeds=2`.
 - The heuristic `auto_rays_by_dim=True` (default) reduces rays for high dimensional datasets:
   - 25–64 features → `base_2d_rays` capped at 16.
   - 65+ features → `base_2d_rays` capped at 12.
