@@ -544,6 +544,188 @@ def generate_directions(dim: int, base_2d: int, random_state: Optional[int] = 42
 
 
 # =========================
+# Utilidades auxiliares
+# =========================
+
+# --------- Fallback de direcciones (±ejes de dims con mayor varianza) ---------
+def _fallback_axis_dirs(X_cluster: np.ndarray, k: int = 6) -> np.ndarray:
+    """Retorna 2k direcciones ±canónicas de las k dimensiones con mayor varianza local."""
+    d = X_cluster.shape[1]
+    k = max(1, min(k, d))
+    var = X_cluster.var(axis=0)
+    idx = np.argsort(var)[::-1][:k]
+    dirs = []
+    for j in idx:
+        e = np.zeros(d, dtype=float)
+        e[j] = 1.0
+        dirs.append(e)
+        dirs.append(-e)
+    return np.asarray(dirs, dtype=float)
+
+
+def enforce_minimum_subspace(
+    directions: np.ndarray | None,
+    X_cluster: np.ndarray,
+    k_fallback: int = 6,
+    *,
+    verbose: int = 0,
+    log_fn: Callable[[str], None] | None = None,
+) -> np.ndarray:
+    """Ensure at least one direction vector is available.
+
+    When ``directions`` is ``None`` or empty, fall back to axis-aligned
+    directions along the dimensions of highest variance.
+    """
+    if directions is None or directions.size == 0:
+        if verbose and log_fn is not None:
+            log_fn(f"Fallback to ±axis directions (k={k_fallback})")
+        return _fallback_axis_dirs(X_cluster, k=k_fallback)
+    return directions
+
+
+# --------- Paso adaptativo por escala (0.15 σ proyectada) ---------
+def per_direction_step_lengths(
+    directions: np.ndarray,
+    std_vec: np.ndarray,
+    base_sigma_step: float = 0.15,
+    mode: str = "diag",
+    cov: np.ndarray | None = None,
+) -> np.ndarray:
+    """Calcula la longitud de paso por rayo según la desviación estándar proyectada."""
+    if directions.ndim != 2:
+        raise ValueError("directions must be 2D (m, d)")
+    m, d = directions.shape
+
+    norms = np.linalg.norm(directions, axis=1, keepdims=True)
+    norms = np.clip(norms, 1e-12, None)
+    u = directions / norms
+
+    if mode == "full":
+        if cov is None:
+            raise ValueError("cov must be provided when mode='full'")
+        var_proj = np.einsum("ij,jk,ik->i", u, cov, u)
+    else:
+        var_proj = (u * (std_vec ** 2)).sum(axis=1)
+
+    var_proj = np.clip(var_proj, 0.0, None)
+    std_proj = np.sqrt(var_proj)
+    steps = base_sigma_step * std_proj
+
+    pos = steps[steps > 0]
+    if pos.size == 0:
+        steps[:] = 1e-3
+    else:
+        fallback = np.median(pos)
+        steps = np.where(steps > 0, steps, np.maximum(1e-6, 0.25 * fallback))
+    return steps
+
+
+def cast_rays_with_censoring(
+    center: np.ndarray,
+    directions: np.ndarray,
+    eval_fn,
+    bounds: tuple[np.ndarray, np.ndarray] | None,
+    max_steps: int,
+    step_lengths: np.ndarray,
+    min_drop: float,
+    min_slope: float,
+    *,
+    verbose: int = 0,
+    log_fn: Callable[[str], None] | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    """Cast rays from ``center`` and record the last point if no inflection.
+
+    Parameters
+    ----------
+    verbose : int, optional
+        ``0`` silences logs, ``1`` prints a summary, ``2`` logs every step.
+    log_fn : callable, optional
+        Function used for logging. Typically ``self._log`` from the estimator.
+    """
+    m, d = directions.shape
+    lo = hi = None
+    if bounds is not None:
+        lo, hi = bounds
+
+    norms = np.linalg.norm(directions, axis=1, keepdims=True)
+    norms = np.clip(norms, 1e-12, None)
+    U = directions / norms
+
+    radii = np.zeros(m, float)
+    inf_pts = np.zeros((m, d), float)
+    inf_slopes = np.zeros(m, float)
+    censored = np.zeros(m, bool)
+    n_eval = 0
+
+    f0 = eval_fn(center)
+    n_eval += 1
+
+    for i in range(m):
+        u = U[i]
+        step = step_lengths[i]
+        x = center.copy()
+        prev_val = f0
+        found = False
+
+        for s in range(1, max_steps + 1):
+            x_next = x + step * u
+
+            if lo is not None:
+                if (x_next < lo).any() or (x_next > hi).any():
+                    censored[i] = True
+                    inf_pts[i] = x
+                    radii[i] = np.linalg.norm(x - center)
+                    if s > 1:
+                        inf_slopes[i] = (prev_val - f0) / (radii[i] + 1e-12)
+                    if verbose >= 2 and log_fn is not None:
+                        log_fn(f"ray {i}: exited bounds at step {s}")
+                    break
+
+            f_next = eval_fn(x_next)
+            n_eval += 1
+            drop = f0 - f_next
+            slope = (prev_val - f_next) / (step + 1e-12)
+
+            if verbose >= 2 and log_fn is not None:
+                log_fn(
+                    f"ray {i}: step {s} drop={drop:.4f} slope={slope:.4f}"
+                )
+
+            if (drop >= min_drop) and (abs(slope) >= min_slope):
+                found = True
+                inf_pts[i] = x_next
+                radii[i] = np.linalg.norm(x_next - center)
+                inf_slopes[i] = slope
+                if verbose >= 2 and log_fn is not None:
+                    log_fn(f"ray {i}: inflection at step {s}")
+                break
+
+            x = x_next
+            prev_val = f_next
+
+        if not found and not censored[i]:
+            censored[i] = True
+            inf_pts[i] = x
+            radii[i] = np.linalg.norm(x - center)
+            if max_steps > 0:
+                inf_slopes[i] = (prev_val - f0) / (radii[i] + 1e-12)
+            if verbose >= 2 and log_fn is not None:
+                log_fn(f"ray {i}: censored after {max_steps} steps")
+
+    metrics = {
+        "n_rays": int(m),
+        "n_eval": int(n_eval),
+        "censored_mask": censored,
+        "censored_frac": float(censored.mean()) if m > 0 else 0.0,
+    }
+    if verbose >= 1 and log_fn is not None:
+        log_fn(
+            f"cast {m} rays: n_eval={n_eval}, censored_frac={metrics['censored_frac']:.2f}"
+        )
+    return radii, inf_pts, inf_slopes, metrics
+
+
+# =========================
 # Clusterizador modal
 # =========================
 
@@ -867,106 +1049,146 @@ class ModalBoundaryClustering(BaseEstimator):
         directions: np.ndarray,
         X_std: np.ndarray,
         percentiles: Optional[np.ndarray] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Radial scans for a set of ``directions`` starting at ``center``.
-
-        Returns the boundary radius along each direction together with the
-        corresponding boundary points and slopes.
-        """
+        return_metrics: bool = False,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+        """Radial scans for ``directions`` starting at ``center``."""
         d = center.shape[0]
-        T_base = float(self.scan_radius_factor * np.linalg.norm(X_std))
         lo, hi = getattr(self, "bounds_", (None, None))
         assert lo is not None and hi is not None, "bounds_ not initialized."
 
-        def tmax_in_bounds(c: np.ndarray, u: np.ndarray) -> float:
-            tmax = np.inf
-            for k in range(d):
-                uk = u[k]
-                if abs(uk) < 1e-12:
-                    continue
-                tk = (hi[k] - c[k]) / uk if uk > 0 else (lo[k] - c[k]) / uk
-                if tk > 0:
-                    tmax = min(tmax, tk)
-            if not np.isfinite(tmax) or tmax <= 0:
-                return 1e-9
-            return float(tmax)
+        if not return_metrics:
+            T_base = float(self.scan_radius_factor * np.linalg.norm(X_std))
 
+            def tmax_in_bounds(c: np.ndarray, u: np.ndarray) -> float:
+                tmax = np.inf
+                for k in range(d):
+                    uk = u[k]
+                    if abs(uk) < 1e-12:
+                        continue
+                    tk = (hi[k] - c[k]) / uk if uk > 0 else (lo[k] - c[k]) / uk
+                    if tk > 0:
+                        tmax = min(tmax, tk)
+                if not np.isfinite(tmax) or tmax <= 0:
+                    return 1e-9
+                return float(tmax)
+
+            if len(directions) == 0:
+                return np.zeros(0), np.zeros((0, d)), np.zeros(0)
+
+            use_adaptive = self.use_adaptive_scan
+            if use_adaptive is None:
+                use_adaptive = (len(directions) * self.coarse_steps > 512)
+
+            n = len(directions)
+            radii = np.zeros(n, float)
+            slopes = np.zeros(n, float)
+            pts = np.zeros((n, d), float)
+
+            threshold = None
+            if self.stop_criteria == "percentile":
+                if percentiles is None:
+                    raise ValueError("percentiles must be provided when stop_criteria='percentile'")
+                v0 = float(f(center))
+                idx0 = int(np.searchsorted(percentiles, v0, side="right") - 1)
+                threshold = v0 * self.drop_fraction if idx0 <= 0 else float(percentiles[idx0 - 1])
+
+            for i, u in enumerate(directions):
+                T_dir = min(T_base, tmax_in_bounds(center, u))
+                if self.stop_criteria == "percentile" and threshold is not None:
+                    if use_adaptive:
+                        r, m, _ = _scan_ray_adaptive(
+                            center,
+                            u,
+                            0.0,
+                            T_dir,
+                            f,
+                            threshold,
+                            batch_size=self.batch_size,
+                            coarse_steps=self.coarse_steps,
+                            refine_steps=self.refine_steps,
+                            early_exit_patience=self.early_exit_patience,
+                        )
+                    else:
+                        n_steps = self.scan_steps
+                        rs = np.linspace(0.0, T_dir, num=n_steps, dtype=float)
+                        P = center[None, :] + rs[:, None] * u[None, :]
+                        vals = _eval_batch_safe(f, P, batch=self.batch_size)
+                        idx = _first_drop_index(vals, threshold)
+                        if idx < len(rs):
+                            r = rs[idx]
+                            if idx > 0:
+                                m = (vals[idx] - vals[idx - 1]) / (rs[idx] - rs[idx - 1] + 1e-12)
+                            else:
+                                m = 0.0
+                        else:
+                            r = rs[-1]
+                            m = (vals[-1] - vals[-2]) / (rs[-1] - rs[-2] + 1e-12)
+                    p = center + r * u
+                    p = np.minimum(np.maximum(p, lo), hi)
+                    radii[i], slopes[i], pts[i, :] = float(r), float(m), p
+                else:
+                    if use_adaptive:
+                        def f_line(ts_arr: np.ndarray) -> np.ndarray:
+                            P = center[None, :] + ts_arr[:, None] * u[None, :]
+                            return _eval_batch_safe(f, P, batch=self.batch_size)
+
+                        ts, vs = _adaptive_scan_1d(f_line, T_dir, self.scan_steps, self.direction)
+                    else:
+                        ts = np.linspace(0.0, T_dir, self.scan_steps)
+                        P = center[None, :] + ts[:, None] * u[None, :]
+                        vs = _eval_batch_safe(f, P, batch=self.batch_size)
+                    r, m = find_inflection(
+                        ts,
+                        vs,
+                        self.direction,
+                        self.smooth_window,
+                        self.drop_fraction,
+                    )
+                    p = center + r * u
+                    p = np.minimum(np.maximum(p, lo), hi)
+                    radii[i], slopes[i], pts[i, :] = float(r), float(m), p
+            return radii, pts, slopes
+
+        # --- New adaptive step algorithm with censoring ---
         if len(directions) == 0:
-            return np.zeros(0), np.zeros((0, d)), np.zeros(0)
+            empty_metrics = {
+                "n_rays": 0,
+                "n_eval": 0,
+                "censored_mask": np.zeros(0, bool),
+                "censored_frac": 0.0,
+            }
+            return np.zeros(0), np.zeros((0, d)), np.zeros(0), empty_metrics
 
-        use_adaptive = self.use_adaptive_scan
-        if use_adaptive is None:
-            use_adaptive = (len(directions) * self.coarse_steps > 512)
-
-        n = len(directions)
-        radii = np.zeros(n, float)
-        slopes = np.zeros(n, float)
-        pts = np.zeros((n, d), float)
-
-        threshold = None
+        steps = per_direction_step_lengths(directions, X_std, base_sigma_step=0.15, mode="diag")
+        v0 = float(f(center))
         if self.stop_criteria == "percentile":
             if percentiles is None:
                 raise ValueError("percentiles must be provided when stop_criteria='percentile'")
-            v0 = float(f(center))
             idx0 = int(np.searchsorted(percentiles, v0, side="right") - 1)
-            threshold = v0 * self.drop_fraction if idx0 <= 0 else float(percentiles[idx0 - 1])
+            thr = v0 * self.drop_fraction if idx0 <= 0 else float(percentiles[idx0 - 1])
+            min_drop = max(0.0, v0 - thr)
+        else:
+            min_drop = (1.0 - self.drop_fraction) * v0
 
-        for i, u in enumerate(directions):
-            T_dir = min(T_base, tmax_in_bounds(center, u))
-            if self.stop_criteria == "percentile" and threshold is not None:
-                if use_adaptive:
-                    r, m, _ = _scan_ray_adaptive(
-                        center,
-                        u,
-                        0.0,
-                        T_dir,
-                        f,
-                        threshold,
-                        batch_size=self.batch_size,
-                        coarse_steps=self.coarse_steps,
-                        refine_steps=self.refine_steps,
-                        early_exit_patience=self.early_exit_patience,
-                    )
-                else:
-                    n_steps = self.scan_steps
-                    rs = np.linspace(0.0, T_dir, num=n_steps, dtype=float)
-                    P = center[None, :] + rs[:, None] * u[None, :]
-                    vals = _eval_batch_safe(f, P, batch=self.batch_size)
-                    idx = _first_drop_index(vals, threshold)
-                    if idx < len(rs):
-                        r = rs[idx]
-                        if idx > 0:
-                            m = (vals[idx] - vals[idx - 1]) / (rs[idx] - rs[idx - 1] + 1e-12)
-                        else:
-                            m = 0.0
-                    else:
-                        r = rs[-1]
-                        m = (vals[-1] - vals[-2]) / (rs[-1] - rs[-2] + 1e-12)
-                p = center + r * u
-                p = np.minimum(np.maximum(p, lo), hi)
-                radii[i], slopes[i], pts[i, :] = float(r), float(m), p
-            else:
-                if use_adaptive:
-                    def f_line(ts_arr: np.ndarray) -> np.ndarray:
-                        P = center[None, :] + ts_arr[:, None] * u[None, :]
-                        return _eval_batch_safe(f, P, batch=self.batch_size)
+        log_fn = None
+        if self.verbose >= 2:
+            log_fn = lambda m: self._log(m, level=logging.DEBUG)
+        elif self.verbose == 1:
+            log_fn = lambda m: self._log(m, level=logging.INFO)
 
-                    ts, vs = _adaptive_scan_1d(f_line, T_dir, self.scan_steps, self.direction)
-                else:
-                    ts = np.linspace(0.0, T_dir, self.scan_steps)
-                    P = center[None, :] + ts[:, None] * u[None, :]
-                    vs = _eval_batch_safe(f, P, batch=self.batch_size)
-                r, m = find_inflection(
-                    ts,
-                    vs,
-                    self.direction,
-                    self.smooth_window,
-                    self.drop_fraction,
-                )
-                p = center + r * u
-                p = np.minimum(np.maximum(p, lo), hi)
-                radii[i], slopes[i], pts[i, :] = float(r), float(m), p
-        return radii, pts, slopes
+        radii, pts, slopes, metrics = cast_rays_with_censoring(
+            center=center,
+            directions=directions,
+            eval_fn=f,
+            bounds=(lo, hi),
+            max_steps=self.scan_steps,
+            step_lengths=steps,
+            min_drop=min_drop,
+            min_slope=0.0,
+            verbose=self.verbose,
+            log_fn=log_fn,
+        )
+        return radii, pts, slopes, metrics
 
     def _spsa_grad(self, f, x: np.ndarray, delta: Optional[float] = None, avg: int = 4) -> np.ndarray:
         """Estimate gradient of ``f`` at ``x`` using SPSA.
@@ -1170,7 +1392,22 @@ class ModalBoundaryClustering(BaseEstimator):
                     base_rays_eff = min(base_rays_eff, 12)
                 elif d >= 25:
                     base_rays_eff = min(base_rays_eff, 16)
-            dirs = generate_directions(d, base_rays_eff, self.random_state, self.max_subspaces)
+            dirs_raw = generate_directions(
+                d, base_rays_eff, self.random_state, self.max_subspaces
+            )
+            fallback_dirs_used = (dirs_raw is None or dirs_raw.size == 0)
+            log_fn = None
+            if self.verbose >= 2:
+                log_fn = lambda m: self._log(m, level=logging.DEBUG)
+            elif self.verbose == 1:
+                log_fn = lambda m: self._log(m, level=logging.INFO)
+            dirs = enforce_minimum_subspace(
+                dirs_raw,
+                X,
+                k_fallback=6,
+                verbose=self.verbose,
+                log_fn=log_fn,
+            )
 
             rng = np.random.default_rng(self.random_state)
 
@@ -1246,8 +1483,10 @@ class ModalBoundaryClustering(BaseEstimator):
                             dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
                             slopes = np.zeros_like(radii)
                             dirs_use = dirs_reg
+                            ray_metrics = {"n_rays": len(dirs_reg), "n_eval": 0, "censored_mask": np.zeros(len(dirs_reg), bool), "censored_frac": 0.0, "fallback_dirs_used": fallback_dirs_used}
                         else:
-                            radii, infl, slopes = self._scan_radii(center, f, dirs, X_std, percentiles=perc)
+                            radii, infl, slopes, ray_metrics = self._scan_radii(center, f, dirs, X_std, percentiles=perc, return_metrics=True)
+                            ray_metrics["fallback_dirs_used"] = fallback_dirs_used
                             dirs_use = dirs
                     else:
                         self._percentile_threshold = None
@@ -1258,16 +1497,24 @@ class ModalBoundaryClustering(BaseEstimator):
                             dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
                             slopes = np.zeros_like(radii)
                             dirs_use = dirs_reg
+                            ray_metrics = {"n_rays": len(dirs_reg), "n_eval": 0, "censored_mask": np.zeros(len(dirs_reg), bool), "censored_frac": 0.0, "fallback_dirs_used": fallback_dirs_used}
                         else:
-                            radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
+                            radii, infl, slopes, ray_metrics = self._scan_radii(center, f, dirs, X_std, return_metrics=True)
+                            ray_metrics["fallback_dirs_used"] = fallback_dirs_used
                             dirs_use = dirs
                     peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
                     peak_norm = float(f(center))
                     self.regions_.append(ClusterRegion(
                         cluster_id=len(self.regions_),
-                        label=label, center=center, directions=dirs_use, radii=radii,
-                        inflection_points=infl, inflection_slopes=slopes,
-                        peak_value_real=peak_real, peak_value_norm=peak_norm
+                        label=label,
+                        center=center,
+                        directions=dirs_use,
+                        radii=radii,
+                        inflection_points=infl,
+                        inflection_slopes=slopes,
+                        peak_value_real=peak_real,
+                        peak_value_norm=peak_norm,
+                        metrics=ray_metrics,
                     ))
             else:
                 stats = self._build_norm_stats(X, class_idx=None)
@@ -1296,10 +1543,12 @@ class ModalBoundaryClustering(BaseEstimator):
                         dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
                         slopes = np.zeros_like(radii)
                         dirs_use = dirs_reg
+                        ray_metrics = {"n_rays": len(dirs_reg), "n_eval": 0, "censored_mask": np.zeros(len(dirs_reg), bool), "censored_frac": 0.0, "fallback_dirs_used": fallback_dirs_used}
                     else:
-                        radii, infl, slopes = self._scan_radii(
-                            center, f, dirs, X_std, percentiles=perc
+                        radii, infl, slopes, ray_metrics = self._scan_radii(
+                            center, f, dirs, X_std, percentiles=perc, return_metrics=True
                         )
+                        ray_metrics["fallback_dirs_used"] = fallback_dirs_used
                         dirs_use = dirs
                 else:
                     self._percentile_threshold = None
@@ -1310,16 +1559,24 @@ class ModalBoundaryClustering(BaseEstimator):
                         dirs_reg = vecs / (radii[:, None] + 1e-12) if len(radii) else np.zeros((0, center.size))
                         slopes = np.zeros_like(radii)
                         dirs_use = dirs_reg
+                        ray_metrics = {"n_rays": len(dirs_reg), "n_eval": 0, "censored_mask": np.zeros(len(dirs_reg), bool), "censored_frac": 0.0, "fallback_dirs_used": fallback_dirs_used}
                     else:
-                        radii, infl, slopes = self._scan_radii(center, f, dirs, X_std)
+                        radii, infl, slopes, ray_metrics = self._scan_radii(center, f, dirs, X_std, return_metrics=True)
+                        ray_metrics["fallback_dirs_used"] = fallback_dirs_used
                         dirs_use = dirs
                 peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
                 peak_norm = float(f(center))
                 self.regions_.append(ClusterRegion(
                     cluster_id=len(self.regions_),
-                    label="NA", center=center, directions=dirs_use, radii=radii,
-                    inflection_points=infl, inflection_slopes=slopes,
-                    peak_value_real=peak_real, peak_value_norm=peak_norm
+                    label="NA",
+                    center=center,
+                    directions=dirs_use,
+                    radii=radii,
+                    inflection_points=infl,
+                    inflection_slopes=slopes,
+                    peak_value_real=peak_real,
+                    peak_value_norm=peak_norm,
+                    metrics=ray_metrics,
                 ))
             region_time = time.perf_counter() - t
             self._log(f"Region discovery in {region_time:.4f}s", level=logging.DEBUG)
@@ -1868,7 +2125,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 norm_stats=self._build_norm_stats(X, cls_idx),
             )
             perc = self.percentiles_[cls_idx] if self.stop_criteria == "percentile" else None
-            _, pts, _ = self._scan_radii(center2, f, D, X_std, percentiles=perc)
+            _, pts, _, _ = self._scan_radii(center2, f, D, X_std, percentiles=perc, return_metrics=True)
             pts = pts[:, [i, j]]
             ctr = center2[[i, j]]
             ang = np.arctan2(pts[:, 1] - ctr[1], pts[:, 0] - ctr[0])
