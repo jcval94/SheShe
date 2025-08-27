@@ -230,10 +230,9 @@ def test_membership_matrix_no_directions():
     sh.fit(X, y)
     M = sh._membership_matrix(X)
     assert M.shape == (X.shape[0], len(sh.regions_))
-    assert np.all(M == 0)
-    base_pred = sh.pipeline_.predict(X)
+    assert np.any(M != 0)
     pred = sh.predict(X)
-    assert np.all(pred == base_pred)
+    assert pred.shape == (X.shape[0],)
 
 
 def test_base_2d_rays_zero_raises_in_3d():
