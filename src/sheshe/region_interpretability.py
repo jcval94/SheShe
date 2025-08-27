@@ -7,6 +7,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Sequence, Tuple, Optional
 import logging
+from contextlib import contextmanager
 import numpy as np
 
 try:
@@ -18,6 +19,40 @@ except Exception:
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     logger.addHandler(logging.StreamHandler())
+
+
+@contextmanager
+def _np_no_warnings():
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore", under="ignore"):
+        yield
+
+
+def _safe_cov_rank(B):
+    """
+    Devuelve el rango de la matriz de covarianza de B (muestras x features)
+    evitando warnings y manejando casos con pocas muestras.
+    """
+    if B is None or np.ndim(B) != 2:
+        return 0
+    m, d = B.shape
+    if m < 2 or d < 2:
+        return 0
+    with _np_no_warnings():
+        cov = np.cov(B, rowvar=False)
+        if not np.all(np.isfinite(cov)):
+            return 0
+        return int(np.linalg.matrix_rank(cov))
+
+
+def _fallback_dims_from_dirs(directions, n_features, k=2):
+    """
+    Si la proyección PCA/2D no es posible, elige k ejes por peso en 'directions'.
+    """
+    if directions is None or directions.size == 0:
+        return tuple(range(min(k, n_features)))
+    w = np.max(np.abs(directions), axis=0)
+    idx = np.argsort(w)[-k:]
+    return tuple(idx.tolist())
 
 
 # ==================== Utilidades geométricas ====================
@@ -193,6 +228,8 @@ def _pick_best_pairs(points: np.ndarray, k: int = 2) -> List[Tuple[int, int, flo
     Selecciona k proyecciones 2D con mayor poder explicativo:
     rango_i * rango_j penalizado por "linealidad" (razón de eigenvalores).
     """
+    if points.shape[0] < 2:
+        return []
     D = points.shape[1]
     rng = points.max(0) - points.min(0)
     scores: List[Tuple[int,int,float]] = []
@@ -202,9 +239,10 @@ def _pick_best_pairs(points: np.ndarray, k: int = 2) -> List[Tuple[int, int, flo
             if area < 1e-12:
                 continue
             P = points[:, [i, j]]
-            cov = np.cov(P.T)
+            with _np_no_warnings():
+                cov = np.cov(P.T)
             w, _ = np.linalg.eigh(cov)
-            if (w.sum() <= 0): 
+            if (w.sum() <= 0):
                 continue
             lineyness = float(w.max() / (w.sum()))  # 1.0 => nube casi línea
             score = area * (1.0 - 0.5 * lineyness)
@@ -366,12 +404,8 @@ class RegionInterpreter:
                 notes.append("Muchos radios en el **límite** del grid → frontera posiblemente abierta.")
             if near_const:
                 notes.append("Alguna dimensión queda **casi fija** (ancho muy pequeño).")
-            if D >= 2:
-                try:
-                    if np.linalg.matrix_rank(np.cov(B_orig.T)) < 2:
-                        notes.append("Alguna proyección es degenerada (varianza efectiva baja).")
-                except Exception:
-                    pass
+            if D >= 2 and _safe_cov_rank(B_orig) < 2:
+                notes.append("Alguna proyección es degenerada (varianza efectiva baja).")
 
             center_out = [round(float(x), self.decimals) for x in center_orig.tolist()]
 
