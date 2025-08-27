@@ -751,7 +751,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self,
         base_estimator: Optional['BaseEstimator'] = None,
         task: str = "classification",  # "classification" | "regression"
-        base_2d_rays: int = 24,
+        base_2d_rays: int = 32,
         direction: str = "center_out",
         stop_criteria: str = "inflexion",  # "inflexion" | "percentile"
         percentile_bins: int = 20,         # number of percentile bins when stop_criteria='percentile'
@@ -1504,6 +1504,15 @@ class ModalBoundaryClustering(BaseEstimator):
                             dirs_use = dirs
                     peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
                     peak_norm = float(f(center))
+                    if radii.size == 0 or dirs_use.size == 0:
+                        if log_fn is not None:
+                            log_fn("Skipping region without directions")
+                        else:
+                            warnings.warn(
+                                "Región sin direcciones; se omite",
+                                RuntimeWarning,
+                            )
+                        continue
                     self.regions_.append(ClusterRegion(
                         cluster_id=len(self.regions_),
                         label=label,
@@ -1566,18 +1575,28 @@ class ModalBoundaryClustering(BaseEstimator):
                         dirs_use = dirs
                 peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
                 peak_norm = float(f(center))
-                self.regions_.append(ClusterRegion(
-                    cluster_id=len(self.regions_),
-                    label="NA",
-                    center=center,
-                    directions=dirs_use,
-                    radii=radii,
-                    inflection_points=infl,
-                    inflection_slopes=slopes,
-                    peak_value_real=peak_real,
-                    peak_value_norm=peak_norm,
-                    metrics=ray_metrics,
-                ))
+                if radii.size == 0 or dirs_use.size == 0:
+                    if log_fn is not None:
+                        log_fn("Skipping region without directions")
+                    else:
+                        warnings.warn(
+                            "Región sin direcciones; se omite",
+                            RuntimeWarning,
+                        )
+                else:
+                    self.regions_.append(ClusterRegion(
+                        cluster_id=len(self.regions_),
+                        label="NA",
+                        center=center,
+                        directions=dirs_use,
+                        radii=radii,
+                        inflection_points=infl,
+                        inflection_slopes=slopes,
+                        peak_value_real=peak_real,
+                        peak_value_norm=peak_norm,
+                        metrics=ray_metrics,
+                    ))
+            self.regions_ = [r for r in self.regions_ if r.directions.size > 0]
             region_time = time.perf_counter() - t
             self._log(f"Region discovery in {region_time:.4f}s", level=logging.DEBUG)
             # Calcular la efectividad de cada región (score)

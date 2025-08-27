@@ -546,7 +546,7 @@ python experiments/paper_experiments.py
 ---
 
 ## Parámetros clave
-- `base_2d_rays` → controla la resolución angular en 2D (24 por defecto). 3D escala ~26; d>3 usa subespacios.
+- `base_2d_rays` → controla la resolución angular en 2D (32 por defecto). 3D escala ~34; d>3 usa subespacios.
 - `direction` → "center_out" | "outside_in" para localizar el punto de inflexión.
 - `scan_radius_factor`, `scan_steps` → tamaño y resolución del escaneo radial.
 - `grad_*` → hiperparámetros del ascenso (tasa, iteraciones, tolerancias).

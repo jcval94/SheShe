@@ -1,6 +1,7 @@
 # tests/test_basic.py
 import numpy as np
 import pytest
+import warnings
 from sklearn.datasets import load_iris, make_regression, make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
@@ -228,7 +229,11 @@ def test_membership_matrix_no_directions():
         ray_mode="grid",
     )
     sh.fit(X, y)
-    M = sh._membership_matrix(X)
+    assert all(reg.directions.size > 0 for reg in sh.regions_)
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("error")
+        M = sh._membership_matrix(X)
+    assert len(record) == 0
     assert M.shape == (X.shape[0], len(sh.regions_))
     assert np.any(M != 0)
     pred = sh.predict(X)
