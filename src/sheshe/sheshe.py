@@ -83,6 +83,55 @@ def finite_diff_gradient(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
     return g
 
 
+def finite_diff_hessian(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
+    """Central difference Hessian with optional batch evaluation."""
+    d = x.shape[0]
+    H = np.zeros((d, d), float)
+    if hasattr(f, "batch"):
+        # Build all required evaluation points at once
+        points = [x]
+        for i in range(d):
+            ei = np.zeros(d)
+            ei[i] = eps
+            points.extend([x + ei, x - ei])
+            for j in range(i + 1, d):
+                ej = np.zeros(d)
+                ej[j] = eps
+                points.extend(
+                    [x + ei + ej, x + ei - ej, x - ei + ej, x - ei - ej]
+                )
+        vals = f.batch(np.vstack(points))
+        idx = 1
+        f0 = vals[0]
+        for i in range(d):
+            f_plus, f_minus = vals[idx : idx + 2]
+            idx += 2
+            H[i, i] = (f_plus - 2.0 * f0 + f_minus) / (eps ** 2)
+            for j in range(i + 1, d):
+                fpp, fpm, fmp, fmm = vals[idx : idx + 4]
+                idx += 4
+                val = (fpp - fpm - fmp + fmm) / (4.0 * eps ** 2)
+                H[i, j] = H[j, i] = val
+    else:
+        f0 = f(x)
+        for i in range(d):
+            ei = np.zeros(d)
+            ei[i] = eps
+            f_plus = f(x + ei)
+            f_minus = f(x - ei)
+            H[i, i] = (f_plus - 2.0 * f0 + f_minus) / (eps ** 2)
+            for j in range(i + 1, d):
+                ej = np.zeros(d)
+                ej[j] = eps
+                fpp = f(x + ei + ej)
+                fpm = f(x + ei - ej)
+                fmp = f(x - ei + ej)
+                fmm = f(x - ei - ej)
+                val = (fpp - fpm - fmp + fmm) / (4.0 * eps ** 2)
+                H[i, j] = H[j, i] = val
+    return H
+
+
 def spsa_gradient(
     f, x: np.ndarray, eps: float = 1e-2, random_state: Optional[int] = None
 ) -> np.ndarray:
@@ -176,26 +225,46 @@ def newton_trust_region(
     x0: np.ndarray,
     bounds: Tuple[np.ndarray, np.ndarray],
     *,
-    gradient: Callable[[np.ndarray], np.ndarray],
-    hessian: Callable[[np.ndarray], np.ndarray],
+    gradient: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    hessian: Optional[Callable[[np.ndarray], np.ndarray]] = None,
     trust_radius: float = 1.0,
     max_iter: int = 100,
     tol: float = 1e-5,
+    eps_grad: float = 1e-2,
+    eps_hess: float = 1e-2,
+    random_state: Optional[int] = None,
 ) -> np.ndarray:
-    """Basic trust-region Newton method with boundary barriers."""
+    """Trust-region Newton method with boundary barriers.
+
+    Falls back to :func:`gradient_ascent` if the Hessian is not negative
+    definite (i.e. ``-H`` not positive definite).
+    """
     lo, hi = bounds
     x = x0.copy()
-    f(x)  # initial evaluation for counting purposes
     for _ in range(max_iter):
-        g = gradient(x)
+        if gradient is not None:
+            g = gradient(x)
+        else:
+            g = finite_diff_gradient(f, x, eps=eps_grad)
         g = project_step_with_barrier(x, g, lo, hi)
         if np.linalg.norm(g) < tol:
             break
-        H = hessian(x)
+        H = hessian(x) if hessian is not None else finite_diff_hessian(f, x, eps=eps_hess)
         try:
+            np.linalg.cholesky(-H)
             step = -np.linalg.solve(H, g)
         except np.linalg.LinAlgError:
-            step = -g
+            return gradient_ascent(
+                f,
+                x,
+                bounds,
+                lr=trust_radius,
+                max_iter=max_iter,
+                tol=tol,
+                eps_grad=eps_grad,
+                gradient=gradient,
+                random_state=random_state,
+            )
         step = project_step_with_barrier(x, step, lo, hi)
         norm_step = np.linalg.norm(step)
         if norm_step < 1e-12:
@@ -203,7 +272,6 @@ def newton_trust_region(
         if norm_step > trust_radius:
             step = step / norm_step * trust_radius
         x = np.clip(x + step, lo, hi)
-        f(x)  # evaluation to mirror gradient_ascent behaviour
     return x
 
 def second_diff(arr: np.ndarray) -> np.ndarray:
