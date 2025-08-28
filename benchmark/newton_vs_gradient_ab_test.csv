@@ -1,0 +1,2 @@
+time_grad_mean,time_newton_mean,speedup,f_evals_grad_mean,f_evals_newton_mean,grad_evals_grad_mean,grad_evals_newton_mean,hess_evals_newton_mean
+0.0013245249999954468,8.989759999735724e-05,14.733708130521665,48.0,2.4,43.8,2.4,1.4

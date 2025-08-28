@@ -6,6 +6,7 @@ from sheshe.sheshe import (
     rays_count_auto,
     find_inflection,
     gradient_ascent,
+    newton_trust_region,
 )
 
 
@@ -74,3 +75,157 @@ def test_gradient_ascent_quadratic_convergence():
     hi = np.array([10.0, 10.0])
     res = gradient_ascent(f, x0, (lo, hi), lr=0.2, max_iter=500, gradient=grad_f)
     assert np.allclose(res, np.array([1.0, -2.0]), atol=5e-2)
+
+
+def test_newton_trust_region_quadratic_convergence():
+    def f(x):
+        return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
+
+    def grad_f(x):
+        return np.array([-2.0 * (x[0] - 1.0), -2.0 * (x[1] + 2.0)])
+
+    def hess_f(x):
+        return np.array([[-2.0, 0.0], [0.0, -2.0]])
+
+    class Counter:
+        def __init__(self, fn):
+            self.fn = fn
+            self.n = 0
+
+        def __call__(self, x):
+            self.n += 1
+            return self.fn(x)
+
+    x0 = np.array([5.0, 5.0])
+    lo = np.array([-10.0, -10.0])
+    hi = np.array([10.0, 10.0])
+
+    f_newton = Counter(f)
+    grad_newton = Counter(grad_f)
+    hess_newton = Counter(hess_f)
+    res_newton = newton_trust_region(
+        f_newton,
+        x0,
+        (lo, hi),
+        gradient=grad_newton,
+        hessian=hess_newton,
+        trust_radius=10.0,
+    )
+    assert np.allclose(res_newton, np.array([1.0, -2.0]), atol=1e-6)
+
+    f_grad = Counter(f)
+    grad_grad = Counter(grad_f)
+    res_grad = gradient_ascent(
+        f_grad, x0, (lo, hi), lr=0.2, max_iter=500, gradient=grad_grad
+    )
+    assert np.allclose(res_grad, np.array([1.0, -2.0]), atol=5e-2)
+
+    assert f_newton.n < f_grad.n
+    assert grad_newton.n < grad_grad.n
+
+
+def test_newton_trust_region_fewer_evals_multiple_starts():
+    def f(x):
+        return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
+
+    def grad_f(x):
+        return np.array([-2.0 * (x[0] - 1.0), -2.0 * (x[1] + 2.0)])
+
+    def hess_f(x):
+        return np.array([[-2.0, 0.0], [0.0, -2.0]])
+
+    class Counter:
+        def __init__(self, fn):
+            self.fn = fn
+            self.n = 0
+
+        def __call__(self, x):
+            self.n += 1
+            return self.fn(x)
+
+    lo = np.array([-10.0, -10.0])
+    hi = np.array([10.0, 10.0])
+    rng = np.random.default_rng(0)
+
+    for _ in range(5):
+        x0 = rng.uniform(-9.0, 9.0, size=2)
+
+        f_newton = Counter(f)
+        grad_newton = Counter(grad_f)
+        hess_newton = Counter(hess_f)
+        res_newton = newton_trust_region(
+            f_newton,
+            x0,
+            (lo, hi),
+            gradient=grad_newton,
+            hessian=hess_newton,
+            trust_radius=10.0,
+        )
+
+        f_grad = Counter(f)
+        grad_grad = Counter(grad_f)
+        res_grad = gradient_ascent(
+            f_grad, x0, (lo, hi), lr=0.2, max_iter=500, gradient=grad_grad
+        )
+
+        assert np.allclose(res_newton, np.array([1.0, -2.0]), atol=1e-6)
+        assert np.allclose(res_grad, np.array([1.0, -2.0]), atol=5e-2)
+        assert f_newton.n <= f_grad.n
+        assert grad_newton.n <= grad_grad.n
+
+
+def test_gradient_ascent_respects_bounds_on_boundary():
+    lo = np.array([-1.0])
+    hi = np.array([1.0])
+
+    def f_hi(x):
+        return -((x[0] - 2.0) ** 2)
+
+    def grad_hi(x):
+        return np.array([-2.0 * (x[0] - 2.0)])
+
+    x_hi = np.array([1.0])
+    res_hi = gradient_ascent(f_hi, x_hi, (lo, hi), lr=0.5, max_iter=50, gradient=grad_hi)
+    assert res_hi[0] <= hi[0] + 1e-12
+
+    def f_lo(x):
+        return -((x[0] + 2.0) ** 2)
+
+    def grad_lo(x):
+        return np.array([-2.0 * (x[0] + 2.0)])
+
+    x_lo = np.array([-1.0])
+    res_lo = gradient_ascent(f_lo, x_lo, (lo, hi), lr=0.5, max_iter=50, gradient=grad_lo)
+    assert res_lo[0] >= lo[0] - 1e-12
+
+
+def test_newton_trust_region_respects_bounds_on_boundary():
+    lo = np.array([-1.0])
+    hi = np.array([1.0])
+
+    def f_hi(x):
+        return -((x[0] - 2.0) ** 2)
+
+    def grad_hi(x):
+        return np.array([-2.0 * (x[0] - 2.0)])
+
+    def hess(x):
+        return np.array([[-2.0]])
+
+    x_hi = np.array([1.0])
+    res_hi = newton_trust_region(
+        f_hi, x_hi, (lo, hi), gradient=grad_hi, hessian=hess, trust_radius=1.0
+    )
+    assert res_hi[0] <= hi[0] + 1e-12
+
+    def f_lo(x):
+        return -((x[0] + 2.0) ** 2)
+
+    def grad_lo(x):
+        return np.array([-2.0 * (x[0] + 2.0)])
+
+    x_lo = np.array([-1.0])
+    res_lo = newton_trust_region(
+        f_lo, x_lo, (lo, hi), gradient=grad_lo, hessian=hess, trust_radius=1.0
+    )
+    assert res_lo[0] >= lo[0] - 1e-12
