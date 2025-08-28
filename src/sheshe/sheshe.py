@@ -83,6 +83,38 @@ def finite_diff_gradient(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
     return g
 
 
+def finite_diff_hessian(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
+    """Central difference Hessian approximation.
+
+    Parameters
+    ----------
+    f : callable
+        Objective function.
+    x : array-like
+        Point at which to compute the Hessian.
+    eps : float, optional
+        Finite difference step size.
+    """
+    d = x.shape[0]
+    H = np.zeros((d, d), float)
+    I = np.eye(d)
+    f0 = f(x)
+    for i in range(d):
+        ei = I[i]
+        f_ip = f(x + eps * ei)
+        f_im = f(x - eps * ei)
+        H[i, i] = (f_ip - 2.0 * f0 + f_im) / (eps ** 2)
+        for j in range(i + 1, d):
+            ej = I[j]
+            f_pp = f(x + eps * ei + eps * ej)
+            f_pm = f(x + eps * ei - eps * ej)
+            f_mp = f(x - eps * ei + eps * ej)
+            f_mm = f(x - eps * ei - eps * ej)
+            val = (f_pp - f_pm - f_mp + f_mm) / (4.0 * eps ** 2)
+            H[i, j] = H[j, i] = val
+    return H
+
+
 def spsa_gradient(
     f, x: np.ndarray, eps: float = 1e-2, random_state: Optional[int] = None
 ) -> np.ndarray:
@@ -168,6 +200,92 @@ def gradient_ascent(
         no_improve += 1
         if no_improve >= 3:
             break
+    return x
+
+
+def newton_trust_region(
+    f,
+    x0: np.ndarray,
+    bounds: Tuple[np.ndarray, np.ndarray],
+    *,
+    gradient: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    hessian: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    radius: float = 1.0,
+    tol: float = 1e-5,
+    max_iter: int = 50,
+    eps_grad: float = 1e-2,
+    eps_hess: float = 1e-2,
+    random_state: Optional[int] = None,
+) -> np.ndarray:
+    """Newton trust-region ascent with boundary barriers.
+
+    Falls back to :func:`gradient_ascent` when the Hessian is not negative
+    definite (i.e. ``-H`` not positive definite).
+    """
+    lo, hi = bounds
+    x = np.clip(x0.copy(), lo, hi)
+    rad = float(radius)
+
+    for _ in range(max_iter):
+        g = (
+            gradient(x)
+            if gradient is not None
+            else finite_diff_gradient(f, x, eps=eps_grad)
+        )
+        g = project_step_with_barrier(x, g, lo, hi)
+        if np.linalg.norm(g) < tol:
+            break
+
+        H = (
+            hessian(x)
+            if hessian is not None
+            else finite_diff_hessian(f, x, eps=eps_hess)
+        )
+        H = 0.5 * (H + H.T)
+        eigs = np.linalg.eigvalsh(H)
+        if not np.all(eigs < 0):
+            return gradient_ascent(
+                f,
+                x,
+                (lo, hi),
+                lr=rad,
+                max_iter=max_iter,
+                tol=tol,
+                eps_grad=eps_grad,
+                gradient=gradient,
+                random_state=random_state,
+            )
+
+        try:
+            step = -np.linalg.solve(H, g)
+        except np.linalg.LinAlgError:
+            return gradient_ascent(
+                f,
+                x,
+                (lo, hi),
+                lr=rad,
+                max_iter=max_iter,
+                tol=tol,
+                eps_grad=eps_grad,
+                gradient=gradient,
+                random_state=random_state,
+            )
+
+        norm_step = np.linalg.norm(step)
+        if norm_step > rad:
+            step = step * (rad / (norm_step + 1e-12))
+
+        x_new = np.clip(x + step, lo, hi)
+        v_new = f(x_new)
+        v_old = f(x)
+        if v_new > v_old + 1e-12:
+            x = x_new
+            if norm_step > 0.8 * rad:
+                rad *= 2.0
+        else:
+            rad *= 0.5
+            if rad < tol:
+                break
     return x
 
 def second_diff(arr: np.ndarray) -> np.ndarray:

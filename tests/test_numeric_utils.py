@@ -6,6 +6,7 @@ from sheshe.sheshe import (
     rays_count_auto,
     find_inflection,
     gradient_ascent,
+    newton_trust_region,
 )
 
 
@@ -74,3 +75,53 @@ def test_gradient_ascent_quadratic_convergence():
     hi = np.array([10.0, 10.0])
     res = gradient_ascent(f, x0, (lo, hi), lr=0.2, max_iter=500, gradient=grad_f)
     assert np.allclose(res, np.array([1.0, -2.0]), atol=5e-2)
+
+
+def test_newton_trust_region_quadratic_convergence():
+    def f(x):
+        return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
+
+    def grad_f(x):
+        return np.array([-2.0 * (x[0] - 1.0), -2.0 * (x[1] + 2.0)])
+
+    def hess_f(x):
+        return np.array([[-2.0, 0.0], [0.0, -2.0]])
+
+    x0 = np.array([5.0, 5.0])
+    lo = np.array([-10.0, -10.0])
+    hi = np.array([10.0, 10.0])
+    res = newton_trust_region(
+        f,
+        x0,
+        (lo, hi),
+        gradient=grad_f,
+        hessian=hess_f,
+        radius=1.0,
+        max_iter=20,
+    )
+    assert np.allclose(res, np.array([1.0, -2.0]), atol=1e-2)
+
+
+def test_newton_trust_region_fallback_to_gradient_ascent():
+    def f(x):
+        return x[0] ** 2
+
+    def grad_f(x):
+        return np.array([2.0 * x[0]])
+
+    def hess_f(x):
+        return np.array([[2.0]])
+
+    x0 = np.array([1.0])
+    lo = np.array([0.0])
+    hi = np.array([5.0])
+    res = newton_trust_region(
+        f,
+        x0,
+        (lo, hi),
+        gradient=grad_f,
+        hessian=hess_f,
+        radius=0.5,
+        max_iter=20,
+    )
+    assert np.allclose(res, hi, atol=1e-2)
