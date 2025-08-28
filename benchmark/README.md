@@ -69,3 +69,12 @@ Comparación entre la implementación base y una versión optimizada.
 | 150 | – | fit_inflexion | 1.00× |
 | 150 | – | fit_percentile | 0.82× |
 
+## Prueba A/B del optimizador Newton vs gradiente
+
+| Métrica | Gradiente | Newton | Speedup |
+| --- | --- | --- | --- |
+| Tiempo medio (s) | 0.00132 | 0.00009 | 14.73× |
+| Evaluaciones de `f` | 48.0 | 2.4 | – |
+| Evaluaciones de `∇f` | 43.8 | 2.4 | – |
+| Evaluaciones de `∇²f` | – | 1.4 | – |
+

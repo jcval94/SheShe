@@ -170,6 +170,42 @@ def gradient_ascent(
             break
     return x
 
+
+def newton_trust_region(
+    f,
+    x0: np.ndarray,
+    bounds: Tuple[np.ndarray, np.ndarray],
+    *,
+    gradient: Callable[[np.ndarray], np.ndarray],
+    hessian: Callable[[np.ndarray], np.ndarray],
+    trust_radius: float = 1.0,
+    max_iter: int = 100,
+    tol: float = 1e-5,
+) -> np.ndarray:
+    """Basic trust-region Newton method with boundary barriers."""
+    lo, hi = bounds
+    x = x0.copy()
+    f(x)  # initial evaluation for counting purposes
+    for _ in range(max_iter):
+        g = gradient(x)
+        g = project_step_with_barrier(x, g, lo, hi)
+        if np.linalg.norm(g) < tol:
+            break
+        H = hessian(x)
+        try:
+            step = -np.linalg.solve(H, g)
+        except np.linalg.LinAlgError:
+            step = -g
+        step = project_step_with_barrier(x, step, lo, hi)
+        norm_step = np.linalg.norm(step)
+        if norm_step < 1e-12:
+            break
+        if norm_step > trust_radius:
+            step = step / norm_step * trust_radius
+        x = np.clip(x + step, lo, hi)
+        f(x)  # evaluation to mirror gradient_ascent behaviour
+    return x
+
 def second_diff(arr: np.ndarray) -> np.ndarray:
     s = np.zeros_like(arr)
     if len(arr) >= 3:
