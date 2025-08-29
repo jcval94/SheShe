@@ -882,6 +882,7 @@ class ModalBoundaryClustering(BaseEstimator):
         grad_max_iter: int = 80,
         grad_tol: float = 1e-5,
         grad_eps: float = 1e-3,
+        optim_method: str = "gradient_ascent",
         n_max_seeds: int = 2,
         random_state: Optional[int] = 42,
         percentile_sample_size: Optional[int] = 50000,
@@ -926,6 +927,8 @@ class ModalBoundaryClustering(BaseEstimator):
             raise ValueError("stop_criteria must be 'inflexion' or 'percentile'")
         if ray_mode not in ("grid", "grad"):
             raise ValueError("ray_mode must be 'grid' or 'grad'")
+        if optim_method not in ("gradient_ascent", "trust_region_newton"):
+            raise ValueError("optim_method must be 'gradient_ascent' or 'trust_region_newton'")
         if percentile_bins < 1:
             raise ValueError("percentile_bins must be at least 1")
         if not (0.0 <= density_alpha <= 1.0):
@@ -947,6 +950,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.grad_max_iter = grad_max_iter
         self.grad_tol = grad_tol
         self.grad_eps = grad_eps
+        self.optim_method = optim_method
         self.n_max_seeds = n_max_seeds
         self.random_state = random_state
         self.percentile_sample_size = percentile_sample_size
@@ -1481,6 +1485,13 @@ class ModalBoundaryClustering(BaseEstimator):
     # ---------- Public API ----------
 
     def fit(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None):
+        """Fit the modal boundary clustering model.
+
+        If a candidate region produces no boundary intersections, a second
+        attempt is made using simple axis-aligned directions before dropping the
+        region. This avoids discarding clusters prematurely when the initial
+        subspace misses informative dimensions.
+        """
         start = time.perf_counter()
         self._log("Starting fit", level=logging.DEBUG)
         try:
@@ -1488,6 +1499,9 @@ class ModalBoundaryClustering(BaseEstimator):
             X = np.asarray(X, dtype=float)
             self.n_features_in_ = X.shape[1]
             self.feature_names_in_ = list(X.columns) if isinstance(X, pd.DataFrame) else None
+
+            # indicators to diagnose empty-direction regions
+            self.debug_indicators_ = {"flat_grad": 0, "subspace_issue": 0}
 
             if self.task == "classification":
                 if y is None:
@@ -1595,7 +1609,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 for ci, label in enumerate(self.classes_):
                     stats = self._build_norm_stats(X, class_idx=ci)
                     f = self._build_value_fn(class_idx=ci, norm_stats=stats)
-                    center = self._find_maximum(X, f, (lo, hi))
+                    center = self._find_maximum(X, f, (lo, hi), optim_method=self.optim_method)
                     self._f = lambda Z: _eval_batch_safe(f, np.asarray(Z, float), batch=self.batch_size)
                     if self.stop_criteria == "percentile":
                         if P_s is not None:
@@ -1649,14 +1663,40 @@ class ModalBoundaryClustering(BaseEstimator):
                     peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=ci)[0])
                     peak_norm = float(f(center))
                     if radii.size == 0 or dirs_use.size == 0:
-                        if log_fn is not None:
-                            log_fn("Skipping region without directions")
+                        # If the initial set of directions produced no boundary
+                        # intersections, try a second pass using simple ±axis
+                        # directions derived from the data.  Only skip the
+                        # region if the fallback attempt also fails.
+                        dirs_fb = _fallback_axis_dirs(X, k=min(6, X.shape[1]))
+                        fallback_dirs_used = True
+                        radii_fb, infl_fb, slopes_fb, ray_metrics_fb = self._scan_radii(
+                            center, f, dirs_fb, X_std, percentiles=perc if self.stop_criteria == "percentile" else None, return_metrics=True
+                        )
+                        if radii_fb.size and dirs_fb.size:
+                            dirs_use = dirs_fb
+                            radii = radii_fb
+                            infl = infl_fb
+                            slopes = slopes_fb
+                            ray_metrics_fb["fallback_dirs_used"] = True
+                            ray_metrics = ray_metrics_fb
                         else:
-                            warnings.warn(
-                                "Región sin direcciones; se omite",
-                                RuntimeWarning,
+                            grad_norm = float(
+                                np.linalg.norm(
+                                    finite_diff_gradient(f, center, eps=self.grad_eps)
+                                )
                             )
-                        continue
+                            if grad_norm < self.grad_eps:
+                                self.debug_indicators_["flat_grad"] += 1
+                            if fallback_dirs_used:
+                                self.debug_indicators_["subspace_issue"] += 1
+                            if log_fn is not None:
+                                log_fn("Skipping region without directions")
+                            else:
+                                warnings.warn(
+                                    "Región sin direcciones; se omite",
+                                    RuntimeWarning,
+                                )
+                            continue
                     self.regions_.append(ClusterRegion(
                         cluster_id=len(self.regions_),
                         label=label,
@@ -1672,7 +1712,7 @@ class ModalBoundaryClustering(BaseEstimator):
             else:
                 stats = self._build_norm_stats(X, class_idx=None)
                 f = self._build_value_fn(class_idx=None, norm_stats=stats)
-                center = self._find_maximum(X, f, (lo, hi))
+                center = self._find_maximum(X, f, (lo, hi), optim_method=self.optim_method)
                 self._f = lambda Z: _eval_batch_safe(f, np.asarray(Z, float), batch=self.batch_size)
                 if self.stop_criteria == "percentile":
                     idx_sample = _pick_sample_idx(None, len(X), self.percentile_sample_size)
@@ -1720,6 +1760,15 @@ class ModalBoundaryClustering(BaseEstimator):
                 peak_real = float(self._predict_value_real(center.reshape(1, -1), class_idx=None)[0])
                 peak_norm = float(f(center))
                 if radii.size == 0 or dirs_use.size == 0:
+                    grad_norm = float(
+                        np.linalg.norm(
+                            finite_diff_gradient(f, center, eps=self.grad_eps)
+                        )
+                    )
+                    if grad_norm < self.grad_eps:
+                        self.debug_indicators_["flat_grad"] += 1
+                    if fallback_dirs_used:
+                        self.debug_indicators_["subspace_issue"] += 1
                     if log_fn is not None:
                         log_fn("Skipping region without directions")
                     else:
@@ -1831,6 +1880,8 @@ class ModalBoundaryClustering(BaseEstimator):
         ndarray of shape (n_samples, n_regions)
             Binary matrix ``R`` where ``R[i, k] = 1`` indicates sample ``i`` falls
             inside region ``k``.
+        Regions without direction vectors are ignored and contribute no
+        membership.
 
         Examples
         --------
@@ -1851,10 +1902,8 @@ class ModalBoundaryClustering(BaseEstimator):
             R = np.zeros((n, n_regions), dtype=int)
             for k, reg in enumerate(self.regions_):
                 if reg.directions.size == 0:
-                    warnings.warn(
-                        "Región sin direcciones; se marca como fuera de la región",
-                        RuntimeWarning,
-                    )
+                    # Silently ignore regions without directions: they contribute
+                    # nothing to membership and are treated as outside.
                     continue
                 U = V[:, k, :] / norms[:, k][:, None]
                 dots = U @ reg.directions.T
@@ -1866,10 +1915,8 @@ class ModalBoundaryClustering(BaseEstimator):
         R = np.zeros((n, n_regions), dtype=int)
         for k, reg in enumerate(self.regions_):
             if reg.directions.size == 0:
-                warnings.warn(
-                    "Región sin direcciones; se marca como fuera de la región",
-                    RuntimeWarning,
-                )
+                # Ignore regions lacking directions to avoid noisy warnings.
+                # Such regions act as empty sets in the membership matrix.
                 continue
             c = reg.center
             V = X - c
