@@ -1,24 +1,21 @@
 # SheShe
 **Smart High-dimensional Edge Segmentation & Hyperboundary Explorer**
 
-Edge segmentation and hyperboundary exploration based on **local maxima** of
-the **class probability** (classification) or the **predicted value**
-(regression). It is a supervised clustering algorithm.
+**SheShe** transforms any probabilistic model into a guided explorer of its own
+decision landscape. By following the **local maxima** of the **class
+probability** (classification) or the **predicted value** (regression), it
+discovers crisp, human‑readable regions that obey the supervised boundary of the
+problem. Rather than grouping samples by raw feature distance, SheShe learns
+from labeled data and carves clusters directly on top of the model’s decision
+surface.
 
-Unlike traditional unsupervised clustering methods that rely only on feature
-similarity, SheShe learns from labeled examples. A base estimator models the
-relationship between inputs and targets, and the algorithm discovers regions
-whose responses remain consistently high for a given class or target value.
-Clusters therefore follow the supervised decision surface instead of arbitrary
-distance metrics.
+## Highlights
 
-## Features
-
-- Supervised clustering that leverages class probabilities or predicted values.
-- Works for both classification and regression tasks.
-- Explores informative subspaces via `SubspaceScout` and ensembles with `ModalScoutEnsemble`.
-- Provides human-readable rule extraction through `RegionInterpreter`.
-- Includes built-in plotting utilities for pairwise and 3D visualizations.
+- Supervised clustering driven by the model’s own probabilities or predictions.
+- Unified support for classification and regression tasks.
+- Subspace exploration with `SubspaceScout` and ensembles via `ModalScoutEnsemble`.
+- Human-readable rule extraction through `RegionInterpreter`.
+- Built-in plotting utilities for pairwise and 3D visualisations.
 
 *Feature overview figure omitted (binary assets are not allowed).* 
 

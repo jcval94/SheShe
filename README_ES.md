@@ -1,24 +1,20 @@
 # SheShe  
 **Smart High-dimensional Edge Segmentation & Hyperboundary Explorer**
 
-Segmentación de bordes y exploración de hiper-fronteras basada en **máximos locales** de
-la **probabilidad por clase** (clasificación) o del **valor predicho** (regresión).
-Se trata de un algoritmo de clustering supervisado.
+**SheShe** convierte cualquier modelo probabilístico en un explorador guiado de
+su paisaje de decisión. Siguiendo los **máximos locales** de la **probabilidad
+por clase** (clasificación) o del **valor predicho** (regresión), delimita
+regiones nítidas e interpretables que se apoyan en la frontera supervisada del
+problema. En lugar de agrupar por distancia, aprende de ejemplos etiquetados y
+traza los clúesteres directamente sobre la superficie de decisión.
 
-A diferencia de los métodos de clustering no supervisados que dependen solo de
-la similitud entre características, SheShe aprovecha ejemplos etiquetados. Un
-estimador base modela la relación entre entradas y objetivos, y el algoritmo
-descubre regiones cuyas respuestas se mantienen altas para una clase o valor.
-Los clusters siguen así la superficie de decisión supervisada en lugar de
-métricas de distancia arbitrarias.
+## Destacados
 
-## Características
-
-- Clustering supervisado que aprovecha probabilidades de clase o valores predichos.
-- Funciona tanto para tareas de clasificación como de regresión.
-- Explora subespacios informativos con `SubspaceScout` y ensamblados mediante `ModalScoutEnsemble`.
-- Extrae reglas interpretables a través de `RegionInterpreter`.
-- Incluye utilidades de graficado 2D y 3D integradas.
+- Clustering supervisado impulsado por las propias probabilidades o predicciones del modelo.
+- Soporte unificado para tareas de clasificación y regresión.
+- Exploración de subespacios con `SubspaceScout` y ensamblados mediante `ModalScoutEnsemble`.
+- Extracción de reglas interpretables a través de `RegionInterpreter`.
+- Utilidades de graficado integradas para visualizaciones 2D y 3D.
 
 *Figura de resumen de características omitida (no se permiten archivos binarios).* 
 
