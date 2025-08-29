@@ -7,6 +7,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Sequence, Tuple, Optional
 import logging
+import sys
 from contextlib import contextmanager
 import numpy as np
 
@@ -18,7 +19,10 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
-    logger.addHandler(logging.StreamHandler())
+    # En ambientes como notebooks o Google Colab el ``stderr`` no siempre se
+    # muestra de forma evidente.  Redirigimos los logs a ``stdout`` para que
+    # el usuario pueda verlos independientemente del entorno de ejecución.
+    logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
 
 @contextmanager

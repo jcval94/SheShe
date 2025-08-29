@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Dict, Any, Optional, Sequence, Callable
 import logging
+import sys
 import math, time
 import numpy as np
 
@@ -213,7 +214,9 @@ class ModalScoutEnsemble(BaseEstimator):
     self.verbose = verbose
     self.logger = logging.getLogger(self.__class__.__name__)
     if not self.logger.handlers:
-      self.logger.addHandler(logging.StreamHandler())
+      # Redirigimos a ``stdout`` para compatibilidad con entornos como Colab
+      # donde ``stderr`` puede mostrarse por separado o no capturarse.
+      self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
     if verbose >= 2:
       self.logger.setLevel(logging.DEBUG)
     elif verbose == 1:
