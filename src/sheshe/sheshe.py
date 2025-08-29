@@ -5,6 +5,7 @@ import itertools
 import math
 import time
 import logging
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence
@@ -941,7 +942,10 @@ class ModalBoundaryClustering(BaseEstimator):
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
         if not self.logger.handlers:
-            self.logger.addHandler(logging.StreamHandler())
+            # En algunos entornos (ej. notebooks o Google Colab) ``stderr`` se
+            # presenta de forma distinta al flujo estándar.  Usamos ``stdout``
+            # para asegurar que los mensajes se muestren siempre.
+            self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
         if verbose >= 2:
             self.logger.setLevel(logging.DEBUG)
         elif verbose == 1:
