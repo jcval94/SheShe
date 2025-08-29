@@ -6,8 +6,9 @@ from sheshe.sheshe import (
     rays_count_auto,
     find_inflection,
     gradient_ascent,
-    newton_trust_region,
+    trust_region_newton,
 )
+from sheshe import ModalBoundaryClustering
 
 
 def test_generate_directions_formats_and_norms():
@@ -77,7 +78,7 @@ def test_gradient_ascent_quadratic_convergence():
     assert np.allclose(res, np.array([1.0, -2.0]), atol=5e-2)
 
 
-def test_newton_trust_region_quadratic_convergence():
+def test_trust_region_newton_quadratic_convergence():
     def f(x):
         return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
 
@@ -103,7 +104,7 @@ def test_newton_trust_region_quadratic_convergence():
     f_newton = Counter(f)
     grad_newton = Counter(grad_f)
     hess_newton = Counter(hess_f)
-    res_newton = newton_trust_region(
+    res_newton = trust_region_newton(
         f_newton,
         x0,
         (lo, hi),
@@ -124,7 +125,7 @@ def test_newton_trust_region_quadratic_convergence():
     assert grad_newton.n < grad_grad.n
 
 
-def test_newton_trust_region_fewer_evals_multiple_starts():
+def test_trust_region_newton_fewer_evals_multiple_starts():
     def f(x):
         return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
 
@@ -153,7 +154,7 @@ def test_newton_trust_region_fewer_evals_multiple_starts():
         f_newton = Counter(f)
         grad_newton = Counter(grad_f)
         hess_newton = Counter(hess_f)
-        res_newton = newton_trust_region(
+        res_newton = trust_region_newton(
             f_newton,
             x0,
             (lo, hi),
@@ -199,7 +200,7 @@ def test_gradient_ascent_respects_bounds_on_boundary():
     assert res_lo[0] >= lo[0] - 1e-12
 
 
-def test_newton_trust_region_respects_bounds_on_boundary():
+def test_trust_region_newton_respects_bounds_on_boundary():
     lo = np.array([-1.0])
     hi = np.array([1.0])
 
@@ -209,12 +210,12 @@ def test_newton_trust_region_respects_bounds_on_boundary():
     def grad_hi(x):
         return np.array([-2.0 * (x[0] - 2.0)])
 
-    def hess(x):
+    def hess_hi(x):
         return np.array([[-2.0]])
 
     x_hi = np.array([1.0])
-    res_hi = newton_trust_region(
-        f_hi, x_hi, (lo, hi), gradient=grad_hi, hessian=hess, trust_radius=1.0
+    res_hi = trust_region_newton(
+        f_hi, x_hi, (lo, hi), gradient=grad_hi, hessian=hess_hi, trust_radius=1.0
     )
     assert res_hi[0] <= hi[0] + 1e-12
 
@@ -224,8 +225,50 @@ def test_newton_trust_region_respects_bounds_on_boundary():
     def grad_lo(x):
         return np.array([-2.0 * (x[0] + 2.0)])
 
+    def hess_lo(x):
+        return np.array([[-2.0]])
+
     x_lo = np.array([-1.0])
-    res_lo = newton_trust_region(
-        f_lo, x_lo, (lo, hi), gradient=grad_lo, hessian=hess, trust_radius=1.0
+    res_lo = trust_region_newton(
+        f_lo, x_lo, (lo, hi), gradient=grad_lo, hessian=hess_lo, trust_radius=1.0
     )
     assert res_lo[0] >= lo[0] - 1e-12
+
+
+def test_find_maximum_trust_region_option():
+    class Quad:
+        def __init__(self):
+            self.nf = 0
+            self.ng = 0
+            self.nh = 0
+
+        def __call__(self, x):
+            self.nf += 1
+            return -((x[0] - 1.0) ** 2 + (x[1] + 2.0) ** 2)
+
+        def batch(self, X):
+            self.nf += len(X)
+            return -((X[:, 0] - 1.0) ** 2 + (X[:, 1] + 2.0) ** 2)
+
+        def grad(self, x):
+            self.ng += 1
+            return np.array([-2.0 * (x[0] - 1.0), -2.0 * (x[1] + 2.0)])
+
+        def hess(self, x):
+            self.nh += 1
+            return np.array([[-2.0, 0.0], [0.0, -2.0]])
+
+    X = np.array([[5.0, 5.0], [0.0, 0.0], [1.1, -1.9]])
+    lo = np.array([-10.0, -10.0])
+    hi = np.array([10.0, 10.0])
+    sh = ModalBoundaryClustering(random_state=0, n_max_seeds=1)
+
+    f_tr = Quad()
+    res_tr = sh._find_maximum(X, f_tr, (lo, hi), optim_method="trust_region_newton")
+    f_ga = Quad()
+    res_ga = sh._find_maximum(X, f_ga, (lo, hi), optim_method="gradient_ascent")
+
+    assert np.allclose(res_tr, np.array([1.0, -2.0]), atol=1e-6)
+    assert np.allclose(res_ga, np.array([1.0, -2.0]), atol=5e-2)
+    assert f_tr.nf <= f_ga.nf
+    assert f_tr.ng <= f_ga.ng
