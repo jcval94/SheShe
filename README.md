@@ -666,7 +666,11 @@ python experiments/paper_experiments.py --runs 5
   to ~34; d>3 uses subspaces.
 - `direction` → "center_out" | "outside_in" to locate the inflection point.
 - `scan_radius_factor`, `scan_steps` → size and resolution of the radial scan.
-- `grad_*` → hyperparameters of gradient ascent (rate, iterations, tolerances).
+- `optim_method` → `"gradient_ascent"` (default) or `"trust_region_newton"`; the
+  trust-region variant uses gradients and Hessians to solve quadratic
+  subproblems inside an adaptive radius and respects box constraints.
+- `grad_*` → hyperparameters of gradient ascent (rate, iterations, tolerances;
+  used only when `optim_method="gradient_ascent"`).
 - `max_subspaces` → max number of subspaces considered when d>3.
 - `density_alpha` / `density_k` → optional density penalty computed with an
   HNSW k‑NN search (via `hnswlib`) to keep centers inside the data cloud. The

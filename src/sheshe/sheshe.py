@@ -220,7 +220,26 @@ def gradient_ascent(
     return x
 
 
-def newton_trust_region(
+def _solve_trust_region_step(g: np.ndarray, H: np.ndarray, radius: float) -> Tuple[np.ndarray, float]:
+    """Solve trust-region subproblem for maximization.
+
+    Returns the step and predicted improvement."""
+    try:
+        step = -np.linalg.solve(H, g)
+        if np.linalg.norm(step) <= radius:
+            pred = g.dot(step) + 0.5 * step.dot(H).dot(step)
+            return step, pred
+    except np.linalg.LinAlgError:
+        pass
+    gn = np.linalg.norm(g)
+    if gn == 0.0:
+        return np.zeros_like(g), 0.0
+    step = g / gn * radius
+    pred = g.dot(step) + 0.5 * step.dot(H).dot(step)
+    return step, pred
+
+
+def trust_region_newton(
     f,
     x0: np.ndarray,
     bounds: Tuple[np.ndarray, np.ndarray],
@@ -232,47 +251,42 @@ def newton_trust_region(
     tol: float = 1e-5,
     eps_grad: float = 1e-2,
     eps_hess: float = 1e-2,
+    eta: float = 0.15,
     random_state: Optional[int] = None,
 ) -> np.ndarray:
-    """Trust-region Newton method with boundary barriers.
-
-    Falls back to :func:`gradient_ascent` if the Hessian is not negative
-    definite (i.e. ``-H`` not positive definite).
-    """
+    """Trust-region Newton method with radius adaptation and box constraints."""
     lo, hi = bounds
     x = x0.copy()
+    radius = float(trust_radius)
     for _ in range(max_iter):
-        if gradient is not None:
-            g = gradient(x)
-        else:
-            g = finite_diff_gradient(f, x, eps=eps_grad)
+        g = gradient(x) if gradient is not None else finite_diff_gradient(f, x, eps=eps_grad)
         g = project_step_with_barrier(x, g, lo, hi)
         if np.linalg.norm(g) < tol:
             break
         H = hessian(x) if hessian is not None else finite_diff_hessian(f, x, eps=eps_hess)
-        try:
-            np.linalg.cholesky(-H)
-            step = -np.linalg.solve(H, g)
-        except np.linalg.LinAlgError:
-            return gradient_ascent(
-                f,
-                x,
-                bounds,
-                lr=trust_radius,
-                max_iter=max_iter,
-                tol=tol,
-                eps_grad=eps_grad,
-                gradient=gradient,
-                random_state=random_state,
-            )
-        step = project_step_with_barrier(x, step, lo, hi)
-        norm_step = np.linalg.norm(step)
-        if norm_step < 1e-12:
+        H = 0.5 * (H + H.T)
+        step, pred = _solve_trust_region_step(g, H, radius)
+        x_trial = np.clip(x + step, lo, hi)
+        step = x_trial - x
+        if np.linalg.norm(step) < 1e-12:
             break
-        if norm_step > trust_radius:
-            step = step / norm_step * trust_radius
-        x = np.clip(x + step, lo, hi)
+        f_old = f(x)
+        f_new = f(x_trial)
+        actual = f_new - f_old
+        pred = g.dot(step) + 0.5 * step.dot(H).dot(step)
+        rho = actual / (pred + 1e-12)
+        if rho < 0.25:
+            radius *= 0.5
+        elif rho > 0.75 and np.linalg.norm(step) > 0.9 * radius:
+            radius *= 2.0
+        if rho > eta:
+            x = x_trial
+            if np.linalg.norm(step) < tol:
+                break
     return x
+
+
+newton_trust_region = trust_region_newton
 
 def second_diff(arr: np.ndarray) -> np.ndarray:
     s = np.zeros_like(arr)
@@ -1122,25 +1136,47 @@ class ModalBoundaryClustering(BaseEstimator):
             seeds.extend(list(centers))
         return np.asarray(seeds)[:k]
 
-    def _find_maximum(self, X: np.ndarray, f, bounds: Tuple[np.ndarray, np.ndarray]) -> np.ndarray:
+    def _find_maximum(
+        self,
+        X: np.ndarray,
+        f,
+        bounds: Tuple[np.ndarray, np.ndarray],
+        optim_method: str = "gradient_ascent",
+    ) -> np.ndarray:
         seeds = self._choose_seeds(X, f, min(self.n_max_seeds, len(X)))
         if len(seeds) == 0:
             return X[0]
         best_x, best_v = seeds[0].copy(), f(seeds[0])
         grad_fn = getattr(f, "grad", None)
+        hess_fn = getattr(f, "hess", None)
         for s in seeds:
-            x_star = gradient_ascent(
-                f,
-                s,
-                bounds,
-                lr=self.grad_lr,
-                max_iter=self.grad_max_iter,
-                tol=self.grad_tol,
-                eps_grad=self.grad_eps,
-                gradient=grad_fn,
-                use_spsa=self.use_spsa,
-                random_state=self.random_state,
-            )
+            if optim_method == "trust_region_newton":
+                x_star = trust_region_newton(
+                    f,
+                    s,
+                    bounds,
+                    gradient=grad_fn,
+                    hessian=hess_fn,
+                    trust_radius=self.grad_lr,
+                    max_iter=self.grad_max_iter,
+                    tol=self.grad_tol,
+                    eps_grad=self.grad_eps,
+                    eps_hess=self.grad_eps,
+                    random_state=self.random_state,
+                )
+            else:
+                x_star = gradient_ascent(
+                    f,
+                    s,
+                    bounds,
+                    lr=self.grad_lr,
+                    max_iter=self.grad_max_iter,
+                    tol=self.grad_tol,
+                    eps_grad=self.grad_eps,
+                    gradient=grad_fn,
+                    use_spsa=self.use_spsa,
+                    random_state=self.random_state,
+                )
             v = f(x_star)
             if v > best_v:
                 best_x, best_v = x_star, v

@@ -549,7 +549,11 @@ python experiments/paper_experiments.py
 - `base_2d_rays` → controla la resolución angular en 2D (32 por defecto). 3D escala ~34; d>3 usa subespacios.
 - `direction` → "center_out" | "outside_in" para localizar el punto de inflexión.
 - `scan_radius_factor`, `scan_steps` → tamaño y resolución del escaneo radial.
-- `grad_*` → hiperparámetros del ascenso (tasa, iteraciones, tolerancias).
+- `optim_method` → `"gradient_ascent"` (por defecto) o `"trust_region_newton"`;
+  la variante de región de confianza usa gradientes y hessianos para resolver
+  subproblemas cuadráticos dentro de un radio adaptable y respeta los límites.
+- `grad_*` → hiperparámetros del ascenso por gradiente (tasa, iteraciones,
+  tolerancias; se usan solo si `optim_method="gradient_ascent"`).
 - `max_subspaces` → nº máx. de subespacios considerados cuando d>3.
 - `density_alpha` / `density_k` → penalización opcional de densidad calculada
   con una búsqueda k-NN HNSW (usando `hnswlib`) para mantener los centros
