@@ -958,8 +958,6 @@ class ModalBoundaryClustering(BaseEstimator):
         n_max_seeds: int = 2,
         random_state: Optional[int] = 42,
         percentile_sample_size: Optional[int] = 50000,
-        percentile_method: str = "auto",
-        hist_bins: int = 2048,
         max_subspaces: int = 20,
         verbose: int = 0,
         save_labels: bool = False,
@@ -1029,8 +1027,6 @@ class ModalBoundaryClustering(BaseEstimator):
         self.n_max_seeds = n_max_seeds
         self.random_state = random_state
         self.percentile_sample_size = percentile_sample_size
-        self.percentile_method = percentile_method
-        self.hist_bins = hist_bins
         self.max_subspaces = max_subspaces
         self.verbose = verbose
         self.logger = logging.getLogger(self.__class__.__name__)
