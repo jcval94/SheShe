@@ -25,6 +25,10 @@ def test_shushu_clusterer_basic():
     cl.fit(X, score_fn=score_fn)
     assert cl.centroids_.shape[1] == X.shape[1]
     assert isinstance(cl.clusters_, list)
+    labels = cl.predict(X[:3])
+    assert labels.shape == (3,)
+    labels2, ids2 = cl.predict_regions(X[:3])
+    assert np.array_equal(labels2, ids2)
 
 
 def test_shushu_multiclass_basic():
@@ -38,4 +42,11 @@ def test_shushu_multiclass_basic():
     assert per_class_df.shape[0] == len(np.unique(y))
     assert set(per_class_df.columns).issuperset({"class_label", "n_clusters"})
     assert isinstance(per_centroid_df, type(per_class_df))
+    yhat = sh.predict(X)
+    assert yhat.shape == y.shape
+    proba = sh.predict_proba(X[:5])
+    assert np.allclose(proba.sum(axis=1), 1.0)
+    labels, ids = sh.predict_regions(X[:5])
+    assert labels.shape == (5,)
+    assert ids.shape == (5,)
 
