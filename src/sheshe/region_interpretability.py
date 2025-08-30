@@ -18,6 +18,7 @@ except Exception:
     _HAS_PANDAS = False
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 if not logger.handlers:
     # En ambientes como notebooks o Google Colab el ``stderr`` no siempre se
     # muestra de forma evidente.  Redirigimos los logs a ``stdout`` para que
