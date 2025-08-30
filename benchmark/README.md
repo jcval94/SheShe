@@ -58,6 +58,21 @@ Comparación entre la implementación base y una versión optimizada.
 | 100 | 9.26× | 0.67 | 0.67 |
 | 400 | 5.29× | 0.66 | 0.66 |
 
+## Prueba A/B de trabajos paralelos
+
+| Dataset | n_samples | Submodelos | Speedup |
+| --- | --- | --- | --- |
+| breast_cancer | 569 | 2 | 0.16× |
+| breast_cancer | 569 | 4 | 2.65× |
+| digits | 1797 | 2 | 1.43× |
+| digits | 1797 | 4 | 2.24× |
+
+El uso de múltiples núcleos solo aporta beneficios cuando hay suficiente
+trabajo paralelizable. En el dataset `breast_cancer`, de tamaño reducido, la
+ejecución paralela solo renta cuando se entrenan más submodelos. Para un
+dataset más grande como `digits`, los beneficios del paralelismo son más
+notorios, alcanzando más del doble de velocidad con cuatro submodelos.
+
 ## Criterios de parada
 
 | Tamaño | Dirección | Implementación | Speedup |
