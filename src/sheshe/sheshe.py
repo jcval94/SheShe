@@ -1868,7 +1868,7 @@ class ModalBoundaryClustering(BaseEstimator):
                         self.debug_indicators_["subspace_issue"] += 1
                     if log_fn is not None:
                         log_fn("Skipping region without directions")
-                    else:
+                    elif getattr(self, "verbose", 0) >= 1:
                         warnings.warn(
                             "Región sin direcciones; se omite",
                             RuntimeWarning,

@@ -66,13 +66,14 @@ PYTHONPATH=src pytest -q
 
 ## Quick API
 
-The library exposes five main objects:
+The library exposes six main objects:
 
 - `ModalBoundaryClustering`
 - `ClusterRegion` – dataclass describing a discovered region
 - `SubspaceScout`
 - `ModalScoutEnsemble`
 - `RegionInterpreter` – turn `ClusterRegion` objects into human-readable rules
+- `ShuShu` – gradient-based search for local maxima
 
 Figures illustrating these objects are omitted because binary assets are not allowed in this repository.
 
@@ -83,6 +84,7 @@ from sheshe import (
     ModalScoutEnsemble,
     ClusterRegion,
     RegionInterpreter,
+    ShuShu,
 )
 
 # classification
@@ -205,6 +207,30 @@ After fitting, `ModalBoundaryClustering` stores the discovered regions in the
   (accuracy for classification, R² for regression)
 - `metrics`: optional dictionary with additional per-cluster metrics such as
   precision, recall, F1, MSE or MAE
+
+## ShuShu – gradient-based maxima search
+
+The `ShuShu` optimizer locates local maxima of a scalar score function and
+automatically runs once per class when provided with labels.
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import ShuShu
+
+X, y = load_iris(return_X_y=True)
+
+# Multiclass optimisation: one run per class using LogisticRegression internally
+sh = ShuShu(random_state=0).fit(X, y)
+print(sh.summary_tables()[0][["class_label", "n_clusters"]])
+
+# Scalar score function example
+import numpy as np
+def paraboloid(Z):
+    return -np.linalg.norm(Z - 1.0, axis=1)
+
+sc = ShuShu(random_state=0).fit(np.random.rand(100, 2), score_fn=paraboloid)
+print(sc.centroids_)
+```
 
 ## Interpretability
 
