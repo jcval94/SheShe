@@ -422,7 +422,7 @@ subspaces = scout.fit(X, y)
 
 ## ModalScoutEnsemble
 
-`ModalScoutEnsemble` entrena varios modelos `ModalBoundaryClustering` en los mejores subespacios devueltos por `SubspaceScout` y combina sus predicciones.
+`ModalScoutEnsemble` entrena varios modelos `ModalBoundaryClustering` en los mejores subespacios devueltos por `SubspaceScout` y combina sus predicciones. Establece `ensemble_method="shushu"` para delegar el ensamble en el optimizador `ShuShu`.
 
 ```python
 from sheshe import ModalScoutEnsemble
@@ -438,6 +438,7 @@ mse = ModalScoutEnsemble(
     random_state=0,
     scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
     cv=2,
+    # ensemble_method="shushu" utilizaría el optimizador ShuShu
 )
 mse.fit(X, y)
 print(mse.predict(X[:5]))

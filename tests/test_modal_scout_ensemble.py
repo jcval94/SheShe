@@ -63,3 +63,28 @@ def test_modal_scout_ensemble_prediction_within_region_optional():
     assert hasattr(mse, "labels_")
     assert np.array_equal(mse.labels_, mse.predict(X))
     assert not hasattr(mse, "label2id_")
+
+
+def test_modal_scout_ensemble_with_shushu():
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        ensemble_method="shushu",
+        shushu_kwargs={
+            "k": 5,
+            "rf_estimators": 5,
+            "importance_sample_size": 60,
+            "max_iter": 5,
+        },
+    )
+    mse.fit(X, y)
+    yhat = mse.predict(X)
+    assert yhat.shape == y.shape
+    proba = mse.predict_proba(X[:5])
+    assert proba.shape[0] == 5
+    labels, ids = mse.predict_regions(X[:5])
+    assert labels.shape == (5,)
+    assert ids.shape == (5,)
