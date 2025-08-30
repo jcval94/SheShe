@@ -1444,7 +1444,8 @@ class ModalBoundaryClustering(BaseEstimator):
         step = delta * np.maximum(scale, 1e-8)
 
         K = max(1, int(avg))
-        R = np.random.choice([-1.0, 1.0], size=(K, d))
+        rng = self._rng
+        R = rng.choice([-1.0, 1.0], size=(K, d))
         Xp = x[None, :] + R * step[None, :]
         Xm = x[None, :] - R * step[None, :]
         lb = getattr(self, "_lb", None)
@@ -1504,14 +1505,15 @@ class ModalBoundaryClustering(BaseEstimator):
         pts: List[np.ndarray] = []
         f = self._f
         scale = getattr(self, "_feature_scale", np.ones_like(x))
+        rng = self._rng
         for it in range(self.arc_max_steps):
             if self.use_spsa:
                 g = self._spsa_grad(f, x, delta=self.spsa_delta, avg=self.spsa_avg)
             else:
-                g = np.random.randn(*x.shape)
+                g = rng.standard_normal(x.shape)
             g_norm = float(np.linalg.norm(g))
             if g_norm < self.grad_eps:
-                v = np.random.randn(*x.shape)
+                v = rng.standard_normal(x.shape)
             else:
                 v = g / g_norm
             if v_prev is not None:
@@ -1581,6 +1583,7 @@ class ModalBoundaryClustering(BaseEstimator):
         start = time.perf_counter()
         self._log("Starting fit", level=logging.DEBUG)
         try:
+            self._rng = np.random.default_rng(self.random_state)
             prep_start = time.perf_counter()
             X = np.asarray(X, dtype=float)
             self.n_features_in_ = X.shape[1]
@@ -1653,7 +1656,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 log_fn=log_fn,
             )
 
-            rng = np.random.default_rng(self.random_state)
+            rng = self._rng
 
             def _pick_sample_idx(y_vals, n_total, n_sample):
                 if n_sample is None or n_sample >= n_total:
