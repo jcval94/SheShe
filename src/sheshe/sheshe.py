@@ -35,6 +35,14 @@ try:  # optional dependency for density estimation
     import hnswlib
 except Exception:  # pragma: no cover - handled at runtime
     hnswlib = None  # type: ignore
+try:  # optional dependency for JIT acceleration
+    import numba
+    from numba import njit
+    from numba.core.dispatcher import Dispatcher
+except Exception:  # pragma: no cover - handled at runtime
+    numba = None  # type: ignore
+    njit = None  # type: ignore
+    Dispatcher = None  # type: ignore
 from sklearn.neighbors import KDTree
 from sklearn.utils.validation import check_is_fitted
 
@@ -134,6 +142,48 @@ def finite_diff_hessian(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
     return H
 
 
+if numba is not None:
+
+    @njit
+    def finite_diff_gradient_numba(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
+        d = x.shape[0]
+        g = np.zeros(d, dtype=np.float64)
+        for i in range(d):
+            e = np.zeros(d, dtype=np.float64)
+            e[i] = 1.0
+            g[i] = (f(x + eps * e) - f(x - eps * e)) / (2.0 * eps)
+        return g
+
+    @njit
+    def finite_diff_hessian_numba(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
+        d = x.shape[0]
+        H = np.zeros((d, d), dtype=np.float64)
+        f0 = f(x)
+        for i in range(d):
+            ei = np.zeros(d, dtype=np.float64)
+            ei[i] = eps
+            f_plus = f(x + ei)
+            f_minus = f(x - ei)
+            H[i, i] = (f_plus - 2.0 * f0 + f_minus) / (eps ** 2)
+            for j in range(i + 1, d):
+                ej = np.zeros(d, dtype=np.float64)
+                ej[j] = eps
+                fpp = f(x + ei + ej)
+                fpm = f(x + ei - ej)
+                fmp = f(x - ei + ej)
+                fmm = f(x - ei - ej)
+                val = (fpp - fpm - fmp + fmm) / (4.0 * eps ** 2)
+                H[i, j] = H[j, i] = val
+        return H
+
+else:
+
+    def finite_diff_gradient_numba(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
+        return finite_diff_gradient(f, x, eps=eps)
+
+    def finite_diff_hessian_numba(f, x: np.ndarray, eps: float = 1e-2) -> np.ndarray:
+        return finite_diff_hessian(f, x, eps=eps)
+
 def spsa_gradient(
     f, x: np.ndarray, eps: float = 1e-2, random_state: Optional[int] = None
 ) -> np.ndarray:
@@ -193,7 +243,11 @@ def gradient_ascent(
             g = (
                 spsa_gradient(f, x, eps=eps_grad, random_state=random_state)
                 if use_spsa
-                else finite_diff_gradient(f, x, eps=eps_grad)
+                else (
+                    finite_diff_gradient_numba(f, x, eps=eps_grad)
+                    if (numba is not None and isinstance(f, Dispatcher))
+                    else finite_diff_gradient(f, x, eps=eps_grad)
+                )
             )
         if np.linalg.norm(g) < tol:
             break
@@ -261,11 +315,27 @@ def trust_region_newton(
     x = x0.copy()
     radius = float(trust_radius)
     for _ in range(max_iter):
-        g = gradient(x) if gradient is not None else finite_diff_gradient(f, x, eps=eps_grad)
+        g = (
+            gradient(x)
+            if gradient is not None
+            else (
+                finite_diff_gradient_numba(f, x, eps=eps_grad)
+                if (numba is not None and isinstance(f, Dispatcher))
+                else finite_diff_gradient(f, x, eps=eps_grad)
+            )
+        )
         g = project_step_with_barrier(x, g, lo, hi)
         if np.linalg.norm(g) < tol:
             break
-        H = hessian(x) if hessian is not None else finite_diff_hessian(f, x, eps=eps_hess)
+        H = (
+            hessian(x)
+            if hessian is not None
+            else (
+                finite_diff_hessian_numba(f, x, eps=eps_hess)
+                if (numba is not None and isinstance(f, Dispatcher))
+                else finite_diff_hessian(f, x, eps=eps_hess)
+            )
+        )
         H = 0.5 * (H + H.T)
         step, pred = _solve_trust_region_step(g, H, radius)
         x_trial = np.clip(x + step, lo, hi)
@@ -1698,7 +1768,11 @@ class ModalBoundaryClustering(BaseEstimator):
                         else:
                             grad_norm = float(
                                 np.linalg.norm(
-                                    finite_diff_gradient(f, center, eps=self.grad_eps)
+                                    (
+                                        finite_diff_gradient_numba(f, center, eps=self.grad_eps)
+                                        if (numba is not None and isinstance(f, Dispatcher))
+                                        else finite_diff_gradient(f, center, eps=self.grad_eps)
+                                    )
                                 )
                             )
                             if grad_norm < self.grad_eps:
@@ -1778,7 +1852,11 @@ class ModalBoundaryClustering(BaseEstimator):
                 if radii.size == 0 or dirs_use.size == 0:
                     grad_norm = float(
                         np.linalg.norm(
-                            finite_diff_gradient(f, center, eps=self.grad_eps)
+                            (
+                                finite_diff_gradient_numba(f, center, eps=self.grad_eps)
+                                if (numba is not None and isinstance(f, Dispatcher))
+                                else finite_diff_gradient(f, center, eps=self.grad_eps)
+                            )
                         )
                     )
                     if grad_norm < self.grad_eps:

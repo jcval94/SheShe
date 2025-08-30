@@ -40,6 +40,10 @@ pip install -e ".[dev]"
 PYTHONPATH=src pytest -q
 ```
 
+Optional acceleration is available with [`numba`](https://numba.pydata.org/).
+Install via `pip install sheshe[numba]` to enable JIT‑compiled finite-difference
+gradients and Hessians.
+
 ## Reproducibility
 
 This project was developed and tested on:
