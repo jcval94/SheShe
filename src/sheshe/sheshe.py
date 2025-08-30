@@ -35,6 +35,7 @@ try:  # optional dependency for density estimation
     import hnswlib
 except Exception:  # pragma: no cover - handled at runtime
     hnswlib = None  # type: ignore
+from sklearn.neighbors import KDTree
 from sklearn.utils.validation import check_is_fitted
 
 
@@ -878,6 +879,7 @@ class ModalBoundaryClustering(BaseEstimator):
         scan_steps: int = 24,
         smooth_window: int | None = None,
         drop_fraction: float = 0.5,
+        bounds_margin: float = 0.05,
         grad_lr: float = 0.2,
         grad_max_iter: int = 80,
         grad_tol: float = 1e-5,
@@ -923,6 +925,8 @@ class ModalBoundaryClustering(BaseEstimator):
             raise ValueError("n_max_seeds must be at least 1")
         if not (0.0 < drop_fraction < 1.0):
             raise ValueError("drop_fraction must be in (0, 1)")
+        if bounds_margin < 0.0:
+            raise ValueError("bounds_margin must be >= 0")
         if stop_criteria not in ("inflexion", "percentile"):
             raise ValueError("stop_criteria must be 'inflexion' or 'percentile'")
         if ray_mode not in ("grid", "grad"):
@@ -946,6 +950,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.scan_steps = scan_steps
         self.smooth_window = smooth_window
         self.drop_fraction = drop_fraction
+        self.bounds_margin = bounds_margin
         self.grad_lr = grad_lr
         self.grad_max_iter = grad_max_iter
         self.grad_tol = grad_tol
@@ -1076,14 +1081,15 @@ class ModalBoundaryClustering(BaseEstimator):
     def _bounds_from_data(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         lo = X.min(axis=0)
         hi = X.max(axis=0)
-        span = hi - lo
-        return lo - 0.05*span, hi + 0.05*span
+        if self.bounds_margin > 0.0:
+            span = hi - lo
+            lo = lo - self.bounds_margin * span
+            hi = hi + self.bounds_margin * span
+        return lo, hi
 
     def _setup_density(self, X: np.ndarray) -> None:
         if self.density_alpha <= 0.0:
             return
-        if hnswlib is None:
-            raise ImportError("hnswlib is required when density_alpha > 0.0")
         Xs = self.scaler_.transform(np.asarray(X, float)).astype(np.float32)
         n_samples = len(Xs)
         if n_samples <= 1:
@@ -1093,14 +1099,20 @@ class ModalBoundaryClustering(BaseEstimator):
             return
         k = min(self.density_k, n_samples - 1)
         self.density_k_ = k
-        dim = Xs.shape[1]
-        index = hnswlib.Index(space="l2", dim=dim)
-        index.init_index(max_elements=n_samples, ef_construction=200)
-        index.add_items(Xs)
-        index.set_ef(max(50, k * 3))
-        self._nn_density = index
-        _, dists = index.knn_query(Xs, k=k + 1)
-        dists = np.sqrt(dists[:, -1])
+        if hnswlib is not None:
+            dim = Xs.shape[1]
+            index = hnswlib.Index(space="l2", dim=dim)
+            index.init_index(max_elements=n_samples, ef_construction=200)
+            index.add_items(Xs)
+            index.set_ef(max(50, k * 3))
+            self._nn_density = index
+            _, dists = index.knn_query(Xs, k=k + 1)
+            dists = np.sqrt(dists[:, -1])
+        else:
+            tree = KDTree(Xs)
+            self._nn_density = tree
+            dists, _ = tree.query(Xs, k=k + 1)
+            dists = dists[:, -1]
         dens = 1.0 / (dists + 1e-12)
         self.density_min_ = float(np.min(dens))
         self.density_max_ = float(np.max(dens))
@@ -1112,8 +1124,12 @@ class ModalBoundaryClustering(BaseEstimator):
         if self._nn_density is None:
             dens = np.ones(len(Xs))
         else:
-            _, dists = self._nn_density.knn_query(Xs, k=self.density_k_)
-            dists = np.sqrt(dists[:, -1])
+            if hnswlib is not None and isinstance(self._nn_density, hnswlib.Index):
+                _, dists = self._nn_density.knn_query(Xs, k=self.density_k_)
+                dists = np.sqrt(dists[:, -1])
+            else:
+                dists, _ = self._nn_density.query(Xs, k=self.density_k_)
+                dists = dists[:, -1]
             dens = 1.0 / (dists + 1e-12)
         rng = self.density_max_ - self.density_min_
         if rng <= 0:
