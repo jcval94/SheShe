@@ -188,7 +188,8 @@ class SubspaceScout:
                 disc = KBinsDiscretizer(
                     n_bins=bins[keep],
                     encode="ordinal",
-                    strategy="quantile"
+                    strategy="quantile",
+                    quantile_method="linear",
                 )
                 Xd_keep = disc.fit_transform(X[:, keep]).astype(int)
             Xd[:, keep] = Xd_keep

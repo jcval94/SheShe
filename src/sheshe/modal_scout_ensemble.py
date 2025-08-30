@@ -552,12 +552,16 @@ class ModalScoutEnsemble(BaseEstimator):
 
       if used_weights:
         wsum = sum(used_weights)
-        if self.fitted_task_ == "classification":
-          probs = agg / wsum
-          labels[i] = self.classes_[int(np.argmax(probs))]
+        if wsum > 0:
+          if self.fitted_task_ == "classification":
+            probs = agg / wsum
+            labels[i] = self.classes_[int(np.argmax(probs))]
+          else:
+            labels[i] = float(agg / wsum)
+          cluster_ids[i] = used_ids[int(np.argmax(used_weights))]
         else:
-          labels[i] = float(agg / wsum)
-        cluster_ids[i] = used_ids[int(np.argmax(used_weights))]
+          labels[i] = -1
+          cluster_ids[i] = -1
       else:
         labels[i] = -1
         cluster_ids[i] = -1
