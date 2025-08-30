@@ -675,6 +675,71 @@ class ShuShu:
         self.mode_ = "multiclass"
         return self
 
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """Return class probabilities for ``X``.
+
+        Only available when the model was fit in multiclass mode.  Relies on
+        the internal ``score_model`` trained during :meth:`fit`.
+        """
+        if self.mode_ != "multiclass" or self.model_ is None:
+            raise RuntimeError("predict_proba only available after fitting with labels")
+        X = np.asarray(X, dtype=float)
+        if not hasattr(self.model_, "predict_proba"):
+            raise RuntimeError("Underlying model lacks predict_proba")
+        return np.asarray(self.model_.predict_proba(X))
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict labels or cluster ids for ``X``.
+
+        * If fitted with ``y`` (multiclass mode) returns class labels using the
+          internal model.
+        * If fitted with ``score_fn`` (scalar mode) returns the index of the
+          closest centroid.
+        """
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+        X = np.asarray(X, dtype=float)
+        if self.mode_ == "multiclass":
+            if self.model_ is None:
+                raise RuntimeError("Model missing for predict")
+            return np.asarray(self.model_.predict(X))
+        else:
+            if self.clusterer_ is None:
+                raise RuntimeError("Clusterer missing for predict")
+            return self.clusterer_._assign_labels(X)
+
+    def predict_regions(self, X: np.ndarray):
+        """Predict class labels and cluster ids for ``X``.
+
+        Returns a tuple ``(labels, cluster_ids)`` similar to
+        :class:`ModalScoutEnsemble`.
+
+        * In multiclass mode ``labels`` are class predictions and
+          ``cluster_ids`` the id of the centroid of the predicted class.
+        * In scalar mode both arrays contain the index of the closest centroid.
+        """
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+        X = np.asarray(X, dtype=float)
+        if self.mode_ == "multiclass":
+            if self.model_ is None:
+                raise RuntimeError("Model missing for predict_regions")
+            labels = np.asarray(self.model_.predict(X))
+            cluster_ids = np.full(X.shape[0], -1, dtype=int)
+            for info in self.per_class_.values():
+                cls_label = info["label"]
+                mask = labels == cls_label
+                if np.any(mask):
+                    clus = info["clusterer"]
+                    if clus.centroids_ is not None and clus.centroids_.shape[0] > 0:
+                        cluster_ids[mask] = clus._assign_labels(X[mask])
+            return labels, cluster_ids
+        else:
+            if self.clusterer_ is None:
+                raise RuntimeError("Clusterer missing for predict_regions")
+            labels = self.clusterer_._assign_labels(X)
+            return labels, labels.copy()
+
     def plot_classes(
         self,
         X: np.ndarray,
