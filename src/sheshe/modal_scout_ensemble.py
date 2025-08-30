@@ -118,7 +118,8 @@ def extract_global_importances(
 class ModalScoutEnsemble(BaseEstimator):
   """
   Ensamble de ModalBoundaryClustering aplicado SOLO en subespacios valiosos
-  hallados por SubspaceScout (ejecutado internamente).
+  hallados por SubspaceScout (ejecutado internamente).  Alternativamente,
+  puede delegar en :class:`ShuShu` cuando ``ensemble_method='shushu'``.
 
   Ponderación por subespacio s (normalizado en [0,1]):
     weight_s ∝ (scout_score_s)^alpha × (cv_score_s)^beta × (feat_importance_s)^gamma
@@ -137,6 +138,13 @@ class ModalScoutEnsemble(BaseEstimator):
         marginal_gain_min=0.001, max_eval_per_order=1000, time_budget_s=None,
         objective='mi_joint', min_per_order=1
       )
+
+  Parámetros relevantes:
+    • ``ensemble_method``: ``'modal_scout'`` (predeterminado) usa la lógica de
+      este ensamble basada en ``SubspaceScout``. ``'shushu'`` delega el ajuste
+      y la predicción al optimizador :class:`ShuShu`.
+    • ``shushu_kwargs``: diccionario de parámetros para ``ShuShu`` cuando se
+      utiliza ``ensemble_method='shushu'``.
   """
 
   def __init__(
@@ -144,6 +152,7 @@ class ModalScoutEnsemble(BaseEstimator):
     *,
     base_estimator,
     task: Optional[str] = None,
+    ensemble_method: str = "modal_scout",
 
     # Selección de subespacios
     top_k: int = 8,
@@ -177,6 +186,9 @@ class ModalScoutEnsemble(BaseEstimator):
     # Config de SubspaceScout
     scout_kwargs: Optional[Dict[str, Any]] = None,
 
+    # Config de ShuShu
+    shushu_kwargs: Optional[Dict[str, Any]] = None,
+
     # Passthrough a MBC
     mbc_kwargs: Optional[Dict[str, Any]] = None,
     verbose: int = 0,
@@ -184,6 +196,7 @@ class ModalScoutEnsemble(BaseEstimator):
   ):
     self.base_estimator = base_estimator
     self.task = task
+    self.ensemble_method = ensemble_method
 
     self.top_k = top_k
     self.min_score = min_score
@@ -210,6 +223,7 @@ class ModalScoutEnsemble(BaseEstimator):
     self.importance_sample_size = importance_sample_size
 
     self.scout_kwargs = scout_kwargs or {}
+    self.shushu_kwargs = shushu_kwargs or {}
     self.mbc_kwargs = mbc_kwargs or {}
     self.verbose = verbose
     self.logger = logging.getLogger(self.__class__.__name__)
@@ -295,6 +309,21 @@ class ModalScoutEnsemble(BaseEstimator):
   # ---------- API sklearn ----------
 
   def fit(self, X: np.ndarray, y: np.ndarray):
+    if self.ensemble_method.lower() == "shushu":
+      from .shushu import ShuShu
+      sh_args = dict(random_state=self.random_state)
+      sh_args.update(self.shushu_kwargs or {})
+      self.shushu_model_ = ShuShu(**sh_args)
+      self.shushu_model_.fit(X, y)
+      self.fitted_task_ = self.task or infer_task(y)
+      if hasattr(self.shushu_model_, "classes_"):
+        self.classes_ = np.asarray(self.shushu_model_.classes_)
+      if self.prediction_within_region:
+        self.labels_, self.label2id_ = self.shushu_model_.predict_regions(X)
+      else:
+        self.labels_ = self.shushu_model_.predict(X)
+      return self
+
     t0 = time.time()
     self.fitted_task_ = self.task or infer_task(y)
     if self.fitted_task_ not in ("classification", "regression"):
@@ -452,6 +481,12 @@ class ModalScoutEnsemble(BaseEstimator):
     return self
 
   def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    if self.ensemble_method.lower() == "shushu":
+      if self.fitted_task_ != "classification":
+        raise AttributeError("predict_proba solo para clasificación.")
+      if not hasattr(self, "shushu_model_"):
+        raise RuntimeError("Modelo no ajustado.")
+      return self.shushu_model_.predict_proba(X)
     if self.fitted_task_ != "classification":
       raise AttributeError("predict_proba solo para clasificación.")
     if self.classes_ is None:
@@ -483,6 +518,10 @@ class ModalScoutEnsemble(BaseEstimator):
     return agg / row_sums
 
   def predict(self, X: np.ndarray) -> np.ndarray:
+    if self.ensemble_method.lower() == "shushu":
+      if not hasattr(self, "shushu_model_"):
+        raise RuntimeError("Modelo no ajustado.")
+      return self.shushu_model_.predict(X)
     if self.fitted_task_ == "classification":
       P = self.predict_proba(X)
       return self.classes_[np.argmax(P, axis=1)]
@@ -505,6 +544,11 @@ class ModalScoutEnsemble(BaseEstimator):
     * ``cluster_ids[i]`` es el ``cluster_id`` del submodelo con mayor peso que
       cubre la muestra. Si ninguno la cubre, toma el valor ``-1``.
     """
+
+    if self.ensemble_method.lower() == "shushu":
+      if not hasattr(self, "shushu_model_"):
+        raise RuntimeError("Modelo no ajustado.")
+      return self.shushu_model_.predict_regions(X)
 
     if self.weights_ is None:
       raise RuntimeError("Modelo no ajustado.")
@@ -570,6 +614,18 @@ class ModalScoutEnsemble(BaseEstimator):
 
   def report(self) -> List[Dict[str, Any]]:
     """Resumen por subespacio (ordenado por peso)."""
+    if self.ensemble_method.lower() == "shushu":
+      if not hasattr(self, "shushu_model_"):
+        raise RuntimeError("Modelo no ajustado.")
+      info: List[Dict[str, Any]] = []
+      if hasattr(self.shushu_model_, "per_class_") and self.shushu_model_.per_class_:
+        for pc in self.shushu_model_.per_class_.values():
+          clus = pc.get("clusterer")
+          if clus is not None and hasattr(clus, "clusters_"):
+            info.extend(clus.clusters_)
+      elif hasattr(self.shushu_model_, "clusters_"):
+        info = list(self.shushu_model_.clusters_)
+      return info
     info = []
     # Solo reportamos para los modelos realmente entrenados
     for idx, (w, feats, mbc) in enumerate(zip(self.weights_, self.features_, self.models_)):

@@ -540,7 +540,7 @@ subspaces = scout.fit(X, y)
 
 ## ModalScoutEnsemble
 
-`ModalScoutEnsemble` trains multiple ModalBoundaryClustering models on the top subspaces returned by `SubspaceScout` and combines their predictions.
+`ModalScoutEnsemble` trains multiple ModalBoundaryClustering models on the top subspaces returned by `SubspaceScout` and combines their predictions. Set `ensemble_method="shushu"` to delegate the ensemble to the `ShuShu` optimizer.
 
 ```python
 from sheshe import ModalScoutEnsemble
@@ -556,6 +556,7 @@ mse = ModalScoutEnsemble(
     random_state=0,
     scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
     cv=2,
+    # ensemble_method="shushu" would use the ShuShu optimizer
 )
 mse.fit(X, y)
 print(mse.predict(X[:5]))
