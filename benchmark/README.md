@@ -78,3 +78,11 @@ Comparación entre la implementación base y una versión optimizada.
 | Evaluaciones de `∇f` | 43.8 | 2.4 | – |
 | Evaluaciones de `∇²f` | – | 1.4 | – |
 
+## Prueba A/B de Numba en diferencias finitas
+
+| Método | Tiempo medio (s) |
+| --- | --- |
+| Python | 0.0416 |
+| Numba | 0.0048 |
+| Speedup | 8.7× |
+
