@@ -2251,6 +2251,7 @@ class ModalBoundaryClustering(BaseEstimator):
         feature_names: Sequence[str],
         grid_res: int = 200,
         alpha_surface: float = 0.6,
+        show_centroids: bool = True,
     ) -> plt.Figure:
         """Draw the probability surface for a pair of features and one class.
 
@@ -2272,6 +2273,8 @@ class ModalBoundaryClustering(BaseEstimator):
             Resolution of the mesh used for the surface.
         alpha_surface : float, default=0.6
             Surface transparency.
+        show_centroids : bool, default=True
+            Whether to display cluster centroids.
 
         Returns
         -------
@@ -2356,14 +2359,15 @@ class ModalBoundaryClustering(BaseEstimator):
                 linewidth=2,
                 label=f"frontera {reg.cluster_id} ({class_label})",
             )
-            ax.scatter(
-                ctr[0],
-                ctr[1],
-                c=col,
-                marker='X',
-                s=80,
-                label=f"centro {reg.cluster_id} ({class_label})",
-            )
+            if show_centroids:
+                ax.scatter(
+                    ctr[0],
+                    ctr[1],
+                    c=col,
+                    marker='X',
+                    s=80,
+                    label=f"centro {reg.cluster_id} ({class_label})",
+                )
 
         ax.set_xlabel(feature_names[i])
         ax.set_ylabel(feature_names[j])
@@ -2382,6 +2386,7 @@ class ModalBoundaryClustering(BaseEstimator):
         grid_res: int = 200,
         alpha_surface: float = 0.6,
         max_classes: Optional[int] = None,
+        show_centroids: bool = True,
     ) -> plt.Figure:
         """Draw predicted-value surface and decile regions for a feature pair.
 
@@ -2400,6 +2405,8 @@ class ModalBoundaryClustering(BaseEstimator):
             Resolution of the mesh used for the surface.
         alpha_surface : float, default=0.6
             Surface transparency.
+        show_centroids : bool, default=True
+            Whether to display cluster centroids.
 
         Returns
         -------
@@ -2468,6 +2475,18 @@ class ModalBoundaryClustering(BaseEstimator):
                 linewidths=0.3,
             )
 
+        if show_centroids:
+            for reg in self.regions_:
+                ctr = reg.center[[i, j]]
+                ax.scatter(
+                    ctr[0],
+                    ctr[1],
+                    c="k",
+                    marker="X",
+                    s=80,
+                    label=f"centro {reg.cluster_id}",
+                )
+
         ax.set_xlabel(feature_names[i])
         ax.set_ylabel(feature_names[j])
         ax.legend(loc="best")
@@ -2482,6 +2501,7 @@ class ModalBoundaryClustering(BaseEstimator):
         feature_names: Optional[Sequence[str]] = None,
         block_size: Optional[int] = None,
         max_classes: Optional[int] = None,
+        show_centroids: bool = True,
     ):
         """Visualize 2D surfaces for feature pairs.
 
@@ -2511,6 +2531,8 @@ class ModalBoundaryClustering(BaseEstimator):
         max_classes : int, optional
             Maximum number of classes (or deciles in regression) to visualize.
             If ``None`` all are shown.
+        show_centroids : bool, default=True
+            Whether to display cluster centroids.
 
         Returns
         -------
@@ -2571,7 +2593,13 @@ class ModalBoundaryClustering(BaseEstimator):
             for pair in pairs:
                 for label in labels:
                     fig = self._plot_single_pair_classif(
-                        X_arr, y, pair, label, class_colors, feature_names
+                        X_arr,
+                        y,
+                        pair,
+                        label,
+                        class_colors,
+                        feature_names,
+                        show_centroids=show_centroids,
                     )
                     if block_size:
                         block_figs.append(fig)
@@ -2584,7 +2612,12 @@ class ModalBoundaryClustering(BaseEstimator):
             y_vals = y if y is not None else self._predict_value_real(X_arr, class_idx=None)
             for pair in pairs:
                 fig = self._plot_single_pair_reg(
-                    X_arr, pair, feature_names, y_vals, max_classes=max_classes
+                    X_arr,
+                    pair,
+                    feature_names,
+                    y_vals,
+                    max_classes=max_classes,
+                    show_centroids=show_centroids,
                 )
                 if block_size:
                     block_figs.append(fig)
