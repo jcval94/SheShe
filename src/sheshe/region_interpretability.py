@@ -159,14 +159,18 @@ def _rule_text(a: float, b: float, c: float, xname: str, yname: str, decimals: i
 
 # ==================== Núcleo de interpretabilidad ====================
 
-def _extract_region(reg: Any) -> Tuple[int, Any, np.ndarray, np.ndarray, np.ndarray]:
+def _extract_region(reg: Any) -> Tuple[Any, Any, np.ndarray, np.ndarray, np.ndarray]:
     """Admite dict u objeto (p.ej., ClusterRegion).
 
     Devuelve ``cluster_id``, ``label``, ``center``, ``directions`` y ``radii``.
     ``cluster_id`` cae a ``label`` si el objeto no lo expone explícitamente.
     """
     if isinstance(reg, dict):
-        cid = int(reg.get("cluster_id", reg.get("label", 0)))
+        cid = reg.get("cluster_id", reg.get("label", 0))
+        try:
+            cid = int(cid)
+        except Exception:
+            pass
         label = reg.get("label", cid)
         try:
             label = int(label)
@@ -176,7 +180,11 @@ def _extract_region(reg: Any) -> Tuple[int, Any, np.ndarray, np.ndarray, np.ndar
         directions = np.asarray(reg["directions"], float)
         radii = np.asarray(reg["radii"], float)
     else:
-        cid = int(getattr(reg, "cluster_id", getattr(reg, "label")))
+        cid = getattr(reg, "cluster_id", getattr(reg, "label", 0))
+        try:
+            cid = int(cid)
+        except Exception:
+            pass
         label = getattr(reg, "label", cid)
         try:
             label = int(label)
