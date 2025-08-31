@@ -13,13 +13,16 @@ minimal adaptations so it can live inside the ``sheshe`` package.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from matplotlib.lines import Line2D
 
 import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+
+from .region_interpretability import RegionInterpreter
+from .sheshe import ClusterRegion
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import NearestNeighbors
@@ -572,6 +575,7 @@ class ShuShu:
         self.classes_: Optional[np.ndarray] = None
         self.model_ = None
         self.mode_: Optional[str] = None
+        self.score_fn_: Optional[Callable[[np.ndarray], np.ndarray]] = None
 
     def _build_score_fns(
         self,
@@ -636,6 +640,7 @@ class ShuShu:
             self.clusters_ = clusterer.clusters_
             self.timings_ = clusterer.timings_
             self.mode_ = "scalar"
+            self.score_fn_ = score_fn
             return self
 
         self.feature_names_ = (
@@ -675,6 +680,21 @@ class ShuShu:
         self.mode_ = "multiclass"
         return self
 
+    def fit_predict(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_kwargs) -> np.ndarray:
+        """Convenience method that fits and then predicts ``X``.
+
+        Parameters
+        ----------
+        X : array-like
+            Training data.
+        y : array-like, optional
+            Labels for multiclass mode.
+        **fit_kwargs : dict
+            Additional keyword arguments passed to :meth:`fit`.
+        """
+        self.fit(X, y, **fit_kwargs)
+        return self.predict(X)
+
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Return class probabilities for ``X``.
 
@@ -707,6 +727,36 @@ class ShuShu:
             if self.clusterer_ is None:
                 raise RuntimeError("Clusterer missing for predict")
             return self.clusterer_._assign_labels(X)
+
+    def decision_function(self, X: np.ndarray) -> np.ndarray:
+        """Return raw decision scores for ``X``.
+
+        In multiclass mode this delegates to the underlying ``score_model`` if
+        it provides :meth:`decision_function`. In scalar mode it returns the
+        negative distance to each centroid in the scaled feature space.
+        """
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+        X = np.asarray(X, dtype=float)
+        if self.mode_ == "multiclass":
+            if self.model_ is None or not hasattr(self.model_, "decision_function"):
+                raise RuntimeError("Underlying model lacks decision_function")
+            return np.asarray(self.model_.decision_function(X))
+        else:
+            if self.clusterer_ is None or self.clusterer_.centroids_ is None:
+                raise RuntimeError("Clusterer missing for decision_function")
+            c = self.clusterer_
+            if c.centroids_.shape[0] == 0:
+                return np.zeros((X.shape[0], 0))
+            Uc = c._to_unit(c.centroids_)
+            if c.selected_dims_.size > 0:
+                Uc = Uc[:, c.selected_dims_]
+            XU = c._to_unit(X)
+            if c.ignored_dims_.size > 0:
+                XU[:, c.ignored_dims_] = c._medians_unit[c.ignored_dims_]
+            ZX = XU[:, c.selected_dims_] if c.selected_dims_.size > 0 else XU
+            dists = np.linalg.norm(ZX[:, None, :] - Uc[None, :, :], axis=2)
+            return -dists
 
     def predict_regions(self, X: np.ndarray):
         """Predict class labels and cluster ids for ``X``.
@@ -855,6 +905,175 @@ class ShuShu:
             ax.set_ylabel(name2)
             ax.set_title(f"Prob. clase '{label}' vs ({name1},{name2})")
             fig.tight_layout()
+
+    def plot_pair_3d(
+        self,
+        X: np.ndarray,
+        pair: Tuple[int, int],
+        class_label: Optional[Any] = None,
+        grid_res: int = 50,
+        alpha_surface: float = 0.6,
+        engine: str = "matplotlib",
+    ):
+        """Visualize score surface for a pair of features in 3D."""
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+        X = np.asarray(X, dtype=float)
+        d1, d2 = pair
+        if self.mode_ == "multiclass":
+            if class_label is None:
+                raise ValueError("class_label required in multiclass mode")
+            info = None
+            for v in self.per_class_.values():
+                if v["label"] == class_label:
+                    info = v
+                    break
+            if info is None:
+                raise ValueError(f"class_label {class_label} not found")
+            c = info["clusterer"]
+            score_fn = info["score_fn"]
+            name1 = self.feature_names_[d1] if self.feature_names_ else f"x{d1}"
+            name2 = self.feature_names_[d2] if self.feature_names_ else f"x{d2}"
+            zlabel = f"P({class_label})"
+            title = f"Prob. clase '{class_label}' vs ({name1},{name2})"
+        else:
+            if self.clusterer_ is None or self.score_fn_ is None:
+                raise RuntimeError("score_fn missing for scalar mode")
+            c = self.clusterer_
+            score_fn = self.score_fn_
+            name1 = self.feature_names_[d1] if self.feature_names_ else f"x{d1}"
+            name2 = self.feature_names_[d2] if self.feature_names_ else f"x{d2}"
+            zlabel = "score"
+            title = f"score vs ({name1},{name2})"
+
+        x1_min, x1_max = X[:, d1].min(), X[:, d1].max()
+        x2_min, x2_max = X[:, d2].min(), X[:, d2].max()
+        pad1 = 0.05 * (x1_max - x1_min + 1e-12)
+        pad2 = 0.05 * (x2_max - x2_min + 1e-12)
+        x1 = np.linspace(x1_min - pad1, x1_max + pad1, grid_res)
+        x2 = np.linspace(x2_min - pad2, x2_max + pad2, grid_res)
+        XX1, XX2 = np.meshgrid(x1, x2)
+
+        base = np.tile(c.medians_, (grid_res * grid_res, 1))
+        base[:, d1] = XX1.ravel()
+        base[:, d2] = XX2.ravel()
+        ZZ = score_fn(base).reshape(grid_res, grid_res)
+
+        if engine == "plotly":
+            try:
+                import plotly.graph_objects as go
+            except Exception as exc:  # pragma: no cover - optional dependency
+                raise ImportError("plotly is required when engine='plotly'") from exc
+            fig = go.Figure(
+                data=[
+                    go.Surface(x=XX1, y=XX2, z=ZZ, colorscale="Viridis", opacity=alpha_surface)
+                ]
+            )
+            fig.update_layout(
+                title=title,
+                scene=dict(xaxis_title=name1, yaxis_title=name2, zaxis_title=zlabel),
+            )
+            return fig
+
+        if engine != "matplotlib":
+            raise ValueError("engine must be 'matplotlib' or 'plotly'")
+
+        fig = plt.figure(figsize=(6, 5))
+        ax = fig.add_subplot(111, projection="3d")
+        ax.plot_surface(XX1, XX2, ZZ, cmap="viridis", alpha=alpha_surface)
+        ax.set_xlabel(name1)
+        ax.set_ylabel(name2)
+        ax.set_zlabel(zlabel)
+        ax.set_title(title)
+        fig.tight_layout()
+        return fig
+
+    def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
+        """Summarize cluster regions using :class:`RegionInterpreter`."""
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+
+        if feature_names is None:
+            if self.feature_names_ is not None:
+                feature_names = self.feature_names_
+            else:
+                if self.mode_ == "multiclass":
+                    any_cl = next(iter(self.per_class_.values()))["clusterer"]
+                    d = any_cl.centroids_.shape[1] if any_cl.centroids_ is not None else 0
+                else:
+                    d = self.clusterer_.centroids_.shape[1] if self.clusterer_ and self.clusterer_.centroids_ is not None else 0
+                feature_names = [f"x{j}" for j in range(d)]
+
+        regions: List[ClusterRegion] = []
+        if self.mode_ == "multiclass":
+            for info in self.per_class_.values():
+                cls_label = info["label"]
+                c = info["clusterer"]
+                for cl in c.clusters_ or []:
+                    centroid = cl["centroid"]
+                    ap = cl.get("area_points")
+                    if ap is not None and ap.shape[0] > 0:
+                        vecs = ap - centroid
+                        radii = np.linalg.norm(vecs, axis=1)
+                        mask = radii > 0
+                        dirs = vecs[mask] / radii[mask][:, None]
+                        radii = radii[mask]
+                    else:
+                        dirs = np.zeros((0, centroid.shape[0]))
+                        radii = np.zeros((0,))
+                    inf_pts = centroid[None, :] + dirs * radii[:, None]
+                    regions.append(
+                        ClusterRegion(
+                            cluster_id=int(cl["label"]),
+                            label=cls_label,
+                            center=centroid,
+                            directions=dirs,
+                            radii=radii,
+                            inflection_points=inf_pts,
+                            inflection_slopes=np.zeros_like(radii),
+                            peak_value_real=float(cl.get("score", np.nan)),
+                            peak_value_norm=float(cl.get("decile", np.nan)) / 10.0,
+                        )
+                    )
+        else:
+            if self.clusterer_ is None:
+                return pd.DataFrame()
+            for cl in self.clusterer_.clusters_ or []:
+                centroid = cl["centroid"]
+                ap = cl.get("area_points")
+                if ap is not None and ap.shape[0] > 0:
+                    vecs = ap - centroid
+                    radii = np.linalg.norm(vecs, axis=1)
+                    mask = radii > 0
+                    dirs = vecs[mask] / radii[mask][:, None]
+                    radii = radii[mask]
+                else:
+                    dirs = np.zeros((0, centroid.shape[0]))
+                    radii = np.zeros((0,))
+                inf_pts = centroid[None, :] + dirs * radii[:, None]
+                regions.append(
+                    ClusterRegion(
+                        cluster_id=int(cl["label"]),
+                        label=0,
+                        center=centroid,
+                        directions=dirs,
+                        radii=radii,
+                        inflection_points=inf_pts,
+                        inflection_slopes=np.zeros_like(radii),
+                        peak_value_real=float(cl.get("score", np.nan)),
+                        peak_value_norm=float(cl.get("decile", np.nan)) / 10.0,
+                    )
+                )
+
+        if not regions:
+            return pd.DataFrame()
+
+        interpreter = RegionInterpreter(feature_names=feature_names)
+        cards = interpreter.summarize(regions)
+        try:
+            return RegionInterpreter.to_dataframe(cards)
+        except Exception:
+            return pd.DataFrame(cards)
 
     def summary_tables(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         rows_c = []
