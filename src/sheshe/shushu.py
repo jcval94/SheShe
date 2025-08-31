@@ -578,6 +578,8 @@ class ShuShu:
         self.model_ = None
         self.mode_: Optional[str] = None
         self.score_fn_: Optional[Callable[[np.ndarray], np.ndarray]] = None
+        # expose discovered regions from underlying clusterers
+        self.regions_: List[Dict] = []
 
     def _build_score_fns(
         self,
@@ -643,6 +645,7 @@ class ShuShu:
             self.timings_ = clusterer.timings_
             self.mode_ = "scalar"
             self.score_fn_ = score_fn
+            self.regions_ = list(clusterer.clusters_)
             return self
 
         self.feature_names_ = (
@@ -680,6 +683,17 @@ class ShuShu:
         self.per_class_ = results
         self.classes_ = classes
         self.mode_ = "multiclass"
+        # flatten regions across classes for convenient access
+        all_regions: List[Dict] = []
+        for info in results.values():
+            clus = info["clusterer"]
+            cls_label = info["label"]
+            for reg in getattr(clus, "clusters_", []) or []:
+                r = dict(reg)
+                r["cluster_id"] = len(all_regions)
+                r["label"] = cls_label
+                all_regions.append(r)
+        self.regions_ = all_regions
         return self
 
     def fit_predict(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_kwargs) -> np.ndarray:
