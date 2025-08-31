@@ -20,6 +20,8 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
+import joblib
 
 from .region_interpretability import RegionInterpreter
 from .sheshe import ClusterRegion
@@ -1115,6 +1117,40 @@ class ShuShu:
         per_class_df = pd.DataFrame(rows_c)
         per_centroid_df = pd.DataFrame(rows_ct)
         return per_class_df, per_centroid_df
+
+    def save(self, filepath: Union[str, Path]) -> None:
+        """Serialize this instance using ``joblib.dump``.
+
+        Callables used during fitting (e.g. score functions) are not persisted;
+        only the attributes required for inference are stored."""
+
+        state: Dict[str, Any] = {
+            "random_state": self.random_state,
+            "feature_names_": self.feature_names_,
+            "clusterer_": self.clusterer_,
+            "per_class_": {
+                k: {**{kk: vv for kk, vv in v.items() if kk != "score_fn"}, "score_fn": None}
+                for k, v in self.per_class_.items()
+            },
+            "classes_": self.classes_,
+            "model_": self.model_,
+            "mode_": self.mode_,
+            "score_fn_": None,
+            "centroids_": getattr(self, "centroids_", None),
+            "clusters_": getattr(self, "clusters_", None),
+            "timings_": getattr(self, "timings_", None),
+        }
+        joblib.dump(state, filepath)
+
+    @classmethod
+    def load(cls, filepath: Union[str, Path]) -> "ShuShu":
+        """Load a previously saved instance with :meth:`save`."""
+
+        state = joblib.load(filepath)
+        obj = cls(random_state=state.get("random_state"))
+        for k, v in state.items():
+            setattr(obj, k, v)
+        return obj
 
 # =============================================================================
 #                               EJEMPLOS DE USO
