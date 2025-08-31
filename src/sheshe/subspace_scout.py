@@ -185,12 +185,23 @@ class SubspaceScout:
         if keep.size:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
-                disc = KBinsDiscretizer(
-                    n_bins=bins[keep],
-                    encode="ordinal",
-                    strategy="quantile",
-                    quantile_method="linear",
-                )
+                try:
+                    disc = KBinsDiscretizer(
+                        n_bins=bins[keep],
+                        encode="ordinal",
+                        strategy="quantile",
+                        quantile_method="linear",
+                    )
+                except TypeError:
+                    # Older versions of scikit-learn do not support the
+                    # ``quantile_method`` argument.  Fall back to the default
+                    # behaviour in those cases so that discretisation still
+                    # works.
+                    disc = KBinsDiscretizer(
+                        n_bins=bins[keep],
+                        encode="ordinal",
+                        strategy="quantile",
+                    )
                 Xd_keep = disc.fit_transform(X[:, keep]).astype(int)
             Xd[:, keep] = Xd_keep
 
