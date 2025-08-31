@@ -176,9 +176,16 @@ def _extract_region(reg: Any) -> Tuple[Any, Any, np.ndarray, np.ndarray, np.ndar
             label = int(label)
         except Exception:
             pass
-        center = np.asarray(reg["center"], float)
-        directions = np.asarray(reg["directions"], float)
-        radii = np.asarray(reg["radii"], float)
+
+        def _pick(d, *keys):
+            for k in keys:
+                if k in d:
+                    return d[k]
+            raise KeyError(keys[0])
+
+        center = np.asarray(_pick(reg, "center", "center_", "centroid"), float)
+        directions = np.asarray(_pick(reg, "directions", "directions_", "dirs"), float)
+        radii = np.asarray(_pick(reg, "radii", "radii_", "radius"), float)
     else:
         cid = getattr(reg, "cluster_id", getattr(reg, "label", 0))
         try:
@@ -190,9 +197,16 @@ def _extract_region(reg: Any) -> Tuple[Any, Any, np.ndarray, np.ndarray, np.ndar
             label = int(label)
         except Exception:
             pass
-        center = np.asarray(getattr(reg, "center"), float)
-        directions = np.asarray(getattr(reg, "directions"), float)
-        radii = np.asarray(getattr(reg, "radii"), float)
+
+        def _pick_attr(obj, *names):
+            for n in names:
+                if hasattr(obj, n):
+                    return getattr(obj, n)
+            raise AttributeError(names[0])
+
+        center = np.asarray(_pick_attr(reg, "center", "center_", "centroid"), float)
+        directions = np.asarray(_pick_attr(reg, "directions", "directions_", "dirs"), float)
+        radii = np.asarray(_pick_attr(reg, "radii", "radii_", "radius"), float)
     return cid, label, center, directions, radii
 
 
