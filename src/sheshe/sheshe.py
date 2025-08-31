@@ -1960,6 +1960,45 @@ class ModalBoundaryClustering(BaseEstimator):
         self.fit(X, y)
         return self.predict(X)
 
+    def transform(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
+        """Return signed distances from samples to region boundaries.
+
+        For each sample ``x`` and discovered region ``k`` this method computes
+        ``r_k - ||x - c_k||`` where ``c_k`` is the region center and ``r_k`` is
+        the boundary radius along the direction that best matches ``x - c_k``.
+        Positive values indicate the sample lies inside the region, negative
+        values denote it falls outside.
+        """
+        check_is_fitted(self, "regions_")
+        X = np.asarray(X, dtype=float)
+        n = len(X)
+        n_regions = len(self.regions_)
+        if n_regions == 0:
+            return np.zeros((n, 0))
+
+        D = np.zeros((n, n_regions), dtype=float)
+        for k, reg in enumerate(self.regions_):
+            if reg.directions.size == 0:
+                D[:, k] = -np.inf
+                continue
+            V = X - reg.center
+            norms = np.linalg.norm(V, axis=1) + 1e-12
+            U = V / norms[:, None]
+            dots = U @ reg.directions.T
+            idx = np.argmax(dots, axis=1)
+            r_boundary = reg.radii[idx]
+            D[:, k] = r_boundary + 1e-12 - norms
+        return D
+
+    def fit_transform(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None) -> np.ndarray:
+        """Fit the model and transform ``X``.
+
+        This convenience method is equivalent to calling :meth:`fit` followed
+        immediately by :meth:`transform` on the same data.
+        """
+        self.fit(X, y)
+        return self.transform(X)
+
     def _membership_matrix(self, X: np.ndarray) -> np.ndarray:
         """Build the membership matrix for the discovered regions.
 
