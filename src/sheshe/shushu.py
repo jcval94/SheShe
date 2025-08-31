@@ -818,7 +818,17 @@ class ShuShu:
         """
         X = np.asarray(X, dtype=float)
         uniq = np.unique(y)
-        cmap_pts = plt.get_cmap("tab10")
+        palette = [
+            "#e41a1c",
+            "#377eb8",
+            "#4daf4a",
+            "#984ea3",
+            "#ff7f00",
+            "#a65628",
+            "#f781bf",
+            "#999999",
+        ]
+        class_colors = {c: palette[i % len(palette)] for i, c in enumerate(uniq)}
 
         if contour_levels is None:
             contour_levels = np.linspace(0.0, 1.0, 12)
@@ -827,6 +837,7 @@ class ShuShu:
 
         for ci, info in self.per_class_.items():
             label = info["label"]
+            col = class_colors[label]
             c = info["clusterer"]
             dims2 = info["dims2"]
             d1, d2 = int(dims2[0]), int(dims2[1])
@@ -854,11 +865,27 @@ class ShuShu:
 
             zmin, zmax = float(np.nanmin(ZZ)), float(np.nanmax(ZZ))
             frontier_val = 0.5 if (0.5 >= zmin and 0.5 <= zmax) else 0.5 * (zmin + zmax)
-            ax.contour(XX1, XX2, ZZ, levels=[frontier_val], colors="k", linewidths=2)
+            ax.contour(
+                XX1,
+                XX2,
+                ZZ,
+                levels=[frontier_val],
+                colors=[col],
+                linewidths=2,
+            )
 
             for j, yv in enumerate(uniq):
                 mask = y == yv
-                ax.scatter(X[mask, d1], X[mask, d2], s=16, alpha=0.8, label=str(yv), color=cmap_pts(j))
+                ax.scatter(
+                    X[mask, d1],
+                    X[mask, d2],
+                    s=18,
+                    alpha=0.8,
+                    label=str(yv),
+                    color=class_colors[yv],
+                    edgecolor="k",
+                    linewidths=0.3,
+                )
 
             if c.centroids_ is not None and c.centroids_.shape[0] > 0:
                 C2 = c.centroids_[:, [d1, d2]]
@@ -866,8 +893,8 @@ class ShuShu:
                     C2[:, 0],
                     C2[:, 1],
                     marker="X",
-                    s=160,
-                    color="lime",
+                    s=80,
+                    color=col,
                     edgecolor="k",
                     label=f"centro {label} ({c.centroids_.shape[0]})",
                 )
@@ -892,14 +919,16 @@ class ShuShu:
                             np.r_[H[:, 0], H[0, 0]],
                             np.r_[H[:, 1], H[0, 1]],
                             linewidth=2,
-                            color="white",
+                            color=col,
                             alpha=0.9,
                         )
                     except Exception:
                         pass
 
             handles, labels_ = ax.get_legend_handles_labels()
-            frontier_handle = Line2D([], [], color="k", lw=2, label=f"frontera {label} ({frontier_val:.2f})")
+            frontier_handle = Line2D(
+                [], [], color=col, lw=2, label=f"frontera {label} ({frontier_val:.2f})"
+            )
             handles.append(frontier_handle)
             ax.legend(handles=handles)
 
