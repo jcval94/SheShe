@@ -25,6 +25,8 @@ def test_shushu_clusterer_basic():
     cl.fit(X, score_fn=score_fn)
     assert cl.centroids_.shape[1] == X.shape[1]
     assert isinstance(cl.clusters_, list)
+    assert hasattr(cl, "regions_")
+    assert isinstance(cl.regions_, list)
     labels = cl.predict(X[:3])
     assert labels.shape == (3,)
     labels2, ids2 = cl.predict_regions(X[:3])
@@ -49,4 +51,6 @@ def test_shushu_multiclass_basic():
     labels, ids = sh.predict_regions(X[:5])
     assert labels.shape == (5,)
     assert ids.shape == (5,)
+    assert hasattr(sh, "regions_")
+    assert isinstance(sh.regions_, list)
 
