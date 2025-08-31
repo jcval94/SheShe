@@ -15,8 +15,7 @@ def test_modal_scout_ensemble_basic():
         scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
         cv=2,
     )
-    mse.fit(X, y)
-    yhat = mse.predict(X)
+    yhat = mse.fit_predict(X, y)
     assert yhat.shape == y.shape
     proba = mse.predict_proba(X[:5])
     assert proba.shape[0] == 5
@@ -59,9 +58,10 @@ def test_modal_scout_ensemble_prediction_within_region_optional():
         scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
         cv=2,
     )
-    mse.fit(X, y)
+    yhat = mse.fit_predict(X, y)
     assert hasattr(mse, "labels_")
-    assert np.array_equal(mse.labels_, mse.predict(X))
+    assert np.array_equal(yhat, mse.labels_)
+    assert np.array_equal(yhat, mse.predict(X))
     assert not hasattr(mse, "label2id_")
 
 
@@ -80,8 +80,7 @@ def test_modal_scout_ensemble_with_shushu():
             "max_iter": 5,
         },
     )
-    mse.fit(X, y)
-    yhat = mse.predict(X)
+    yhat = mse.fit_predict(X, y)
     assert yhat.shape == y.shape
     proba = mse.predict_proba(X[:5])
     assert proba.shape[0] == 5

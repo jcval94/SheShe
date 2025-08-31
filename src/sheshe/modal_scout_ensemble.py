@@ -480,6 +480,26 @@ class ModalScoutEnsemble(BaseEstimator):
     self.logger.info("Submodelos=%d | Pesos≈%s", len(self.models_), np.round(self.weights_, 3))
     return self
 
+  def fit_predict(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Ajusta el ensamble y devuelve las predicciones para ``X``.
+
+    Equivalente a ejecutar ``fit(X, y)`` seguido de ``predict(X)``.
+
+    Parameters
+    ----------
+    X : ndarray of shape (n_samples, n_features)
+        Datos de entrenamiento.
+    y : ndarray of shape (n_samples,)
+        Valores objetivo.
+
+    Returns
+    -------
+    ndarray
+        Predicciones del modelo para cada muestra de ``X``.
+    """
+    self.fit(X, y)
+    return self.predict(X)
+
   def predict_proba(self, X: np.ndarray) -> np.ndarray:
     if self.ensemble_method.lower() == "shushu":
       if self.fitted_task_ != "classification":
