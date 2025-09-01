@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 
 from sheshe import ModalScoutEnsemble
 
@@ -103,3 +105,62 @@ def test_modal_scout_ensemble_decision_function():
     assert scores.shape == (5, len(mse.classes_))
     pred_from_scores = mse.classes_[np.argmax(scores, axis=1)]
     assert np.array_equal(pred_from_scores, mse.predict(X[:5]))
+
+
+def test_modal_scout_ensemble_interpretability_summary():
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+        cv=2,
+    )
+    mse.fit(X, y)
+    summary = mse.interpretability_summary(X, y, per_model=True)
+    assert isinstance(summary, pd.DataFrame)
+    # aggregate row is last
+    assert summary.iloc[-1]["model_id"] == "aggregate"
+    # weights align with report
+    rep = mse.report()
+    np.testing.assert_allclose(summary.iloc[:-1]["weight"].to_numpy(), [r["weight"] for r in rep])
+
+
+def test_modal_scout_ensemble_save_load(tmp_path):
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+        cv=2,
+    )
+    mse.fit(X, y)
+    y_pred = mse.predict(X)
+    path = tmp_path / "mse.pkl"
+    mse.save(path)
+    mse_loaded = ModalScoutEnsemble.load(path)
+    y_pred_loaded = mse_loaded.predict(X)
+    assert np.array_equal(y_pred, y_pred_loaded)
+
+
+def test_modal_scout_ensemble_score():
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+        cv=2,
+    )
+    mse.fit(X, y)
+    expected = accuracy_score(y, mse.predict(X))
+    assert np.isclose(mse.score(X, y), expected)
+    # metric callable
+    assert np.isclose(
+        mse.score(X, y, metric=balanced_accuracy_score),
+        balanced_accuracy_score(y, mse.predict(X)),
+    )
