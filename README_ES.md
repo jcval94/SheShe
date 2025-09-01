@@ -43,7 +43,7 @@ PYTHONPATH=src pytest -q
 
 ## API rápida
 
-La librería expone seis objetos principales:
+La librería expone siete objetos principales:
 
 - `ModalBoundaryClustering`
 - `ClusterRegion` – dataclass con la información de cada región
@@ -51,6 +51,7 @@ La librería expone seis objetos principales:
 - `ModalScoutEnsemble`
 - `RegionInterpreter` – convierte `ClusterRegion` en reglas interpretables
 - `ShuShu` – búsqueda de máximos por gradiente
+- `CheChe` – calcula fronteras 2D sobre pares de características seleccionados
 
 Las figuras ilustrativas de estos objetos se omiten porque el repositorio no admite archivos binarios.
 
@@ -62,6 +63,8 @@ from sheshe import (
     ClusterRegion,
     RegionInterpreter,
     ShuShu,
+    CheChe,
+    plot_cheche,
 )
 
 # clasificación
@@ -157,6 +160,25 @@ atributo `regions_`. Cada `ClusterRegion` incluye:
   Usa exactitud (accuracy) para clasificación y R² para regresión.
 - `metrics`: diccionario opcional con métricas adicionales por clúster como
   precision, recall, F1, MSE o MAE.
+
+### Exploración de fronteras 2D con CheChe
+
+`CheChe` evalúa pares de características y calcula el "convex hull" que
+contiene las muestras para cada par seleccionado. La función `plot_cheche`
+superpone estas fronteras sobre gráficos de dispersión de los datos originales:
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import CheChe, plot_cheche
+
+X, y = load_iris(return_X_y=True)
+ch = CheChe().fit(X, y, feature_names=["sepal length", "sepal width", "petal length", "petal width"])
+plot_cheche(ch, X, class_index=0)
+```
+
+El ejemplo anterior dibuja la frontera para el índice de clase ``0``. Si `fit`
+se invoca sin etiquetas, `class_index` puede omitirse para graficar la frontera
+en modo escalar.
 
 ## ShuShu – búsqueda de máximos por gradiente
 

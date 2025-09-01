@@ -66,7 +66,7 @@ PYTHONPATH=src pytest -q
 
 ## Quick API
 
-The library exposes six main objects:
+The library exposes seven main objects:
 
 - `ModalBoundaryClustering`
 - `ClusterRegion` – dataclass describing a discovered region
@@ -74,6 +74,7 @@ The library exposes six main objects:
 - `ModalScoutEnsemble`
 - `RegionInterpreter` – turn `ClusterRegion` objects into human-readable rules
 - `ShuShu` – gradient-based search for local maxima
+- `CheChe` – compute 2D frontiers on selected feature pairs
 
 Figures illustrating these objects are omitted because binary assets are not allowed in this repository.
 
@@ -85,6 +86,8 @@ from sheshe import (
     ClusterRegion,
     RegionInterpreter,
     ShuShu,
+    CheChe,
+    plot_cheche,
 )
 
 # classification
@@ -207,6 +210,25 @@ After fitting, `ModalBoundaryClustering` stores the discovered regions in the
   (accuracy for classification, R² for regression)
 - `metrics`: optional dictionary with additional per-cluster metrics such as
   precision, recall, F1, MSE or MAE
+
+### 2D frontier exploration with CheChe
+
+`CheChe` evaluates pairs of features and computes the convex hull enclosing
+the samples for each selected pair. The helper `plot_cheche` overlays these
+frontiers on scatter plots of the original data:
+
+```python
+from sklearn.datasets import load_iris
+from sheshe import CheChe, plot_cheche
+
+X, y = load_iris(return_X_y=True)
+ch = CheChe().fit(X, y, feature_names=["sepal length", "sepal width", "petal length", "petal width"])
+plot_cheche(ch, X, class_index=0)
+```
+
+The example above draws the frontier for class index ``0``. When ``fit`` is
+called without labels, `class_index` can be omitted to plot the scalar mode
+frontier.
 
 ## ShuShu – gradient-based maxima search
 
