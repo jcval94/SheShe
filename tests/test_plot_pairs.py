@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pytest
 from sklearn.datasets import load_iris
 from sklearn.datasets import make_regression
-from sheshe import ModalBoundaryClustering
+from sheshe import ModalBoundaryClustering, ShuShu
 
 
 def test_plot_pairs_mismatched_y_length():
@@ -51,6 +51,28 @@ def test_plot_pairs_show_centroids_toggle():
     plt.close('all')
 
     sh.plot_pairs(X, y, max_pairs=1, max_classes=1, show_centroids=False)
+    ax = plt.gcf().axes[0]
+    texts = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert all("centro" not in txt for txt in texts)
+    plt.close('all')
+
+
+def test_shushu_plot_pairs_show_centroids():
+    X, y = load_iris(return_X_y=True)
+    sh = ShuShu(
+        k=5,
+        rf_estimators=5,
+        importance_sample_size=60,
+        max_iter=5,
+        random_state=0,
+    ).fit(X, y)
+    sh.plot_pairs(X, y, max_pairs=1, show_centroids=True)
+    ax = plt.gcf().axes[0]
+    texts = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert any("centro" in txt for txt in texts)
+    plt.close('all')
+
+    sh.plot_pairs(X, y, max_pairs=1, show_centroids=False)
     ax = plt.gcf().axes[0]
     texts = [t.get_text() for t in ax.get_legend().get_texts()]
     assert all("centro" not in txt for txt in texts)

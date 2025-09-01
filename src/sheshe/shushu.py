@@ -863,8 +863,11 @@ class ShuShu:
                     ax.scatter(X[mask, i], X[mask, j], s=18, alpha=0.8, label=str(cls))
             if show_centroids and self.regions_:
                 for reg in self.regions_:
-                    ctr = np.asarray(reg.get("center"))
-                    if ctr.shape[0] > max(i, j):
+                    ctr = reg.get("center", reg.get("centroid"))
+                    if ctr is None:
+                        continue
+                    ctr = np.atleast_1d(np.asarray(ctr))
+                    if ctr.ndim == 1 and ctr.shape[0] > max(i, j):
                         ax.scatter(ctr[i], ctr[j], marker="X", s=80, color="k", label="centro")
             ax.set_xlabel(feature_names[i])
             ax.set_ylabel(feature_names[j])
