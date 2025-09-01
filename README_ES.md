@@ -165,14 +165,21 @@ atributo `regions_`. Cada `ClusterRegion` incluye:
 
 `CheChe` evalúa pares de características y calcula el "convex hull" que
 contiene las muestras para cada par seleccionado. La función `plot_cheche`
-superpone estas fronteras sobre gráficos de dispersión de los datos originales:
+superpone estas fronteras sobre gráficos de dispersión de los datos originales,
+y el argumento opcional `mapping_level` permite muestrear solo una fracción de
+los puntos antes de calcular las fronteras:
 
 ```python
 from sklearn.datasets import load_iris
 from sheshe import CheChe, plot_cheche
 
 X, y = load_iris(return_X_y=True)
-ch = CheChe().fit(X, y, feature_names=["sepal length", "sepal width", "petal length", "petal width"])
+ch = CheChe().fit(
+    X,
+    y,
+    feature_names=["sepal length", "sepal width", "petal length", "petal width"],
+    mapping_level=2,  # usa una de cada dos muestras
+)
 plot_cheche(ch, X, class_index=0)
 ```
 

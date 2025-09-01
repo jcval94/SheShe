@@ -53,3 +53,24 @@ def test_cheche_regression_frontiers():
     assert len(ch.per_class_) == 10
     f0 = ch.get_frontier((0, 1), class_index=0)
     assert f0.shape[1] == 2
+
+
+def test_mapping_level_subsamples_points():
+    X = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.1, 0.2, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.2, 0.8, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.8, 0.9, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.9, 0.1, 0.0],
+        ]
+    )
+    ch_mapped = CheChe().fit(X, max_pairs=1, mapping_level=2)
+    ch_sub = CheChe().fit(X[::2], max_pairs=1)
+    assert set(ch_mapped.frontiers_.keys()) == {(0, 1)}
+    np.testing.assert_allclose(
+        ch_mapped.get_frontier((0, 1)), ch_sub.get_frontier((0, 1))
+    )

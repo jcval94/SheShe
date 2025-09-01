@@ -42,6 +42,7 @@ class CheChe:
         # internal storage of frontiers and chosen pairs
         self.frontiers_: Dict[Tuple[int, int], np.ndarray] = {}
         self.pairs_: List[Tuple[int, int]] = []
+        self.mapping_level_: Optional[int] = None
 
     # ------------------------------------------------------------------
     def _compute_frontiers(
@@ -101,6 +102,15 @@ class CheChe:
         return pairs
 
     # ------------------------------------------------------------------
+    def _subsample(self, X: np.ndarray) -> np.ndarray:
+        """Return ``X`` downsampled according to ``mapping_level_``."""
+
+        level = self.mapping_level_
+        if level is None or level <= 1:
+            return X
+        return X[::level]
+
+    # ------------------------------------------------------------------
     def fit(
         self,
         X: np.ndarray,
@@ -112,15 +122,24 @@ class CheChe:
         score_fn_multi: Optional[Callable[[np.ndarray], np.ndarray]] = None,
         score_fn_per_class: Optional[List[Callable[[np.ndarray], np.ndarray]]] = None,
         max_pairs: Optional[int] = 10,
+        mapping_level: Optional[int] = None,
     ) -> "CheChe":
         """Estimate frontiers for selected 2D combinations of features.
 
         The additional parameters mirror :meth:`ShuShu.fit` for API
         compatibility but are not used internally beyond being stored for
         reference.
+
+        Parameters
+        ----------
+        mapping_level:
+            Optional integer controlling the downsampling factor when
+            computing frontiers. ``None`` or ``1`` uses all points, ``2`` uses
+            every other point, ``3`` every third point, and so on.
         """
 
         X = np.asarray(X, dtype=float)
+        self.mapping_level_ = mapping_level
         self.feature_names_ = (
             feature_names if feature_names is not None else [f"x{j}" for j in range(X.shape[1])]
         )
@@ -136,7 +155,8 @@ class CheChe:
 
         if y is None:
             self.mode_ = "scalar"
-            self.frontiers_ = self._compute_frontiers(X, self.pairs_)
+            X_used = self._subsample(X)
+            self.frontiers_ = self._compute_frontiers(X_used, self.pairs_)
             for cid, (dims, boundary) in enumerate(self.frontiers_.items()):
                 self.regions_.append({"cluster_id": cid, "dims": dims, "frontier": boundary})
             return self
@@ -157,6 +177,7 @@ class CheChe:
             per_class: Dict[int, Dict] = {}
             for ci, cls in enumerate(classes):
                 subset = X[y == cls]
+                subset = self._subsample(subset)
                 fr = self._compute_frontiers(subset, self.pairs_)
                 per_class[ci] = {"label": cls, "frontiers": fr}
                 for dims, boundary in fr.items():
@@ -184,6 +205,7 @@ class CheChe:
             if not np.any(mask):
                 continue
             subset = X[mask]
+            subset = self._subsample(subset)
             fr = self._compute_frontiers(subset, self.pairs_)
             label = (deciles[k], deciles[k + 1])
             per_class[k] = {"label": label, "frontiers": fr}

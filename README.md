@@ -215,14 +215,21 @@ After fitting, `ModalBoundaryClustering` stores the discovered regions in the
 
 `CheChe` evaluates pairs of features and computes the convex hull enclosing
 the samples for each selected pair. The helper `plot_cheche` overlays these
-frontiers on scatter plots of the original data:
+frontiers on scatter plots of the original data, and the optional
+`mapping_level` argument can subsample the points before calculating the
+frontiers:
 
 ```python
 from sklearn.datasets import load_iris
 from sheshe import CheChe, plot_cheche
 
 X, y = load_iris(return_X_y=True)
-ch = CheChe().fit(X, y, feature_names=["sepal length", "sepal width", "petal length", "petal width"])
+ch = CheChe().fit(
+    X,
+    y,
+    feature_names=["sepal length", "sepal width", "petal length", "petal width"],
+    mapping_level=2,  # use every other sample
+)
 plot_cheche(ch, X, class_index=0)
 ```
 
