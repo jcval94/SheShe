@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score
 import matplotlib.pyplot as plt
 
 from sheshe import ShuShu
@@ -52,4 +54,30 @@ def test_shushu_multiclass_basic():
     assert df.shape == (5, 2)
     assert hasattr(sh, "regions_")
     assert isinstance(sh.regions_, list)
+
+
+def test_transform_and_fit_transform():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh1 = _small_clusterer(random_state=0)
+    T1 = sh1.fit_transform(X, y)
+    sh2 = _small_clusterer(random_state=0)
+    sh2.fit(X, y)
+    T2 = sh2.transform(X)
+    assert np.allclose(T1, T2)
+    assert np.allclose(T1.sum(axis=1), 1.0)
+
+
+def test_get_cluster_and_score():
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    sh = _small_clusterer(random_state=0)
+    sh.fit(X, y)
+    info = sh.get_cluster(0, with_geometry=True)
+    assert set(info.keys()) == {"id", "label_mode", "support", "feature_stats", "geometry"}
+    assert info["support"] > 0
+    acc = sh.score(X, y)
+    assert acc == pytest.approx(accuracy_score(y, sh.predict(X)))
+    f1 = sh.score(X, y, metric="f1_macro")
+    assert f1 == pytest.approx(f1_score(y, sh.predict(X), average="macro"))
 
