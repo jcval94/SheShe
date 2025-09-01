@@ -13,12 +13,13 @@ minimal adaptations so it can live inside the ``sheshe`` package.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, Self
 from matplotlib.lines import Line2D
 from itertools import combinations
 
 import time
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -32,6 +33,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import load_iris
+from sklearn.metrics import accuracy_score
 
 # (Opcional) hull 2D si existe SciPy
 try:  # pragma: no cover - optional dependency
@@ -559,6 +561,8 @@ class ShuShu:
     returning the detected maxima directly.
     """
 
+    __artifact_version__ = "1.0"
+
     def __init__(
         self,
         clusterer_factory: Callable[[], _ShuShu] | None = None,
@@ -581,6 +585,7 @@ class ShuShu:
         self.score_fn_: Optional[Callable[[np.ndarray], np.ndarray]] = None
         # expose discovered regions from underlying clusterers
         self.regions_: List[Dict] = []
+        self._cache: Dict[str, Any] = {}
 
     def _build_score_fns(
         self,
@@ -625,15 +630,15 @@ class ShuShu:
 
     def fit(
         self,
-        X: np.ndarray,
-        y: Optional[np.ndarray] = None,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
         *,
-        score_fn: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        score_fn: Optional[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]] = None,
         feature_names: Optional[List[str]] = None,
         score_model=None,
-        score_fn_multi: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        score_fn_per_class: Optional[List[Callable[[np.ndarray], np.ndarray]]] = None,
-    ):
+        score_fn_multi: Optional[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]] = None,
+        score_fn_per_class: Optional[List[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]]] = None,
+    ) -> Self:
         X = np.asarray(X, dtype=float)
         if y is None:
             if score_fn is None:
@@ -697,7 +702,9 @@ class ShuShu:
         self.regions_ = all_regions
         return self
 
-    def fit_predict(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_kwargs) -> np.ndarray:
+    def fit_predict(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None, **fit_kwargs
+    ) -> npt.NDArray[np.int_]:
         """Convenience method that fits and then predicts ``X``.
 
         Parameters
@@ -712,7 +719,7 @@ class ShuShu:
         self.fit(X, y, **fit_kwargs)
         return self.predict(X)
 
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    def predict_proba(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
         """Return class probabilities for ``X``.
 
         Only available when the model was fit in multiclass mode.  Relies on
@@ -725,7 +732,7 @@ class ShuShu:
             raise RuntimeError("Underlying model lacks predict_proba")
         return np.asarray(self.model_.predict_proba(X))
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.int_]:
         """Predict labels or cluster ids for ``X``.
 
         * If fitted with ``y`` (multiclass mode) returns class labels using the
@@ -745,7 +752,9 @@ class ShuShu:
                 raise RuntimeError("Clusterer missing for predict")
             return self.clusterer_._assign_labels(X)
 
-    def decision_function(self, X: np.ndarray) -> np.ndarray:
+    def decision_function(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame
+    ) -> npt.NDArray[np.float_]:
         """Return raw decision scores for ``X``.
 
         In multiclass mode this delegates to the underlying ``score_model`` if
@@ -775,37 +784,123 @@ class ShuShu:
             dists = np.linalg.norm(ZX[:, None, :] - Uc[None, :, :], axis=2)
             return -dists
 
-    def predict_regions(self, X: np.ndarray):
-        """Predict class labels and cluster ids for ``X``.
+    def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
+        """Feature transformation is not supported."""
+        raise NotImplementedError("ShuShu does not implement transform")
 
-        Returns a tuple ``(labels, cluster_ids)`` similar to
-        :class:`ModalScoutEnsemble`.
+    def fit_transform(
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
+        **fit_kwargs: Any,
+    ) -> npt.NDArray[np.float_]:
+        """Fit to data, then transform it.
 
-        * In multiclass mode ``labels`` are class predictions and
-          ``cluster_ids`` the id of the centroid of the predicted class.
-        * In scalar mode both arrays contain the index of the closest centroid.
+        Notes
+        -----
+        ShuShu does not implement a transformation; calling this method will
+        raise ``NotImplementedError``.
+        """
+        raise NotImplementedError("ShuShu does not implement fit_transform")
+
+    def predict_regions(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame
+    ) -> pd.DataFrame:
+        """Predict region assignments for ``X``.
+
+        Parameters
+        ----------
+        X : array-like or DataFrame
+            Samples to evaluate.
+
+        Returns
+        -------
+        DataFrame
+            Columns ``label`` and ``region_id``.
         """
         if self.mode_ is None:
             raise RuntimeError("Model not fitted")
-        X = np.asarray(X, dtype=float)
+        if isinstance(X, pd.DataFrame):
+            index = X.index
+            X_arr = X.to_numpy(dtype=float)
+        else:
+            index = None
+            X_arr = np.asarray(X, dtype=float)
         if self.mode_ == "multiclass":
             if self.model_ is None:
                 raise RuntimeError("Model missing for predict_regions")
-            labels = np.asarray(self.model_.predict(X))
-            cluster_ids = np.full(X.shape[0], -1, dtype=int)
+            labels = np.asarray(self.model_.predict(X_arr))
+            cluster_ids = np.full(X_arr.shape[0], -1, dtype=int)
             for info in self.per_class_.values():
                 cls_label = info["label"]
                 mask = labels == cls_label
                 if np.any(mask):
                     clus = info["clusterer"]
                     if clus.centroids_ is not None and clus.centroids_.shape[0] > 0:
-                        cluster_ids[mask] = clus._assign_labels(X[mask])
-            return labels, cluster_ids
+                        cluster_ids[mask] = clus._assign_labels(X_arr[mask])
         else:
             if self.clusterer_ is None:
                 raise RuntimeError("Clusterer missing for predict_regions")
-            labels = self.clusterer_._assign_labels(X)
-            return labels, labels.copy()
+            labels = self.clusterer_._assign_labels(X_arr)
+            cluster_ids = labels.copy()
+        return pd.DataFrame({"label": labels.astype(int), "region_id": cluster_ids}, index=index)
+
+    def score(
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: npt.NDArray,
+        *,
+        metric: str | Callable[[npt.NDArray, npt.NDArray], float] = "auto",
+        **metric_kwargs: Any,
+    ) -> float:
+        """Compute a score for predictions on ``X``.
+
+        Parameters
+        ----------
+        X : array-like or DataFrame
+            Input samples.
+        y : array-like
+            Ground truth labels.
+        metric : str or callable, default="auto"
+            Scoring metric. ``"auto"`` uses accuracy.
+        **metric_kwargs : dict
+            Extra arguments to the scoring callable.
+
+        Returns
+        -------
+        float
+            Score value.
+        """
+        if metric == "auto":
+            metric_fn = accuracy_score
+            y_pred = self.predict(X)
+            return float(metric_fn(y, y_pred, **metric_kwargs))
+        if isinstance(metric, str):
+            from sklearn.metrics import get_scorer
+
+            scorer = get_scorer(metric)
+            return float(scorer(self, X, y))
+        y_pred = self.predict(X)
+        return float(metric(y, y_pred, **metric_kwargs))
+
+    def save(self, filepath: str | Path) -> None:
+        """Persist the model with ``joblib`` including a version tag."""
+        payload = {"__artifact_version__": self.__artifact_version__, "model": self}
+        joblib.dump(payload, filepath)
+
+    @classmethod
+    def load(cls, filepath: str | Path) -> "ShuShu":
+        """Load a previously saved model."""
+        payload = joblib.load(filepath)
+        ver = payload.get("__artifact_version__")
+        if ver != cls.__artifact_version__:
+            raise ValueError(
+                f"Artifact version mismatch: expected {cls.__artifact_version__}, got {ver}"
+            )
+        model = payload.get("model")
+        if not isinstance(model, cls):
+            raise TypeError("Loaded object is not a ShuShu instance")
+        return model
 
     def plot_pairs(
         self,

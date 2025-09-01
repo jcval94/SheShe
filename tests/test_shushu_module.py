@@ -29,8 +29,8 @@ def test_shushu_clusterer_basic():
     assert isinstance(cl.regions_, list)
     labels = cl.predict(X[:3])
     assert labels.shape == (3,)
-    labels2, ids2 = cl.predict_regions(X[:3])
-    assert np.array_equal(labels2, ids2)
+    df2 = cl.predict_regions(X[:3])
+    assert np.array_equal(df2["label"].to_numpy(), df2["region_id"].to_numpy())
 
 
 def test_shushu_multiclass_basic():
@@ -48,9 +48,8 @@ def test_shushu_multiclass_basic():
     assert yhat.shape == y.shape
     proba = sh.predict_proba(X[:5])
     assert np.allclose(proba.sum(axis=1), 1.0)
-    labels, ids = sh.predict_regions(X[:5])
-    assert labels.shape == (5,)
-    assert ids.shape == (5,)
+    df = sh.predict_regions(X[:5])
+    assert df.shape == (5, 2)
     assert hasattr(sh, "regions_")
     assert isinstance(sh.regions_, list)
 

@@ -12,10 +12,15 @@ to evaluate, rather than exhaustively exploring all possible pairs.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Self
 from itertools import combinations
 
 import numpy as np
+import numpy.typing as npt
+import pandas as pd
+from pathlib import Path
+import joblib
+from sklearn.metrics import accuracy_score
 
 try:  # pragma: no cover - optional dependency
     from scipy.spatial import ConvexHull
@@ -27,7 +32,10 @@ except Exception:  # pragma: no cover - SciPy not available
 class CheChe:
     """Compute convex hull frontiers for selected 2D subspaces."""
 
-    def __init__(self) -> None:
+    __artifact_version__ = "1.0"
+
+    def __init__(self, random_state: Optional[int] = None) -> None:
+        self.random_state = random_state
         # Public attributes mimicking ``ShuShu`` for a familiar API ---------
         self.feature_names_: Optional[List[str]] = None
         self.clusterer_: Optional[object] = None  # ``CheChe`` has no clusterer
@@ -38,6 +46,7 @@ class CheChe:
         self.score_fn_: Optional[Callable[[np.ndarray], np.ndarray]] = None
         self.regions_: List[Dict] = []
         self.deciles_: Optional[np.ndarray] = None
+        self._cache: Dict[str, Any] = {}
 
         # internal storage of frontiers and chosen pairs
         self.frontiers_: Dict[Tuple[int, int], np.ndarray] = {}
@@ -149,17 +158,17 @@ class CheChe:
     # ------------------------------------------------------------------
     def fit(
         self,
-        X: np.ndarray,
-        y: Optional[np.ndarray] = None,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
         *,
-        score_fn: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        score_fn: Optional[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]] = None,
         feature_names: Optional[List[str]] = None,
         score_model=None,
-        score_fn_multi: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        score_fn_per_class: Optional[List[Callable[[np.ndarray], np.ndarray]]] = None,
+        score_fn_multi: Optional[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]] = None,
+        score_fn_per_class: Optional[List[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]]] = None,
         max_pairs: Optional[int] = 10,
         mapping_level: Optional[int] = None,
-    ) -> "CheChe":
+    ) -> Self:
         """Estimate frontiers for selected 2D combinations of features.
 
         The additional parameters mirror :meth:`ShuShu.fit` for API
@@ -254,25 +263,27 @@ class CheChe:
         return self
 
     # ------------------------------------------------------------------
-    def fit_predict(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_kwargs) -> np.ndarray:
+    def fit_predict(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None, **fit_kwargs
+    ) -> npt.NDArray[np.int_]:
         """Fit the model and immediately return predictions for ``X``."""
 
         self.fit(X, y, **fit_kwargs)
         return self.predict(X)
 
     # ------------------------------------------------------------------
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.int_]:
         """Predict class labels or region ids for ``X``."""
 
         if self.mode_ is None:
             raise RuntimeError("Model not fitted")
-        labels, cluster_ids = self.predict_regions(X)
+        df = self.predict_regions(X)
         if self.mode_ == "scalar":
-            return cluster_ids
-        return labels
+            return df["region_id"].to_numpy()
+        return df["label"].to_numpy()
 
     # ------------------------------------------------------------------
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    def predict_proba(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
         """Return class probabilities for ``X`` when in multiclass mode."""
 
         if self.mode_ != "multiclass" or self.classes_ is None:
@@ -287,20 +298,23 @@ class CheChe:
         return proba / row_sums
 
     # ------------------------------------------------------------------
-    def predict_regions(self, X: np.ndarray):
-        """Return labels and cluster ids for samples in ``X``.
-
-        Each sample is assigned to the first region whose frontier contains it.
-        Samples outside all regions receive ``-1`` for both label and cluster id.
-        """
+    def predict_regions(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame
+    ) -> pd.DataFrame:
+        """Return labels and region ids for samples in ``X``."""
 
         if self.mode_ is None:
             raise RuntimeError("Model not fitted")
 
         from matplotlib.path import Path  # local import to keep dependency optional
 
-        X = np.asarray(X, dtype=float)
-        n = X.shape[0]
+        if isinstance(X, pd.DataFrame):
+            index = X.index
+            X_arr = X.to_numpy(dtype=float)
+        else:
+            index = None
+            X_arr = np.asarray(X, dtype=float)
+        n = X_arr.shape[0]
         labels = np.full(n, -1, dtype=object)
         cluster_ids = np.full(n, -1, dtype=int)
 
@@ -308,17 +322,19 @@ class CheChe:
             dims = reg["dims"]
             boundary = reg["frontier"]
             path = Path(boundary)
-            pts = X[:, list(dims)]
+            pts = X_arr[:, list(dims)]
             mask = path.contains_points(pts)
             if not np.any(mask):
                 continue
             lab = reg.get("label", reg["cluster_id"])
             labels[mask] = lab
             cluster_ids[mask] = reg["cluster_id"]
-        return labels, cluster_ids
+        return pd.DataFrame({"label": labels.astype(int), "region_id": cluster_ids}, index=index)
 
     # ------------------------------------------------------------------
-    def decision_function(self, X: np.ndarray) -> np.ndarray:
+    def decision_function(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame
+    ) -> npt.NDArray[np.float_]:
         """Return negative distances to region centers for ``X``.
 
         The output has shape ``(n_samples, n_regions)``.
@@ -341,6 +357,68 @@ class CheChe:
             dists = np.linalg.norm(pts - center[None, :], axis=1)
             scores[:, idx] = -dists
         return scores
+
+    def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
+        """Feature transformation is not available for CheChe."""
+        raise NotImplementedError("CheChe does not implement transform")
+
+    def fit_transform(
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
+        **fit_kwargs: Any,
+    ) -> npt.NDArray[np.float_]:
+        """Fit to data, then transform it.
+
+        Notes
+        -----
+        ``CheChe`` lacks a transformation step and this method always raises
+        ``NotImplementedError``.
+        """
+        raise NotImplementedError("CheChe does not implement fit_transform")
+
+    def score(
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: npt.NDArray,
+        *,
+        metric: str | Callable[[npt.NDArray, npt.NDArray], float] = "auto",
+        **metric_kwargs: Any,
+    ) -> float:
+        """Score predictions using ``metric``.
+
+        ``metric='auto'`` defaults to accuracy.
+        """
+        if metric == "auto":
+            metric_fn = accuracy_score
+            y_pred = self.predict(X)
+            return float(metric_fn(y, y_pred, **metric_kwargs))
+        if isinstance(metric, str):
+            from sklearn.metrics import get_scorer
+
+            scorer = get_scorer(metric)
+            return float(scorer(self, X, y))
+        y_pred = self.predict(X)
+        return float(metric(y, y_pred, **metric_kwargs))
+
+    def save(self, filepath: str | Path) -> None:
+        """Persist the estimator with joblib including version metadata."""
+        payload = {"__artifact_version__": self.__artifact_version__, "model": self}
+        joblib.dump(payload, filepath)
+
+    @classmethod
+    def load(cls, filepath: str | Path) -> "CheChe":
+        """Load an estimator saved with :meth:`save`."""
+        payload = joblib.load(filepath)
+        ver = payload.get("__artifact_version__")
+        if ver != cls.__artifact_version__:
+            raise ValueError(
+                f"Artifact version mismatch: expected {cls.__artifact_version__}, got {ver}"
+            )
+        model = payload.get("model")
+        if not isinstance(model, cls):
+            raise TypeError("Loaded object is not a CheChe instance")
+        return model
 
     # ------------------------------------------------------------------
     def get_frontier(

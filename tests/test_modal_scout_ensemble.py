@@ -39,13 +39,13 @@ def test_modal_scout_ensemble_prediction_within_region():
     assert hasattr(mse, "labels_")
     assert hasattr(mse, "label2id_")
     assert mse.labels_.shape[0] == X.shape[0]
-    labels, ids = mse.predict_regions(X)
-    assert np.array_equal(labels, mse.labels_)
-    assert np.array_equal(ids, mse.label2id_)
+    df = mse.predict_regions(X)
+    assert np.array_equal(df["label"].to_numpy(), mse.labels_)
+    assert np.array_equal(df["region_id"].to_numpy(), mse.label2id_)
     far_point = np.array([[1000, 1000, 1000, 1000]])
-    far_label, far_id = mse.predict_regions(far_point)
-    assert far_label[0] == -1
-    assert far_id[0] == -1
+    far_df = mse.predict_regions(far_point)
+    assert far_df.iloc[0]["label"] == -1
+    assert far_df.iloc[0]["region_id"] == -1
 
 
 def test_modal_scout_ensemble_prediction_within_region_optional():
@@ -84,9 +84,8 @@ def test_modal_scout_ensemble_with_shushu():
     assert yhat.shape == y.shape
     proba = mse.predict_proba(X[:5])
     assert proba.shape[0] == 5
-    labels, ids = mse.predict_regions(X[:5])
-    assert labels.shape == (5,)
-    assert ids.shape == (5,)
+    df = mse.predict_regions(X[:5])
+    assert df.shape == (5, 2)
 
 
 def test_modal_scout_ensemble_decision_function():

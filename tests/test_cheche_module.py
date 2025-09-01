@@ -119,10 +119,10 @@ def test_cheche_prediction_api_multiclass():
     assert proba.shape == (len(X_test), 2)
     assert np.allclose(proba.sum(axis=1), 1.0)
 
-    labels, ids = ch.predict_regions(X_test)
-    assert np.array_equal(labels, y_test)
-    assert ids.min() >= 0
+    df = ch.predict_regions(X_test)
+    assert np.array_equal(df["label"].to_numpy(), y_test)
+    assert df["region_id"].min() >= 0
 
     scores = ch.decision_function(X_test)
     assert scores.shape == (len(X_test), len(ch.regions_))
-    assert np.array_equal(np.argmax(scores, axis=1), ids)
+    assert np.array_equal(np.argmax(scores, axis=1), df["region_id"].to_numpy())

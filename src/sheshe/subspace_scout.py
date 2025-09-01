@@ -100,12 +100,20 @@ class SubspaceScout:
         mi = np.zeros(d)
         if self.task == 'classification':
             for i in range(d):
-                mi[i] = mutual_info_classif(Xd[:, [i]], y, discrete_features=True,
-                                            random_state=self.random_state)[0]
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=UserWarning)
+                    mi[i] = mutual_info_classif(
+                        Xd[:, [i]], y, discrete_features=True,
+                        random_state=self.random_state
+                    )[0]
         else:
             for i in range(d):
-                mi[i] = mutual_info_regression(Xd[:, [i]], y, discrete_features=True,
-                                               random_state=self.random_state)[0]
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=UserWarning)
+                    mi[i] = mutual_info_regression(
+                        Xd[:, [i]], y, discrete_features=True,
+                        random_state=self.random_state
+                    )[0]
         return mi
 
     # def _mi_joint(self, Xd_cols, y, key: Tuple[int, ...]):
@@ -185,6 +193,7 @@ class SubspaceScout:
         if keep.size:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
+                warnings.simplefilter("ignore", category=FutureWarning)
                 try:
                     disc = KBinsDiscretizer(
                         n_bins=bins[keep],
@@ -216,12 +225,18 @@ class SubspaceScout:
         dims = tuple(int(self._bins_per_feature[k]) for k in key)  # p.ej. (8,7,1,...)
         # ojo: si alguna dim es 1, todos los índices deben ser 0 (nuestro Xd ya lo es)
         joint = np.ravel_multi_index(Xd_cols.T, dims=dims, mode='raise').reshape(-1, 1)
-        if self.task == 'classification':
-            val = mutual_info_classif(joint, y, discrete_features=True,
-                                      random_state=self.random_state)[0]
-        else:
-            val = mutual_info_regression(joint, y, discrete_features=True,
-                                        random_state=self.random_state)[0]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            if self.task == 'classification':
+                val = mutual_info_classif(
+                    joint, y, discrete_features=True,
+                    random_state=self.random_state
+                )[0]
+            else:
+                val = mutual_info_regression(
+                    joint, y, discrete_features=True,
+                    random_state=self.random_state
+                )[0]
         self._mi_joint_cache[key] = float(val)
         return float(val)
 
