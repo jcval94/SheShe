@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.datasets import load_iris
 
 from sheshe import CheChe, RegionInterpreter
 
@@ -126,3 +127,14 @@ def test_cheche_prediction_api_multiclass():
     scores = ch.decision_function(X_test)
     assert scores.shape == (len(X_test), len(ch.regions_))
     assert np.array_equal(np.argmax(scores, axis=1), df["region_id"].to_numpy())
+
+
+def test_cheche_save_load(tmp_path):
+    data = load_iris()
+    X, y = data.data, data.target
+    ch = CheChe().fit(X, y)
+    path = tmp_path / "cheche.joblib"
+    ch.save(path)
+    loaded = CheChe.load(path)
+    assert np.array_equal(ch.predict(X[:10]), loaded.predict(X[:10]))
+    assert np.allclose(ch.predict_proba(X[:10]), loaded.predict_proba(X[:10]))
