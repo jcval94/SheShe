@@ -1,6 +1,6 @@
 import numpy as np
 
-from sheshe import CheChe
+from sheshe import CheChe, RegionInterpreter
 
 
 def test_cheche_frontier_basic():
@@ -18,6 +18,19 @@ def test_cheche_frontier_basic():
     assert frontier.shape[1] == 2
     expected = {(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)}
     assert expected.issubset(set(map(lambda p: tuple(np.round(p, 6)), frontier)))
+
+    # regions should expose data compatible with RegionInterpreter
+    assert len(ch.regions_) == 1
+    reg = ch.regions_[0]
+    for key in ["center", "directions", "radii", "frontier", "dims"]:
+        assert key in reg
+    assert reg["center"].shape == (2,)
+    assert reg["directions"].shape[1] == 2
+    assert reg["directions"].shape[0] == reg["radii"].shape[0]
+
+    # RegionInterpreter should handle the region
+    cards = RegionInterpreter(feature_names=["x0", "x1"]).summarize([reg])
+    assert cards[0]["cluster_id"] == reg["cluster_id"]
 
 
 def test_cheche_multiclass_frontiers():

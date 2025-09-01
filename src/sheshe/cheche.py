@@ -45,6 +45,42 @@ class CheChe:
         self.mapping_level_: Optional[int] = None
 
     # ------------------------------------------------------------------
+    def _frontier_to_region(
+        self,
+        dims: Tuple[int, int],
+        boundary: np.ndarray,
+        cid: int,
+        label: Optional[object] = None,
+    ) -> Dict:
+        """Convert a 2D frontier polygon into a region dictionary.
+
+        The resulting structure mirrors the minimal requirements expected by
+        :class:`RegionInterpreter`: a ``center`` in the 2D subspace, unit
+        ``directions`` and their corresponding ``radii``.  Extra metadata such
+        as ``dims`` and the original ``frontier`` are retained for downstream
+        use.
+        """
+
+        center = boundary.mean(axis=0)
+        vecs = boundary - center
+        radii = np.linalg.norm(vecs, axis=1)
+        directions = np.zeros_like(vecs)
+        nonzero = radii > 0
+        directions[nonzero] = vecs[nonzero] / radii[nonzero, None]
+
+        region = {
+            "cluster_id": cid,
+            "dims": dims,
+            "frontier": boundary,
+            "center": center,
+            "directions": directions,
+            "radii": radii,
+        }
+        if label is not None:
+            region["label"] = label
+        return region
+
+    # ------------------------------------------------------------------
     def _compute_frontiers(
         self, X: np.ndarray, pairs: Iterable[Tuple[int, int]]
     ) -> Dict[Tuple[int, int], np.ndarray]:
@@ -158,7 +194,9 @@ class CheChe:
             X_used = self._subsample(X)
             self.frontiers_ = self._compute_frontiers(X_used, self.pairs_)
             for cid, (dims, boundary) in enumerate(self.frontiers_.items()):
-                self.regions_.append({"cluster_id": cid, "dims": dims, "frontier": boundary})
+                self.regions_.append(
+                    self._frontier_to_region(dims, boundary, cid)
+                )
             return self
 
         # Determine whether we are in classification or regression mode
@@ -181,12 +219,9 @@ class CheChe:
                 fr = self._compute_frontiers(subset, self.pairs_)
                 per_class[ci] = {"label": cls, "frontiers": fr}
                 for dims, boundary in fr.items():
-                    regions.append({
-                        "cluster_id": len(regions),
-                        "label": cls,
-                        "dims": dims,
-                        "frontier": boundary,
-                    })
+                    regions.append(
+                        self._frontier_to_region(dims, boundary, len(regions), label=cls)
+                    )
             self.per_class_ = per_class
             self.regions_ = regions
             return self
@@ -210,12 +245,9 @@ class CheChe:
             label = (deciles[k], deciles[k + 1])
             per_class[k] = {"label": label, "frontiers": fr}
             for dims, boundary in fr.items():
-                regions.append({
-                    "cluster_id": len(regions),
-                    "label": label,
-                    "dims": dims,
-                    "frontier": boundary,
-                })
+                regions.append(
+                    self._frontier_to_region(dims, boundary, len(regions), label=label)
+                )
         self.per_class_ = per_class
         self.regions_ = regions
         self.classes_ = np.array(sorted(per_class.keys()))
