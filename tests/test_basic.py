@@ -65,11 +65,11 @@ def test_prediction_within_region_labels():
     sh.fit(X, y)
     assert hasattr(sh, "labels_")
     assert sh.labels_.shape[0] == X.shape[0]
-    expected = sh.predict_regions(X)
-    assert np.array_equal(sh.labels_, expected)
+    df = sh.predict_regions(X)
+    assert np.array_equal(sh.labels_, df["label"].to_numpy())
     far_point = np.array([[1000, 1000, 1000, 1000]])
-    far_label = sh.predict_regions(far_point)[0]
-    assert far_label == -1
+    far_df = sh.predict_regions(far_point)
+    assert far_df.iloc[0]["label"] == -1
 
 
 def test_prediction_within_region_optional():

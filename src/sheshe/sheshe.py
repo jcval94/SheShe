@@ -8,7 +8,9 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence, Self
+
+import numpy.typing as npt
 
 import numpy as np
 import pandas as pd
@@ -937,6 +939,8 @@ class ModalBoundaryClustering(BaseEstimator):
       - ``verbose`` levels: ``0`` silencia, ``1`` tiempos resumidos, ``2`` detalle completo.
     """
 
+    __artifact_version__ = "1.0"
+
     def __init__(
         self,
         base_estimator: Optional['BaseEstimator'] = None,
@@ -1065,6 +1069,8 @@ class ModalBoundaryClustering(BaseEstimator):
         self.cluster_metrics_cls = cluster_metrics_cls
         self.cluster_metrics_reg = cluster_metrics_reg
         self.fast_membership = fast_membership
+
+        self._cache: Dict[str, Any] = {}
         self._P_all: Optional[np.ndarray] = None
         self._yhat_all: Optional[np.ndarray] = None
         self._X_train_shape: Optional[Tuple[int, int]] = None
@@ -1568,7 +1574,9 @@ class ModalBoundaryClustering(BaseEstimator):
 
     # ---------- Public API ----------
 
-    def fit(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None):
+    def fit(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None
+    ) -> Self:
         """Fit the modal boundary clustering model.
 
         If a candidate region produces no boundary intersections, a second
@@ -1938,7 +1946,9 @@ class ModalBoundaryClustering(BaseEstimator):
             self.save_labels = False
             try:
                 if self.prediction_within_region:
-                    self.labels_ = self.predict_regions(X)
+                    df_labels = self.predict_regions(X)
+                    self.labels_ = df_labels["label"].to_numpy()
+                    self.label2id_ = df_labels["region_id"].to_numpy()
                 else:
                     self.labels_ = self.predict(X)
             finally:
@@ -1951,7 +1961,9 @@ class ModalBoundaryClustering(BaseEstimator):
         self._log(f"fit completed in {runtime:.4f}s", level=logging.INFO)
         return self
 
-    def fit_predict(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None) -> np.ndarray:
+    def fit_predict(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None
+    ) -> npt.NDArray[np.int_]:
         """Fit the model and return the prediction for ``X``.
 
         Common *sklearn* shortcut equivalent to calling :meth:`fit` and then
@@ -1960,7 +1972,7 @@ class ModalBoundaryClustering(BaseEstimator):
         self.fit(X, y)
         return self.predict(X)
 
-    def transform(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
         """Return signed distances from samples to region boundaries.
 
         For each sample ``x`` and discovered region ``k`` this method computes
@@ -1990,7 +2002,9 @@ class ModalBoundaryClustering(BaseEstimator):
             D[:, k] = r_boundary + 1e-12 - norms
         return D
 
-    def fit_transform(self, X: Union[np.ndarray, pd.DataFrame], y: Optional[np.ndarray] = None) -> np.ndarray:
+    def fit_transform(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None
+    ) -> npt.NDArray[np.float_]:
         """Fit the model and transform ``X``.
 
         This convenience method is equivalent to calling :meth:`fit` followed
@@ -2062,9 +2076,9 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def predict(
         self,
-        X: Union[np.ndarray, pd.DataFrame],
+        X: npt.NDArray[np.float_] | pd.DataFrame,
         label_path: Optional[Union[str, Path]] = None,
-    ) -> np.ndarray:
+    ) -> npt.NDArray[np.int_]:
         """Prediction for ``X``.
 
         Classification → label of the corresponding region (with a fallback to
@@ -2111,47 +2125,57 @@ class ModalBoundaryClustering(BaseEstimator):
 
     def predict_regions(
         self,
-        X: Union[np.ndarray, pd.DataFrame],
+        X: npt.NDArray[np.float_] | pd.DataFrame,
         label_path: Optional[Union[str, Path]] = None,
-    ) -> np.ndarray:
-        """Region membership prediction for ``X``.
+    ) -> pd.DataFrame:
+        """Predict region membership for ``X``.
 
-        For each sample the method returns:
+        Parameters
+        ----------
+        X : array-like or DataFrame
+            Samples to evaluate.
+        label_path : str or Path, optional
+            Optional path to persist labels via ``numpy.savetxt``.
 
-        - ``-1`` if the sample does not fall inside any region.
-        - The ``cluster_id`` of the region if it falls in exactly one.
-        - A list with all ``cluster_id`` values when the sample belongs to
-          multiple regions.
-
-        This method ignores the base estimator and solely relies on the
-        discovered regions.
+        Returns
+        -------
+        DataFrame
+            Table with columns ``label`` and ``region_id``.
         """
         start = time.perf_counter()
         self._log("Starting predict_regions", level=logging.DEBUG)
         try:
             check_is_fitted(self, "regions_")
-            X = np.asarray(X, dtype=float)
+            if isinstance(X, pd.DataFrame):
+                index = X.index
+                X_arr = X.to_numpy(dtype=float)
+            else:
+                index = None
+                X_arr = np.asarray(X, dtype=float)
             t = time.perf_counter()
-            M = self._membership_matrix(X)
-            self._log(f"Membership matrix computed in {time.perf_counter() - t:.4f}s", level=logging.DEBUG)
+            M = self._membership_matrix(X_arr)
+            self._cache["membership_matrix"] = M
+            self._log(
+                f"Membership matrix computed in {time.perf_counter() - t:.4f}s",
+                level=logging.DEBUG,
+            )
             ids = np.array([reg.cluster_id for reg in self.regions_])
-            pred: np.ndarray = np.empty(len(X), dtype=object)
-            for i in range(len(X)):
+            labels_map = {reg.cluster_id: reg.label for reg in self.regions_}
+            region_ids = np.full(len(X_arr), -1, dtype=int)
+            labels = np.full(len(X_arr), -1, dtype=int)
+            for i in range(len(X_arr)):
                 ks = np.where(M[i] == 1)[0]
-                if len(ks) == 0:
-                    pred[i] = -1
-                elif len(ks) == 1:
-                    pred[i] = ids[ks[0]]
-                else:
-                    pred[i] = ids[ks].tolist()
-            result = pred
+                if len(ks) > 0:
+                    region_ids[i] = ids[ks[0]]
+                    labels[i] = labels_map[region_ids[i]]
+            df = pd.DataFrame({"label": labels, "region_id": region_ids}, index=index)
         except Exception as exc:
             self._log(f"Error in predict_regions: {exc}", level=logging.ERROR)
             raise
         runtime = time.perf_counter() - start
         self._log(f"predict_regions completed in {runtime:.4f}s", level=logging.INFO)
-        self._maybe_save_labels(result, label_path)
-        return result
+        self._maybe_save_labels(df["label"].to_numpy(), label_path)
+        return df
 
     def get_cluster(self, cluster_id: int) -> Optional[ClusterRegion]:
         """Return the :class:`ClusterRegion` with the given ``cluster_id``.
@@ -2172,7 +2196,7 @@ class ModalBoundaryClustering(BaseEstimator):
                 return reg
         return None
 
-    def predict_proba(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    def predict_proba(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
         """Classification: class probabilities or decision scores.
 
         For classification, this method returns ``predict_proba`` from the base
@@ -2221,7 +2245,9 @@ class ModalBoundaryClustering(BaseEstimator):
         self._log(f"predict_proba completed in {runtime:.4f}s", level=logging.INFO)
         return result
 
-    def decision_function(self, X: Union[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    def decision_function(
+        self, X: npt.NDArray[np.float_] | pd.DataFrame
+    ) -> npt.NDArray[np.float_]:
         """Decision values from the base estimator with automatic fallback.
 
         If the underlying estimator provides :meth:`decision_function`, that
@@ -2293,19 +2319,77 @@ class ModalBoundaryClustering(BaseEstimator):
         self._log(f"decision_function completed in {runtime:.4f}s", level=logging.INFO)
         return result
 
-    def score(self, X: Union[np.ndarray, pd.DataFrame], y: np.ndarray) -> float:
-        """Return the sklearn metric delegating to the internal pipeline."""
+    def score(
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: npt.NDArray,
+        *,
+        metric: str | Callable[[npt.NDArray, npt.NDArray], float] = "auto",
+        **metric_kwargs: Any,
+    ) -> float:
+        """Score the predictions on ``X`` against ``y``.
+
+        Parameters
+        ----------
+        X : array-like or DataFrame
+            Input samples.
+        y : array-like
+            Ground truth labels.
+        metric : str or callable, default="auto"
+            Scoring metric. ``"auto"`` delegates to the internal pipeline's
+            :meth:`~sklearn.pipeline.Pipeline.score`. A string uses
+            :func:`sklearn.metrics.get_scorer` and a callable receives ``y`` and
+            predictions.
+        **metric_kwargs : dict
+            Additional keyword arguments passed to the scoring callable.
+
+        Returns
+        -------
+        float
+            Computed score.
+        """
         check_is_fitted(self, "pipeline_")
-        return self.pipeline_.score(np.asarray(X, dtype=float), y)
+        X_arr = np.asarray(X, dtype=float)
+        if metric == "auto":
+            return float(self.pipeline_.score(X_arr, y))
+        if isinstance(metric, str):
+            from sklearn.metrics import get_scorer
+
+            scorer = get_scorer(metric)
+            return float(scorer(self.pipeline_, X_arr, y))
+        y_pred = self.predict(X_arr)
+        return float(metric(y, y_pred, **metric_kwargs))
 
     def save(self, filepath: Union[str, Path]) -> None:
-        """Save the current instance to ``filepath`` using ``joblib.dump``."""
-        joblib.dump(self, filepath)
+        """Serialize the estimator using ``joblib``.
+
+        Parameters
+        ----------
+        filepath : str or Path
+            Destination file.
+        """
+        payload = {"__artifact_version__": self.__artifact_version__, "model": self}
+        joblib.dump(payload, filepath)
 
     @classmethod
     def load(cls, filepath: Union[str, Path]) -> "ModalBoundaryClustering":
-        """Load a previously saved instance with :meth:`save`."""
-        return joblib.load(filepath)
+        """Load a model previously saved with :meth:`save`.
+
+        Raises
+        ------
+        ValueError
+            If the artifact version mismatches.
+        """
+        payload = joblib.load(filepath)
+        ver = payload.get("__artifact_version__")
+        if ver != cls.__artifact_version__:
+            raise ValueError(
+                f"Artifact version mismatch: expected {cls.__artifact_version__}, got {ver}"
+            )
+        model = payload.get("model")
+        if not isinstance(model, cls):
+            raise TypeError("Loaded object is not a ModalBoundaryClustering instance")
+        return model
 
     def interpretability_summary(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
         """Summarize centers and inflection points of each region in a ``DataFrame``.

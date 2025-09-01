@@ -1,13 +1,17 @@
 from __future__ import annotations
-from typing import List, Tuple, Dict, Any, Optional, Sequence, Callable
+from typing import List, Tuple, Dict, Any, Optional, Sequence, Callable, Self
 import logging
 import sys
 import math, time
 import numpy as np
+import numpy.typing as npt
+import pandas as pd
+from pathlib import Path
+import joblib
 
 from sklearn.base import BaseEstimator, clone
 from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
-from sklearn.metrics import balanced_accuracy_score, r2_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, r2_score
 from sklearn.utils.multiclass import type_of_target
 
 # Importaciones pedidas
@@ -147,6 +151,8 @@ class ModalScoutEnsemble(BaseEstimator):
       utiliza ``ensemble_method='shushu'``.
   """
 
+  __artifact_version__ = "1.0"
+
   def __init__(
     self,
     *,
@@ -249,6 +255,7 @@ class ModalScoutEnsemble(BaseEstimator):
     self.imp_scores_: List[float] = []
     self.classes_: Optional[np.ndarray] = None
     self.fitted_task_: Optional[str] = None
+    self._cache: Dict[str, Any] = {}
 
   # ---------- internos ----------
 
@@ -308,18 +315,20 @@ class ModalScoutEnsemble(BaseEstimator):
 
   # ---------- API sklearn ----------
 
-  def fit(self, X: np.ndarray, y: np.ndarray):
+  def fit(self, X: npt.NDArray[np.float_] | pd.DataFrame, y: npt.NDArray) -> Self:
     if self.ensemble_method.lower() == "shushu":
       from .shushu import ShuShu
       sh_args = dict(random_state=self.random_state)
       sh_args.update(self.shushu_kwargs or {})
       self.shushu_model_ = ShuShu(**sh_args)
-      self.shushu_model_.fit(X, y)
+      self.shushu_model_.fit(np.asarray(X, dtype=float), y)
       self.fitted_task_ = self.task or infer_task(y)
       if hasattr(self.shushu_model_, "classes_"):
         self.classes_ = np.asarray(self.shushu_model_.classes_)
       if self.prediction_within_region:
-        self.labels_, self.label2id_ = self.shushu_model_.predict_regions(X)
+        df = self.shushu_model_.predict_regions(X)
+        self.labels_ = df["label"].to_numpy()
+        self.label2id_ = df["region_id"].to_numpy()
       else:
         self.labels_ = self.shushu_model_.predict(X)
       return self
@@ -330,10 +339,11 @@ class ModalScoutEnsemble(BaseEstimator):
       raise ValueError(f"Tarea no soportada: {self.fitted_task_}")
 
     # 1) (Opcional) Importancias globales del base_estimator
+    Xs = np.asarray(X, dtype=float)
     global_imp = None
     if self.use_importances:
       global_imp = extract_global_importances(
-        self.base_estimator, X, y,
+        self.base_estimator, Xs, y,
         sample_size=self.importance_sample_size,
         random_state=self.random_state,
       )
@@ -352,7 +362,7 @@ class ModalScoutEnsemble(BaseEstimator):
     scout_args.update(self.scout_kwargs or {})
 
     scout = SubspaceScout(**scout_args)
-    subspaces = scout.fit(X, y)  # lista de dicts con keys: features, score, metric, order, ...
+    subspaces = scout.fit(Xs, y)  # lista de dicts con keys: features, score, metric, order, ...
 
     # 3) Selección + desduplicación
     self.selected_ = pick_slices(
@@ -385,11 +395,11 @@ class ModalScoutEnsemble(BaseEstimator):
 
     def _train_one(s: Dict[str, Any]):
       feats = tuple(s["features"])
-      Xs = X[:, feats]  # vista sin copia
+      Xs_local = Xs[:, feats]  # vista sin copia
       ctor = self._mk_mbc_ctor(dim=len(feats))
 
       # CV / Holdout local
-      cv_s = self._cv_or_holdout_score(ctor, Xs, y, self.fitted_task_, splits)
+      cv_s = self._cv_or_holdout_score(ctor, Xs_local, y, self.fitted_task_, splits)
 
       # early-skip por piso
       if self.cv_floor is not None and cv_s < self.cv_floor:
@@ -403,7 +413,7 @@ class ModalScoutEnsemble(BaseEstimator):
 
       # Ajuste final
       model = ctor()
-      model.fit(Xs, y)
+      model.fit(Xs_local, y)
       return feats, model, cv_s, imp_s
 
     if use_joblib:
@@ -473,14 +483,18 @@ class ModalScoutEnsemble(BaseEstimator):
           cid += 1
 
     if self.prediction_within_region:
-      self.labels_, self.label2id_ = self.predict_regions(X)
+      df = self.predict_regions(X)
+      self.labels_ = df["label"].to_numpy()
+      self.label2id_ = df["region_id"].to_numpy()
     else:
       self.labels_ = self.predict(X)
 
     self.logger.info("Submodelos=%d | Pesos≈%s", len(self.models_), np.round(self.weights_, 3))
     return self
 
-  def fit_predict(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+  def fit_predict(
+      self, X: npt.NDArray[np.float_] | pd.DataFrame, y: npt.NDArray
+  ) -> npt.NDArray[np.int_]:
     """Ajusta el ensamble y devuelve las predicciones para ``X``.
 
     Equivalente a ejecutar ``fit(X, y)`` seguido de ``predict(X)``.
@@ -500,7 +514,11 @@ class ModalScoutEnsemble(BaseEstimator):
     self.fit(X, y)
     return self.predict(X)
 
-  def predict_proba(self, X: np.ndarray) -> np.ndarray:
+  def predict_proba(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
+    if isinstance(X, pd.DataFrame):
+      X = X.to_numpy(dtype=float)
+    else:
+      X = np.asarray(X, dtype=float)
     if self.ensemble_method.lower() == "shushu":
       if self.fitted_task_ != "classification":
         raise AttributeError("predict_proba solo para clasificación.")
@@ -537,7 +555,11 @@ class ModalScoutEnsemble(BaseEstimator):
     row_sums[row_sums == 0.0] = 1.0
     return agg / row_sums
 
-  def predict(self, X: np.ndarray) -> np.ndarray:
+  def predict(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.int_]:
+    if isinstance(X, pd.DataFrame):
+      X = X.to_numpy(dtype=float)
+    else:
+      X = np.asarray(X, dtype=float)
     if self.ensemble_method.lower() == "shushu":
       if not hasattr(self, "shushu_model_"):
         raise RuntimeError("Modelo no ajustado.")
@@ -553,7 +575,9 @@ class ModalScoutEnsemble(BaseEstimator):
       out = (w * yhat) if out is None else (out + w * yhat)
     return out
 
-  def decision_function(self, X: np.ndarray) -> np.ndarray:
+  def decision_function(
+      self, X: npt.NDArray[np.float_] | pd.DataFrame
+  ) -> npt.NDArray[np.float_]:
     """Return raw decision scores for ``X``.
 
     In classification the scores from each submodel are aggregated using the
@@ -570,7 +594,10 @@ class ModalScoutEnsemble(BaseEstimator):
 
     if self.weights_ is None:
       raise RuntimeError("Modelo no ajustado.")
-    X = np.asarray(X, dtype=float)
+    if isinstance(X, pd.DataFrame):
+      X = X.to_numpy(dtype=float)
+    else:
+      X = np.asarray(X, dtype=float)
 
     if self.fitted_task_ == "classification":
       k = len(self.classes_) if self.classes_ is not None else 0
@@ -609,27 +636,24 @@ class ModalScoutEnsemble(BaseEstimator):
       out = w * S if out is None else out + w * S
     return out
 
-  def predict_regions(self, X: np.ndarray):
-    """Predicción usando solo modelos cuya región cubre cada muestra.
-
-    Devuelve una tupla ``(labels, cluster_ids)``. Para cada muestra:
-
-    * ``labels[i]`` es la predicción agregada usando únicamente los submodelos
-      que incluyen a ``X[i]`` dentro de alguna de sus regiones. Si ningún
-      submodelo cubre la muestra, el valor es ``-1``.
-    * ``cluster_ids[i]`` es el ``cluster_id`` del submodelo con mayor peso que
-      cubre la muestra. Si ninguno la cubre, toma el valor ``-1``.
-    """
+  def predict_regions(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> pd.DataFrame:
+    """Predicción usando solo modelos cuya región cubre cada muestra."""
 
     if self.ensemble_method.lower() == "shushu":
       if not hasattr(self, "shushu_model_"):
         raise RuntimeError("Modelo no ajustado.")
-      return self.shushu_model_.predict_regions(X)
+      df = self.shushu_model_.predict_regions(X)
+      return df
 
     if self.weights_ is None:
       raise RuntimeError("Modelo no ajustado.")
 
-    X = np.asarray(X, dtype=float)
+    if isinstance(X, pd.DataFrame):
+      index = X.index
+      X = X.to_numpy(dtype=float)
+    else:
+      index = None
+      X = np.asarray(X, dtype=float)
     n = X.shape[0]
 
     if self.fitted_task_ == "classification":
@@ -644,8 +668,8 @@ class ModalScoutEnsemble(BaseEstimator):
       used_ids = []
       for w, feats, mbc in zip(self.weights_, self.features_, self.models_):
         Xi = X[i : i + 1, feats]
-        cid = mbc.predict_regions(Xi)[0]
-        cid_val = cid[0] if isinstance(cid, list) else cid
+        cid_df = mbc.predict_regions(Xi)
+        cid_val = int(cid_df["region_id"].iloc[0])
         if cid_val == -1:
           continue
         if self.fitted_task_ == "classification":
@@ -686,7 +710,67 @@ class ModalScoutEnsemble(BaseEstimator):
         labels[i] = -1
         cluster_ids[i] = -1
 
-    return labels, cluster_ids
+    if self.fitted_task_ == "classification":
+      labels = labels.astype(int)
+    return pd.DataFrame({"label": labels, "region_id": cluster_ids}, index=index)
+
+  def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
+    """Feature transformation is not implemented for ModalScoutEnsemble."""
+    raise NotImplementedError("ModalScoutEnsemble does not implement transform")
+
+  def fit_transform(
+      self,
+      X: npt.NDArray[np.float_] | pd.DataFrame,
+      y: Optional[npt.NDArray] = None,
+      **fit_kwargs: Any,
+  ) -> npt.NDArray[np.float_]:
+    """Fit the model and transform ``X``.
+
+    Notes
+    -----
+    This estimator does not implement a transform operation.
+    """
+    raise NotImplementedError("ModalScoutEnsemble does not implement fit_transform")
+
+  def score(
+      self,
+      X: npt.NDArray[np.float_] | pd.DataFrame,
+      y: npt.NDArray,
+      *,
+      metric: str | Callable[[npt.NDArray, npt.NDArray], float] = "auto",
+      **metric_kwargs: Any,
+  ) -> float:
+    """Evaluate predictions of ``X`` against ``y``."""
+    if metric == "auto":
+      metric_fn = accuracy_score if self.fitted_task_ == "classification" else r2_score
+      y_pred = self.predict(X)
+      return float(metric_fn(y, y_pred, **metric_kwargs))
+    if isinstance(metric, str):
+      from sklearn.metrics import get_scorer
+
+      scorer = get_scorer(metric)
+      return float(scorer(self, X, y))
+    y_pred = self.predict(X)
+    return float(metric(y, y_pred, **metric_kwargs))
+
+  def save(self, filepath: str | Path) -> None:
+    """Persist the ensemble using joblib including version metadata."""
+    payload = {"__artifact_version__": self.__artifact_version__, "model": self}
+    joblib.dump(payload, filepath)
+
+  @classmethod
+  def load(cls, filepath: str | Path) -> "ModalScoutEnsemble":
+    """Load a previously saved ensemble."""
+    payload = joblib.load(filepath)
+    ver = payload.get("__artifact_version__")
+    if ver != cls.__artifact_version__:
+      raise ValueError(
+          f"Artifact version mismatch: expected {cls.__artifact_version__}, got {ver}"
+      )
+    model = payload.get("model")
+    if not isinstance(model, cls):
+      raise TypeError("Loaded object is not a ModalScoutEnsemble instance")
+    return model
 
   def report(self) -> List[Dict[str, Any]]:
     """Resumen por subespacio (ordenado por peso)."""

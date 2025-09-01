@@ -69,7 +69,11 @@ def _rdp(points: np.ndarray, epsilon: float = 0.05) -> np.ndarray:
         den = np.linalg.norm(ab)
         if den < 1e-15:
             return np.linalg.norm(pt - a)
-        return abs(np.cross(ab, a - pt)) / den
+        # np.cross for 2D vectors is deprecated in NumPy 2.0; compute the
+        # equivalent scalar (z-component) manually to avoid the warning.
+        diff = a - pt
+        cross_z = ab[0] * diff[1] - ab[1] * diff[0]
+        return abs(cross_z) / den
 
     def rec(pts):
         if pts.shape[0] <= 2:
