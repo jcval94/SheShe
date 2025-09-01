@@ -553,6 +553,62 @@ class ModalScoutEnsemble(BaseEstimator):
       out = (w * yhat) if out is None else (out + w * yhat)
     return out
 
+  def decision_function(self, X: np.ndarray) -> np.ndarray:
+    """Return raw decision scores for ``X``.
+
+    In classification the scores from each submodel are aggregated using the
+    corresponding weights. If a submodel lacks ``decision_function`` the method
+    falls back to ``predict_proba`` or one-hot predictions. For regression the
+    weighted sum of each submodel's decision function (or prediction) is
+    returned.
+    """
+
+    if self.ensemble_method.lower() == "shushu":
+      if not hasattr(self, "shushu_model_"):
+        raise RuntimeError("Modelo no ajustado.")
+      return self.shushu_model_.decision_function(X)
+
+    if self.weights_ is None:
+      raise RuntimeError("Modelo no ajustado.")
+    X = np.asarray(X, dtype=float)
+
+    if self.fitted_task_ == "classification":
+      k = len(self.classes_) if self.classes_ is not None else 0
+      agg = None
+      for w, feats, mbc in zip(self.weights_, self.features_, self.models_):
+        Xs = X[:, feats]
+        if hasattr(mbc, "decision_function"):
+          S = mbc.decision_function(Xs)
+          if S.ndim == 1:
+            S = S[:, None]
+        elif hasattr(mbc, "predict_proba"):
+          S = mbc.predict_proba(Xs)
+        else:
+          yhat = mbc.predict(Xs)
+          S = np.zeros((Xs.shape[0], k), dtype=float)
+          for j, c in enumerate(self.classes_):
+            S[:, j] = (yhat == c).astype(float)
+        if S.shape[1] != k:
+          subc = getattr(mbc, "classes_", self.classes_)
+          S2 = np.zeros((Xs.shape[0], k), dtype=float)
+          for j, c in enumerate(subc):
+            idx = int(np.where(self.classes_ == c)[0][0])
+            S2[:, idx] = S[:, j]
+          S = S2
+        agg = w * S if agg is None else agg + w * S
+      return agg if agg is not None else np.zeros((X.shape[0], k))
+
+    # Regression
+    out = None
+    for w, feats, mbc in zip(self.weights_, self.features_, self.models_):
+      Xs = X[:, feats]
+      if hasattr(mbc, "decision_function"):
+        S = mbc.decision_function(Xs)
+      else:
+        S = mbc.predict(Xs)
+      out = w * S if out is None else out + w * S
+    return out
+
   def predict_regions(self, X: np.ndarray):
     """Predicción usando solo modelos cuya región cubre cada muestra.
 

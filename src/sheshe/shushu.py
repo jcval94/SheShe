@@ -13,8 +13,9 @@ minimal adaptations so it can live inside the ``sheshe`` package.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from matplotlib.lines import Line2D
+from itertools import combinations
 
 import time
 import numpy as np
@@ -805,6 +806,72 @@ class ShuShu:
                 raise RuntimeError("Clusterer missing for predict_regions")
             labels = self.clusterer_._assign_labels(X)
             return labels, labels.copy()
+
+    def plot_pairs(
+        self,
+        X: np.ndarray,
+        y: Optional[np.ndarray] = None,
+        max_pairs: Optional[int] = None,
+        feature_names: Optional[Sequence[str]] = None,
+        show_centroids: bool = True,
+    ):
+        """Simple 2D scatter plots for feature pairs.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Data points used for the scatter plots.
+        y : array-like, optional
+            Labels used only for coloring points. If ``None`` all points are
+            shown in the same color.
+        max_pairs : int, optional
+            Maximum number of feature pairs to plot. ``None`` plots all pairs.
+        feature_names : sequence of str, optional
+            Names to use for axis labels. Falls back to ``self.feature_names_``
+            or generic ``xj`` names.
+        show_centroids : bool, default ``True``
+            Whether to draw cluster centroids when available.
+        """
+
+        import matplotlib.pyplot as plt  # pragma: no cover - optional dependency
+
+        X = np.asarray(X, dtype=float)
+        n, d = X.shape
+        if feature_names is None:
+            feature_names = (
+                self.feature_names_ if self.feature_names_ is not None else [f"x{j}" for j in range(d)]
+            )
+
+        pairs = list(combinations(range(d), 2))
+        if max_pairs is not None:
+            pairs = pairs[:max_pairs]
+        if not pairs:
+            raise ValueError("No hay pares de características para graficar")
+
+        n_pairs = len(pairs)
+        fig, axes = plt.subplots(1, n_pairs, figsize=(4 * n_pairs, 4))
+        if n_pairs == 1:
+            axes = [axes]
+
+        for ax, (i, j) in zip(axes, pairs):
+            if y is None:
+                ax.scatter(X[:, i], X[:, j], s=18, alpha=0.6, label="data")
+            else:
+                uniq = np.unique(y)
+                for cls in uniq:
+                    mask = y == cls
+                    ax.scatter(X[mask, i], X[mask, j], s=18, alpha=0.8, label=str(cls))
+            if show_centroids and self.regions_:
+                for reg in self.regions_:
+                    ctr = np.asarray(reg.get("center"))
+                    if ctr.shape[0] > max(i, j):
+                        ax.scatter(ctr[i], ctr[j], marker="X", s=80, color="k", label="centro")
+            ax.set_xlabel(feature_names[i])
+            ax.set_ylabel(feature_names[j])
+            ax.legend(loc="best")
+
+        fig.tight_layout()
+        return fig, axes
 
     def plot_classes(
         self,
