@@ -903,3 +903,119 @@ class ModalScoutEnsemble(BaseEstimator):
     else:
       sub_names = None
     return mbc.plot_pair_3d(Xs, local_pair, feature_names=sub_names, **kwargs)
+
+  # ---------- Interpretabilidad ----------
+
+  def interpretability_summary(
+    self,
+    X: npt.NDArray[np.float_] | pd.DataFrame,
+    y: Optional[npt.NDArray] = None,
+    *,
+    per_model: bool = False,
+    top_k: int = 10,
+  ) -> pd.DataFrame:
+    """Provide a lightweight interpretability summary.
+
+    Parameters
+    ----------
+    X : array-like of shape (n_samples, n_features)
+        Dataset used to evaluate regional dominance/purity.
+    y : array-like of shape (n_samples,), optional
+        Ground truth labels.  When provided, per-model purity is computed.
+    per_model : bool, default=False
+        When ``True`` returns one row per submodel (limited by ``top_k``) plus
+        an aggregate weighted row.  Otherwise only the aggregate row is
+        returned.
+    top_k : int, default=10
+        Maximum number of submodels to include in the summary.
+
+    Returns
+    -------
+    DataFrame
+        Table with columns ``['model_id', 'feature_importances',
+        'region_dominance', 'support', 'purity', 'weight']``.  The last row
+        corresponds to the weighted aggregate of the shown submodels.
+    """
+
+    if self.ensemble_method.lower() == "shushu":
+      if not hasattr(self, "shushu_model_"):
+        raise RuntimeError("Modelo no ajustado.")
+      # Delegamos a ShuShu; compatibilidad básica.
+      return self.shushu_model_.interpretability_summary()
+
+    if isinstance(X, pd.DataFrame):
+      X_arr = X.to_numpy(dtype=float)
+    else:
+      X_arr = np.asarray(X, dtype=float)
+    y_arr = None if y is None else np.asarray(y)
+
+    rows: List[Dict[str, Any]] = []
+    n_models = len(self.models_)
+    # Recogemos métricas por submodelo
+    for idx, (w, feats, mbc) in enumerate(zip(self.weights_, self.features_, self.models_)):
+      feats_list = list(feats)
+      Xs = X_arr[:, feats_list]
+      try:
+        df = mbc.predict_regions(Xs)
+        rids = df["region_id"].to_numpy()
+        labels = df["label"].to_numpy()
+      except Exception:
+        # Fallback: uso de predict si predict_regions no está disponible
+        rids = np.full(X_arr.shape[0], -1, dtype=int)
+        labels = mbc.predict(Xs)
+      mask = rids != -1
+      support = float(mask.mean())
+      if np.any(mask):
+        unique, counts = np.unique(rids[mask], return_counts=True)
+        region_dom = float(np.max(counts)) / rids.size
+      else:
+        region_dom = 0.0
+      if y_arr is not None and np.any(mask):
+        if self.fitted_task_ == "classification":
+          purity = float(accuracy_score(y_arr[mask], labels[mask]))
+        else:
+          purity = float(r2_score(y_arr[mask], labels[mask]))
+      else:
+        purity = float("nan")
+      imp = float(self.imp_scores_[idx]) if idx < len(self.imp_scores_) else float("nan")
+      rows.append(
+        {
+          "model_id": idx,
+          "feature_importances": imp,
+          "region_dominance": region_dom,
+          "support": support,
+          "purity": purity,
+          "weight": float(w),
+        }
+      )
+
+    rows.sort(key=lambda r: r["weight"], reverse=True)
+    if top_k is not None:
+      rows = rows[:top_k]
+
+    # Agregado ponderado por pesos
+    if rows:
+      total_w = float(np.sum([r["weight"] for r in rows])) or 1.0
+
+      def wavg(key: str) -> float:
+        vals = np.array([r[key] for r in rows], dtype=float)
+        wts = np.array([r["weight"] for r in rows], dtype=float)
+        mask = np.isfinite(vals)
+        if not np.any(mask):
+          return float("nan")
+        return float(np.sum(vals[mask] * wts[mask]) / np.sum(wts[mask]))
+
+      agg_row = {
+        "model_id": "aggregate",
+        "feature_importances": wavg("feature_importances"),
+        "region_dominance": wavg("region_dominance"),
+        "support": wavg("support"),
+        "purity": wavg("purity"),
+        "weight": total_w,
+      }
+      rows.append(agg_row)
+
+    df_out = pd.DataFrame(rows)
+    if per_model:
+      return df_out
+    return df_out[df_out["model_id"] == "aggregate"].reset_index(drop=True)
