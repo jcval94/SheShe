@@ -87,7 +87,6 @@ from sheshe import (
     RegionInterpreter,
     ShuShu,
     CheChe,
-    plot_cheche,
 )
 
 # classification
@@ -214,14 +213,14 @@ After fitting, `ModalBoundaryClustering` stores the discovered regions in the
 ### 2D frontier exploration with CheChe
 
 `CheChe` evaluates pairs of features and computes the convex hull enclosing
-the samples for each selected pair. The helper `plot_cheche` overlays these
+the samples for each selected pair. Its `plot_pairs` method overlays these
 frontiers on scatter plots of the original data, and the optional
 `mapping_level` argument can subsample the points before calculating the
 frontiers:
 
 ```python
 from sklearn.datasets import load_iris
-from sheshe import CheChe, plot_cheche
+from sheshe import CheChe
 
 X, y = load_iris(return_X_y=True)
 ch = CheChe().fit(
@@ -230,7 +229,7 @@ ch = CheChe().fit(
     feature_names=["sepal length", "sepal width", "petal length", "petal width"],
     mapping_level=2,  # use every other sample
 )
-plot_cheche(ch, X, class_index=0)
+ch.plot_pairs(X, class_index=0)
 ```
 
 The example above draws the frontier for class index ``0``. When ``fit`` is
