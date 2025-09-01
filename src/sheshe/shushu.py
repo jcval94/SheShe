@@ -785,8 +785,44 @@ class ShuShu:
             return -dists
 
     def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
-        """Feature transformation is not supported."""
-        raise NotImplementedError("ShuShu does not implement transform")
+        """Return cluster membership/affinity matrix for ``X``.
+
+        The output is consistent with :meth:`predict_proba` in the sense that
+        each row sums to 1.  In multiclass mode this simply forwards to
+        :meth:`predict_proba`.  In scalar mode the membership of a sample to each
+        centroid is derived from the negative distances returned by
+        :meth:`decision_function` and normalized with a softmax so that it can be
+        interpreted as a probability distribution.
+        """
+
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+
+        X_arr = np.asarray(X, dtype=float)
+
+        # caching based on object id to avoid recomputation in fit_transform
+        cache_key = ("transform", id(X_arr))
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        if self.mode_ == "multiclass":
+            T = self.predict_proba(X_arr)
+        else:
+            if self.clusterer_ is None:
+                raise RuntimeError("Clusterer missing for transform")
+            scores = self.decision_function(X_arr)
+            if scores.shape[1] == 0:
+                T = np.zeros((X_arr.shape[0], 0))
+            else:
+                # softmax over negative distances -> affinities
+                m = scores.max(axis=1, keepdims=True)
+                exp_scores = np.exp(scores - m)
+                denom = exp_scores.sum(axis=1, keepdims=True)
+                denom[denom == 0] = 1.0
+                T = exp_scores / denom
+
+        self._cache[cache_key] = T
+        return T
 
     def fit_transform(
         self,
@@ -796,12 +832,62 @@ class ShuShu:
     ) -> npt.NDArray[np.float_]:
         """Fit to data, then transform it.
 
-        Notes
-        -----
-        ShuShu does not implement a transformation; calling this method will
-        raise ``NotImplementedError``.
+        This method first calls :meth:`fit` and then :meth:`transform`.  The
+        result of the transformation is cached so that calling ``transform``
+        again on the same ``X`` does not perform duplicate computation.
         """
-        raise NotImplementedError("ShuShu does not implement fit_transform")
+
+        X_arr = np.asarray(X, dtype=float)
+        self.fit(X_arr, y, **fit_kwargs)
+        result = self.transform(X_arr)
+        # store original array and result for potential cache hits
+        self._cache[("transform", id(X_arr))] = result
+        return result
+
+    def get_cluster(self, cluster_id: int, with_geometry: bool = False) -> Dict[str, Any]:
+        """Retrieve information about a cluster/region.
+
+        Parameters
+        ----------
+        cluster_id : int
+            Identifier of the region to fetch.
+        with_geometry : bool, default ``False``
+            Whether to include a simple geometric approximation of the
+            cluster based on percentile bounds.
+
+        Returns
+        -------
+        dict
+            Dictionary with keys ``id``, ``label_mode``, ``support``,
+            ``feature_stats`` and ``geometry``.
+        """
+
+        if self.regions_ is None or cluster_id < 0 or cluster_id >= len(self.regions_):
+            return None
+
+        reg = self.regions_[cluster_id]
+        pts = reg.get("area_points")
+        support = int(pts.shape[0]) if isinstance(pts, np.ndarray) else 0
+        stats = None
+        if isinstance(pts, np.ndarray) and pts.shape[0] > 0:
+            stats = {
+                "mean": pts.mean(axis=0),
+                "std": pts.std(axis=0),
+            }
+        geometry = None
+        if with_geometry and isinstance(pts, np.ndarray) and pts.shape[0] > 0:
+            lower = np.percentile(pts, 5, axis=0)
+            upper = np.percentile(pts, 95, axis=0)
+            geometry = {"type": "box", "lower": lower, "upper": upper}
+
+        label_mode = reg.get("label") if self.mode_ == "multiclass" else None
+        return {
+            "id": int(cluster_id),
+            "label_mode": label_mode,
+            "support": support,
+            "feature_stats": stats,
+            "geometry": geometry,
+        }
 
     def predict_regions(
         self, X: npt.NDArray[np.float_] | pd.DataFrame
@@ -873,15 +959,25 @@ class ShuShu:
         """
         if metric == "auto":
             metric_fn = accuracy_score
-            y_pred = self.predict(X)
-            return float(metric_fn(y, y_pred, **metric_kwargs))
-        if isinstance(metric, str):
-            from sklearn.metrics import get_scorer
+        elif isinstance(metric, str):
+            from sklearn import metrics as skm
 
-            scorer = get_scorer(metric)
-            return float(scorer(self, X, y))
+            if metric == "f1_macro":
+                metric_fn = skm.f1_score
+                metric_kwargs = {"average": "macro", **metric_kwargs}
+            else:
+                # try to resolve by name allowing optional "_score" suffix
+                if hasattr(skm, metric):
+                    metric_fn = getattr(skm, metric)
+                elif hasattr(skm, f"{metric}_score"):
+                    metric_fn = getattr(skm, f"{metric}_score")
+                else:
+                    raise ValueError(f"Unknown metric '{metric}'")
+        else:
+            metric_fn = metric
+
         y_pred = self.predict(X)
-        return float(metric(y, y_pred, **metric_kwargs))
+        return float(metric_fn(y, y_pred, **metric_kwargs))
 
     def save(self, filepath: str | Path) -> None:
         """Persist the model with ``joblib`` including a version tag."""

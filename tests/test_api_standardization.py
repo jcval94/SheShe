@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
 
@@ -12,8 +13,9 @@ def test_shushu_save_load_score(tmp_path):
     df = sh.predict_regions(X[:3])
     assert set(df.columns) == {"label", "region_id"}
     assert isinstance(sh.score(X[:3], y[:3]), float)
-    with pytest.raises(NotImplementedError):
-        sh.transform(X[:3])
+    T = sh.transform(X[:3])
+    assert T.shape[0] == 3
+    assert np.allclose(T.sum(axis=1), 1.0)
     path = tmp_path / "sh.joblib"
     sh.save(path)
     loaded = ShuShu.load(path)
