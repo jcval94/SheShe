@@ -358,6 +358,85 @@ class CheChe:
             scores[:, idx] = -dists
         return scores
 
+    # ------------------------------------------------------------------
+    def interpretability_summary(
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
+        *,
+        top_k: int = 10,
+    ) -> pd.DataFrame:
+        """Summarize discovered regions as a :class:`pandas.DataFrame`.
+
+        The summary contains, for each region, the feature pair, the frontier
+        vertices and basic statistics of the samples that fall inside it.  The
+        resulting table exposes the columns ``['region_id', 'features',
+        'vertices', 'support', 'purity', 'top_features']``.  When ``y`` is
+        provided and represents a classification target, ``purity`` corresponds
+        to the fraction of the majority class within the region.  For
+        regression tasks or when ``y`` is ``None`` the purity value is
+        ``NaN``.
+        """
+
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+
+        from matplotlib.path import Path  # optional dependency
+
+        if isinstance(X, pd.DataFrame):
+            X_arr = X.to_numpy(dtype=float)
+            feat_names = list(X.columns)
+        else:
+            X_arr = np.asarray(X, dtype=float)
+            if self.feature_names_ is not None:
+                feat_names = self.feature_names_
+            else:
+                feat_names = [f"x{j}" for j in range(X_arr.shape[1])]
+
+        y_arr = np.asarray(y) if y is not None else None
+
+        rows: List[Dict[str, Any]] = []
+        for reg in self.regions_:
+            dims = reg["dims"]
+
+            # obtain frontier via public API for robustness
+            class_index = None
+            if self.mode_ in ("multiclass", "regression") and "label" in reg:
+                lab = reg["label"]
+                for ci, info in self.per_class_.items():
+                    if info.get("label") == lab:
+                        class_index = ci
+                        break
+            frontier = self.get_frontier(dims, class_index=class_index)
+
+            path = Path(frontier)
+            pts = X_arr[:, list(dims)]
+            mask = path.contains_points(pts)
+            support = int(mask.sum())
+
+            purity = np.nan
+            if y_arr is not None and support > 0:
+                values, counts = np.unique(y_arr[mask], return_counts=True)
+                purity = float(counts.max() / support)
+
+            fname_pair = (feat_names[dims[0]], feat_names[dims[1]])
+            rows.append(
+                {
+                    "region_id": reg["cluster_id"],
+                    "features": fname_pair,
+                    "vertices": frontier.tolist(),
+                    "support": support,
+                    "purity": purity,
+                    # ``top_features`` mirrors the feature pair for API parity
+                    "top_features": fname_pair,
+                }
+            )
+
+        df = pd.DataFrame(rows)
+        if not df.empty:
+            df = df.sort_values("support", ascending=False).head(top_k).reset_index(drop=True)
+        return df
+
     def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
         """Feature transformation is not available for CheChe."""
         raise NotImplementedError("CheChe does not implement transform")
@@ -507,3 +586,20 @@ class CheChe:
 
         fig.tight_layout()
         return fig, axes
+
+    # ------------------------------------------------------------------
+    def plot_pair_3d(
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
+        *,
+        features: Tuple[str, str] | Tuple[int, int],
+        ax=None,
+        fig=None,
+        grid: int = 64,
+    ):
+        """3D plotting is not supported for ``CheChe`` frontiers."""
+
+        raise NotImplementedError(
+            "CheChe no produce mallas 3D útiles por diseño..."
+        )
