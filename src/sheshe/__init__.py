@@ -4,6 +4,8 @@ from .modal_scout_ensemble import ModalScoutEnsemble
 from .region_interpretability import RegionInterpreter
 from .meta_optimization import random_search
 from .shushu import ShuShu
+from .cheche import CheChe
+from .cheche_plot import plot_cheche
 
 # ``OpenAIRegionInterpreter`` relies on the optional ``openai`` dependency.  In
 # environments where that dependency (or the module itself) is missing we still
@@ -24,6 +26,8 @@ __all__ = [
     "random_search",
     "OpenAIRegionInterpreter",
     "ShuShu",
+    "CheChe",
+    "plot_cheche",
 ]
 
 __version__ = "0.1.3"
