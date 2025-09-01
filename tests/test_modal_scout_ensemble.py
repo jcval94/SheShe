@@ -87,3 +87,20 @@ def test_modal_scout_ensemble_with_shushu():
     labels, ids = mse.predict_regions(X[:5])
     assert labels.shape == (5,)
     assert ids.shape == (5,)
+
+
+def test_modal_scout_ensemble_decision_function():
+    data = load_iris()
+    X, y = data.data, data.target
+    mse = ModalScoutEnsemble(
+        base_estimator=LogisticRegression(max_iter=200),
+        task="classification",
+        random_state=0,
+        scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+        cv=2,
+    )
+    mse.fit(X, y)
+    scores = mse.decision_function(X[:5])
+    assert scores.shape == (5, len(mse.classes_))
+    pred_from_scores = mse.classes_[np.argmax(scores, axis=1)]
+    assert np.array_equal(pred_from_scores, mse.predict(X[:5]))

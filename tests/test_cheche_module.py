@@ -37,10 +37,10 @@ def test_cheche_multiclass_frontiers():
     # two classes forming disjoint squares in the (0,1) plane
     X0 = np.array(
         [
-            [0.0, 0.0],
-            [0.0, 1.0],
-            [1.0, 1.0],
-            [1.0, 0.0],
+            [0.2, 0.2],
+            [0.2, 0.8],
+            [0.8, 0.8],
+            [0.8, 0.2],
         ]
     )
     X1 = X0 + 2.0  # shift to a different region
@@ -87,3 +87,42 @@ def test_mapping_level_subsamples_points():
     np.testing.assert_allclose(
         ch_mapped.get_frontier((0, 1)), ch_sub.get_frontier((0, 1))
     )
+
+
+def test_cheche_prediction_api_multiclass():
+    """CheChe should expose prediction helpers mirroring ShuShu."""
+
+    X0 = np.array(
+        [
+            [0.2, 0.2],
+            [0.2, 0.8],
+            [0.8, 0.8],
+            [0.8, 0.2],
+            [0.5, 0.5],
+        ]
+    )
+    X1 = X0 + 2.0
+    X_train = np.vstack([X0, X1])
+    y_train = np.array([0] * len(X0) + [1] * len(X1))
+
+    yhat_fp = CheChe().fit_predict(X_train, y_train)
+    assert yhat_fp.shape == y_train.shape
+
+    ch = CheChe().fit(X_train, y_train)
+    X_test = np.array([[0.5, 0.5], [2.5, 2.5]])
+    y_test = np.array([0, 1])
+
+    yhat = ch.predict(X_test)
+    assert np.array_equal(yhat, y_test)
+
+    proba = ch.predict_proba(X_test)
+    assert proba.shape == (len(X_test), 2)
+    assert np.allclose(proba.sum(axis=1), 1.0)
+
+    labels, ids = ch.predict_regions(X_test)
+    assert np.array_equal(labels, y_test)
+    assert ids.min() >= 0
+
+    scores = ch.decision_function(X_test)
+    assert scores.shape == (len(X_test), len(ch.regions_))
+    assert np.array_equal(np.argmax(scores, axis=1), ids)

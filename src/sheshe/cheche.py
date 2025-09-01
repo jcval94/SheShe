@@ -254,6 +254,95 @@ class CheChe:
         return self
 
     # ------------------------------------------------------------------
+    def fit_predict(self, X: np.ndarray, y: Optional[np.ndarray] = None, **fit_kwargs) -> np.ndarray:
+        """Fit the model and immediately return predictions for ``X``."""
+
+        self.fit(X, y, **fit_kwargs)
+        return self.predict(X)
+
+    # ------------------------------------------------------------------
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict class labels or region ids for ``X``."""
+
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+        labels, cluster_ids = self.predict_regions(X)
+        if self.mode_ == "scalar":
+            return cluster_ids
+        return labels
+
+    # ------------------------------------------------------------------
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """Return class probabilities for ``X`` when in multiclass mode."""
+
+        if self.mode_ != "multiclass" or self.classes_ is None:
+            raise RuntimeError("predict_proba only available in multiclass mode")
+        labels = self.predict(X)
+        k = len(self.classes_)
+        proba = np.zeros((len(labels), k), dtype=float)
+        for j, cls in enumerate(self.classes_):
+            proba[labels == cls, j] = 1.0
+        row_sums = proba.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0.0] = 1.0
+        return proba / row_sums
+
+    # ------------------------------------------------------------------
+    def predict_regions(self, X: np.ndarray):
+        """Return labels and cluster ids for samples in ``X``.
+
+        Each sample is assigned to the first region whose frontier contains it.
+        Samples outside all regions receive ``-1`` for both label and cluster id.
+        """
+
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+
+        from matplotlib.path import Path  # local import to keep dependency optional
+
+        X = np.asarray(X, dtype=float)
+        n = X.shape[0]
+        labels = np.full(n, -1, dtype=object)
+        cluster_ids = np.full(n, -1, dtype=int)
+
+        for reg in self.regions_:
+            dims = reg["dims"]
+            boundary = reg["frontier"]
+            path = Path(boundary)
+            pts = X[:, list(dims)]
+            mask = path.contains_points(pts)
+            if not np.any(mask):
+                continue
+            lab = reg.get("label", reg["cluster_id"])
+            labels[mask] = lab
+            cluster_ids[mask] = reg["cluster_id"]
+        return labels, cluster_ids
+
+    # ------------------------------------------------------------------
+    def decision_function(self, X: np.ndarray) -> np.ndarray:
+        """Return negative distances to region centers for ``X``.
+
+        The output has shape ``(n_samples, n_regions)``.
+        """
+
+        if self.mode_ is None:
+            raise RuntimeError("Model not fitted")
+
+        X = np.asarray(X, dtype=float)
+        n = X.shape[0]
+        m = len(self.regions_)
+        if m == 0:
+            return np.zeros((n, 0))
+
+        scores = np.zeros((n, m), dtype=float)
+        for idx, reg in enumerate(self.regions_):
+            dims = reg["dims"]
+            center = reg["center"]
+            pts = X[:, list(dims)]
+            dists = np.linalg.norm(pts - center[None, :], axis=1)
+            scores[:, idx] = -dists
+        return scores
+
+    # ------------------------------------------------------------------
     def get_frontier(
         self, dims: Iterable[int], class_index: Optional[int] = None
     ) -> np.ndarray:
