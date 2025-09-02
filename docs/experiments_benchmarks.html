@@ -1,0 +1,143 @@
+---
+layout: default
+title: "Experiments & Benchmarks"
+description: "Benchmark results and comparison scripts for SheShe"
+nav_order: 70
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Experiments & Benchmarks</h1>
+
+<p>Benchmark scripts and their results live in the <code>benchmark/</code> directory. This page summarises the available experiments and key findings.</p>
+
+<h2>Benchmark scripts</h2>
+<p>The following scripts perform A/B tests or collect performance statistics. Each one outputs a CSV file with the same stem name.</p>
+<ul>
+  <li><code>cheche_vs_shushu_ab_test.py</code> &mdash; compares the <code>CheChe</code> and <code>ShuShu</code> algorithms.</li>
+  <li><code>large_df_benchmark.py</code> &mdash; measures execution time and peak memory on large datasets.</li>
+  <li><code>newton_vs_gradient_ab_test.py</code> &mdash; contrasts gradient ascent with a Newton trust region optimiser.</li>
+  <li><code>parallel_jobs_ab_test.py</code> &mdash; evaluates speedups from running <code>ModalScoutEnsemble</code> with multiple jobs.</li>
+  <li><code>percentile_drop_ab_test.py</code> &mdash; compares loop-based and vectorised implementations of <code>find_percentile_drop</code>.</li>
+  <li><code>profile_fit.py</code> &mdash; profiles the <code>fit</code> and <code>predict</code> phases of <code>ModalBoundaryClustering</code>.</li>
+  <li><code>ray_mode_ab_test.py</code> &mdash; benchmarks ray-based and grid-based search strategies.</li>
+</ul>
+
+<h2>Comparison method</h2>
+<p>Each experiment runs both versions of an algorithm on the same data. Speedup is reported as the ratio of baseline runtime to the alternative implementation. Quality is assessed with metrics such as <em>Adjusted Rand Index</em> and <em>V-measure</em> for clustering tasks.</p>
+
+<h2>Results</h2>
+<p>Selected results copied from the generated CSV files:</p>
+
+<h3>Calidad de clustering</h3>
+<h4>ARI</h4>
+<table>
+  <tr><th>Dataset</th><th>SheShe</th><th>KMeans</th><th>DBSCAN</th><th>OPTICS</th><th>Birch</th><th>MeanShift</th><th>LogReg</th><th>RandomForest</th><th>SVC</th></tr>
+  <tr><td>blobs</td><td>0.794</td><td>0.767</td><td>0.356</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>breast_cancer</td><td>0.793</td><td>0.539</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>iris</td><td>0.922</td><td>0.716</td><td>0.590</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>moons</td><td>0.597</td><td>0.283</td><td>1.000</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>wine</td><td>0.799</td><td>0.371</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>digits</td><td>0.998</td><td>0.559</td><td>0.002</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>california_housing</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>circles</td><td>0.000</td><td>-0.003</td><td>0.993</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+</table>
+
+<h4>V-measure</h4>
+<table>
+  <tr><th>Dataset</th><th>SheShe</th><th>KMeans</th><th>DBSCAN</th><th>OPTICS</th><th>Birch</th><th>MeanShift</th><th>LogReg</th><th>RandomForest</th><th>SVC</th></tr>
+  <tr><td>blobs</td><td>0.734</td><td>0.702</td><td>0.430</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>breast_cancer</td><td>0.683</td><td>0.471</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>iris</td><td>0.914</td><td>0.742</td><td>0.641</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>moons</td><td>0.490</td><td>0.338</td><td>1.000</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>wine</td><td>0.780</td><td>0.429</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>digits</td><td>0.997</td><td>0.695</td><td>0.047</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>california_housing</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+  <tr><td>circles</td><td>0.000</td><td>0.000</td><td>0.986</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+</table>
+
+<h3>Rendimiento en conjuntos de datos grandes</h3>
+<table>
+  <tr><th>n_samples</th><th>n_features</th><th>Speedup en <code>fit</code></th><th>Speedup en <code>predict</code></th></tr>
+  <tr><td>1000</td><td>10</td><td>1.12×</td><td>0.70×</td></tr>
+  <tr><td>10000</td><td>10</td><td>1.03×</td><td>0.98×</td></tr>
+</table>
+
+<h3>Prueba A/B del criterio de percentil</h3>
+<table>
+  <tr><th>n_points</th><th>Speedup</th></tr>
+  <tr><td>100</td><td>0.85×</td></tr>
+  <tr><td>1000</td><td>0.35×</td></tr>
+  <tr><td>10000</td><td>0.17×</td></tr>
+</table>
+
+<h3>Prueba A/B de <code>ray_mode</code></h3>
+<table>
+  <tr><th>n_samples</th><th>Speedup</th><th>Acc. grid</th><th>Acc. grad</th></tr>
+  <tr><td>100</td><td>9.26×</td><td>0.67</td><td>0.67</td></tr>
+  <tr><td>400</td><td>5.29×</td><td>0.66</td><td>0.66</td></tr>
+</table>
+
+<h3>Prueba A/B de trabajos paralelos</h3>
+<table>
+  <tr><th>Dataset</th><th>n_samples</th><th>Submodelos</th><th>Speedup</th></tr>
+  <tr><td>breast_cancer</td><td>569</td><td>2</td><td>0.16×</td></tr>
+  <tr><td>breast_cancer</td><td>569</td><td>4</td><td>2.65×</td></tr>
+  <tr><td>digits</td><td>1797</td><td>2</td><td>1.43×</td></tr>
+  <tr><td>digits</td><td>1797</td><td>4</td><td>2.24×</td></tr>
+</table>
+<p>El uso de múltiples núcleos solo aporta beneficios cuando hay suficiente trabajo paralelizable. En el dataset <code>breast_cancer</code> la ejecución paralela solo renta cuando se entrenan más submodelos. Para un dataset más grande como <code>digits</code> los beneficios del paralelismo son más notorios.</p>
+
+<h3>Criterios de parada</h3>
+<table>
+  <tr><th>Tamaño</th><th>Dirección</th><th>Implementación</th><th>Speedup</th></tr>
+  <tr><td>500</td><td>center_out</td><td>vectorized</td><td>1.00×</td></tr>
+  <tr><td>500</td><td>center_out</td><td>loop</td><td>2.73×</td></tr>
+  <tr><td>500</td><td>outside_in</td><td>vectorized</td><td>1.00×</td></tr>
+  <tr><td>500</td><td>outside_in</td><td>loop</td><td>3.64×</td></tr>
+  <tr><td>150</td><td>–</td><td>fit_inflexion</td><td>1.00×</td></tr>
+  <tr><td>150</td><td>–</td><td>fit_percentile</td><td>0.82×</td></tr>
+</table>
+
+<h3>Prueba A/B del optimizador Newton vs gradiente</h3>
+<table>
+  <tr><th>Métrica</th><th>Gradiente</th><th>Newton</th><th>Speedup</th></tr>
+  <tr><td>Tiempo medio (s)</td><td>0.00132</td><td>0.00009</td><td>14.73×</td></tr>
+  <tr><td>Evaluaciones de <code>f</code></td><td>48.0</td><td>2.4</td><td>–</td></tr>
+  <tr><td>Evaluaciones de <code>∇f</code></td><td>43.8</td><td>2.4</td><td>–</td></tr>
+  <tr><td>Evaluaciones de <code>∇²f</code></td><td>–</td><td>1.4</td><td>–</td></tr>
+</table>
+
+  <h3>Prueba A/B de Numba en diferencias finitas</h3>
+  <table>
+  <tr><th>Método</th><th>Tiempo medio (s)</th></tr>
+  <tr><td>Python</td><td>0.0416</td></tr>
+    <tr><td>Numba</td><td>0.0048</td></tr>
+    <tr><td>Speedup</td><td>8.7×</td></tr>
+  </table>
+
+  <h3>Comparación de <code>CheChe</code> vs <code>ShuShu</code></h3>
+  <table>
+    <tr><th>Tiempo CheChe (s)</th><th>Tiempo ShuShu (s)</th><th>Speedup</th></tr>
+    <tr><td>0.00319</td><td>0.00320</td><td>1.00×</td></tr>
+  </table>
+
+  <h3>Prueba A/B de <code>subspace</code></h3>
+  <table>
+    <tr><th>Dataset</th><th>Baseline (s)</th><th>Subspace (s)</th><th>Speedup</th><th>Subspace LE (s)</th><th>Speedup</th></tr>
+    <tr><td>digits</td><td>0.0567</td><td>0.0233</td><td>2.43×</td><td>0.0222</td><td>2.55×</td></tr>
+    <tr><td>iris</td><td>0.00400</td><td>0.00262</td><td>1.53×</td><td>0.00268</td><td>1.49×</td></tr>
+  </table>
+
+  <h3>Perfil de <code>fit</code></h3>
+  <table>
+    <tr><th>Función</th><th>Llamadas</th><th>Tiempo acumulado (s)</th></tr>
+    <tr><td>fit</td><td>1</td><td>8.23</td></tr>
+    <tr><td>f</td><td>25321</td><td>8.08</td></tr>
+    <tr><td>_predict_value_real</td><td>25327</td><td>8.02</td></tr>
+    <tr><td>_scan_radii</td><td>3</td><td>7.17</td></tr>
+    <tr><td>_find_maximum</td><td>3</td><td>1.04</td></tr>
+  </table>
+
+<p>Consulte los archivos CSV en <code><a href="../benchmark/">benchmark/</a></code> para resultados completos.</p>
+
