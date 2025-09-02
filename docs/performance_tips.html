@@ -1,0 +1,29 @@
+---
+layout: default
+title: "Performance Tips"
+description: "Heuristics and tuning for faster exploration"
+nav_order: 9
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Performance Tips</h1>
+
+<h2>Heuristics</h2>
+<p>SheShe applies simple rules to keep runtimes manageable. The primary one is <code>auto_rays_by_dim</code>, which caps <code>base_2d_rays</code> as dimensionality grows:</p>
+<ul>
+  <li>2–24 features → use the full <code>base_2d_rays</code> value (default 32).</li>
+  <li>25–64 features → cap <code>base_2d_rays</code> at 16.</li>
+  <li>65+ features → cap <code>base_2d_rays</code> at 12.</li>
+</ul>
+<p>Disable this behaviour with <code>auto_rays_by_dim=False</code> to keep the original ray count.</p>
+
+<h2>High-dimensional datasets</h2>
+<p>Large feature spaces require additional care. Consider the following adjustments when dealing with tens or hundreds of dimensions:</p>
+<ul>
+  <li><strong>Reduce rays</strong>: set <code>base_2d_rays</code> to 16 or 12 when <code>auto_rays_by_dim</code> is disabled or a lower cap is needed.</li>
+  <li><strong>Trim scan steps</strong>: drop <code>scan_steps</code> from 24 to 12 to halve the evaluations along each ray.</li>
+  <li><strong>Limit exploration</strong>: decrease <code>n_max_seeds</code> and <code>max_subspaces</code> to restrict the number of starting points and subspaces scanned.</li>
+  <li><strong>Preselect subspaces</strong>: run <a href="subspacescout.html">SubspaceScout</a> to focus on promising feature pairs before launching heavier searches.</li>
+</ul>
+<p>See the <a href="../README.md#performance-tips">README</a> for additional context on how these parameters interact.</p>
