@@ -16,7 +16,19 @@ traza los clúesteres directamente sobre la superficie de decisión.
 - Extracción de reglas interpretables a través de `RegionInterpreter`.
 - Utilidades de graficado integradas para visualizaciones 2D y 3D.
 
-*Figura de resumen de características omitida (no se permiten archivos binarios).* 
+*Figura de resumen de características omitida (no se permiten archivos binarios).*
+Genera un gráfico equivalente en tu entorno:
+
+```python
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+sh.plot_pairs(X, y, max_pairs=1)
+plt.show()
+```
 
 ---
 
@@ -54,6 +66,18 @@ La librería expone siete objetos principales:
 - `CheChe` – calcula fronteras 2D sobre pares de características seleccionados
 
 Las figuras ilustrativas de estos objetos se omiten porque el repositorio no admite archivos binarios.
+Puedes visualizar una superficie de decisión en 3D con:
+
+```python
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+sh.plot_pair_3d(X, (0, 1), class_label=sh.classes_[0])
+plt.show()
+```
 
 ```python
 from sheshe import (
