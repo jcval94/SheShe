@@ -917,6 +917,12 @@ Figures have been intentionally omitted because this repository does not permit 
 
 ---
 
+## About
+
+SheShe is authored by José Carlos Del Valle. Connect with him on [LinkedIn](https://www.linkedin.com/in/jose-carlos-del-valle/) or explore his [portfolio](https://jcval94.github.io/Portfolio/).
+
+---
+
 ## Contribute
 
 Improvements are welcome. To propose changes:

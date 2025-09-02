@@ -785,6 +785,12 @@ Las figuras se han omitido deliberadamente porque este repositorio no permite al
 
 ---
 
+## Sobre el autor
+
+SheShe es desarrollado por José Carlos Del Valle. Encuéntralo en [LinkedIn](https://www.linkedin.com/in/jose-carlos-del-valle/) o visita su [portafolio](https://jcval94.github.io/Portfolio/).
+
+---
+
 ## Contribuir
 
 Las mejoras son bienvenidas. Para proponer cambios:
