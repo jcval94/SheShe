@@ -45,7 +45,6 @@ from sklearn.metrics import (
     v_measure_score,
 )
 
-from sheshe import ModalScoutEnsemble
 
 
 Metric = Tuple[str, callable]
@@ -82,6 +81,7 @@ def run(
     save_labels: bool = True,
     out_dir: Optional[Path] = None,
     seeds: Sequence[int] | None = None,
+    datasets: Sequence[str] | None = None,
 ) -> None:
     """Ejecuta el experimento de comparación y guarda resultados.
 
@@ -97,6 +97,9 @@ def run(
     seeds:
         Secuencia de semillas para repetir cada experimento. Cuando es ``None``
         se utilizan ``range(5)``.
+    datasets:
+        Lista opcional con los nombres de los *datasets* a procesar. Cuando es
+        ``None`` se utilizan todos los disponibles.
     """
 
     seeds = list(seeds or range(5))
@@ -146,13 +149,83 @@ def run(
                 print(f"No se pudieron guardar etiquetas en {label_path}: {exc}")
 
     for seed in seeds:
-        datasets = _datasets(seed)
-        for name, (X, y) in datasets.items():
+        datasets_dict = _datasets(seed)
+        if datasets is not None:
+            datasets_dict = {
+                k: v for k, v in datasets_dict.items() if k in set(datasets)
+            }
+        for name, (X, y) in datasets_dict.items():
             n_classes = len(set(y))
+
+            def _run_kmeans() -> None:
+                for k in [
+                    n_classes - 2,
+                    n_classes - 1,
+                    n_classes,
+                    n_classes + 1,
+                    n_classes + 2,
+                ]:
+                    k = max(k, 1)
+                    try:
+                        mem_before_fit = psutil.Process().memory_info().rss
+                        start_fit = time.perf_counter()
+                        km = KMeans(n_clusters=k, random_state=seed)
+                        km.fit(X)
+                        fit_time = time.perf_counter() - start_fit
+                        fit_mem = (
+                            psutil.Process().memory_info().rss - mem_before_fit
+                        ) / (1024 ** 2)
+
+                        mem_before_pred = psutil.Process().memory_info().rss
+                        start_pred = time.perf_counter()
+                        y_pred = km.predict(X)
+                        predict_time = time.perf_counter() - start_pred
+                        predict_mem = (
+                            psutil.Process().memory_info().rss - mem_before_pred
+                        ) / (1024 ** 2)
+
+                        metrics_dict = _evaluate(y, y_pred, metrics)
+                        _save_labels(
+                            y_pred, f"{name}_KMeans_k-{k}_seed-{seed}.labels"
+                        )
+                    except Exception as exc:
+                        y_pred = []
+                        metrics_dict = {name: math.nan for name, _ in metrics}
+                        fit_time = (
+                            predict_time
+                        ) = fit_mem = predict_mem = math.nan
+                        if verbose:
+                            print(f"KMeans falló en {name} (k={k}, seed={seed}): {exc}")
+                    runtime = (
+                        0 if math.isnan(fit_time) else fit_time
+                    ) + (0 if math.isnan(predict_time) else predict_time)
+                    record = {
+                        "dataset": name,
+                        "algorithm": "KMeans",
+                        "params": f"n_clusters={k}",
+                        "seed": seed,
+                        "fit_time_sec": fit_time,
+                        "predict_time_sec": predict_time,
+                        "fit_mem_mb": fit_mem,
+                        "predict_mem_mb": predict_mem,
+                        "runtime_sec": runtime,
+                    }
+                    record.update(metrics_dict)
+                    results.append(record)
+                    if verbose:
+                        print(
+                            f"KMeans {name} k={k} seed={seed} → {runtime:.4f}s",
+                        )
+
+            if name == "california_housing":
+                _run_kmeans()
+                continue
 
             # SheShe: barridos de C, max_order, jaccard_threshold y base_2d_rays
             def _run_sheshe(*, C: float, max_order: int, jacc: float, rays: int) -> None:
                 try:
+                    from sheshe import ModalScoutEnsemble
+
                     mem_before_fit = psutil.Process().memory_info().rss
                     start_fit = time.perf_counter()
                     sh = ModalScoutEnsemble(
@@ -229,49 +302,7 @@ def run(
             for rays in [16]:
                 _run_sheshe(C=1.0, max_order=3, jacc=0.55, rays=rays)
 
-            # KMeans: variar n_clusters (más valores)
-            for k in [n_classes - 2, n_classes - 1, n_classes, n_classes + 1, n_classes + 2]:
-                k = max(k, 1)
-                try:
-                    mem_before_fit = psutil.Process().memory_info().rss
-                    start_fit = time.perf_counter()
-                    km = KMeans(n_clusters=k, random_state=seed)
-                    km.fit(X)
-                    fit_time = time.perf_counter() - start_fit
-                    fit_mem = (psutil.Process().memory_info().rss - mem_before_fit) / (1024 ** 2)
-
-                    mem_before_pred = psutil.Process().memory_info().rss
-                    start_pred = time.perf_counter()
-                    y_pred = km.predict(X)
-                    predict_time = time.perf_counter() - start_pred
-                    predict_mem = (psutil.Process().memory_info().rss - mem_before_pred) / (1024 ** 2)
-
-                    metrics_dict = _evaluate(y, y_pred, metrics)
-                    _save_labels(y_pred, f"{name}_KMeans_k-{k}_seed-{seed}.labels")
-                except Exception as exc:
-                    y_pred = []
-                    metrics_dict = {name: math.nan for name, _ in metrics}
-                    fit_time = predict_time = fit_mem = predict_mem = math.nan
-                    if verbose:
-                        print(f"KMeans falló en {name} (k={k}, seed={seed}): {exc}")
-                runtime = (0 if math.isnan(fit_time) else fit_time) + (0 if math.isnan(predict_time) else predict_time)
-                record = {
-                    "dataset": name,
-                    "algorithm": "KMeans",
-                    "params": f"n_clusters={k}",
-                    "seed": seed,
-                    "fit_time_sec": fit_time,
-                    "predict_time_sec": predict_time,
-                    "fit_mem_mb": fit_mem,
-                    "predict_mem_mb": predict_mem,
-                    "runtime_sec": runtime,
-                }
-                record.update(metrics_dict)
-                results.append(record)
-                if verbose:
-                    print(
-                        f"KMeans {name} k={k} seed={seed} → {runtime:.4f}s",
-                    )
+            _run_kmeans()
 
             # DBSCAN: variar eps (rango ampliado)
             for eps in [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]:
@@ -608,5 +639,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Comparación de algoritmos no supervisados")
     parser.add_argument("--runs", type=int, default=5, help="Número de repeticiones con distintas semillas")
     parser.add_argument("--verbose", action="store_true", help="Mostrar progreso")
+    parser.add_argument("--datasets", nargs="*", help="Lista de datasets a procesar")
     args = parser.parse_args()
-    run(verbose=args.verbose, seeds=list(range(args.runs)))
+    run(verbose=args.verbose, seeds=list(range(args.runs)), datasets=args.datasets)
