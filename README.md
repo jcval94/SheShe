@@ -35,6 +35,7 @@ plt.show()
 
 ## Installation
 
+See [docs/installation.html](docs/installation.html) for full setup details.
 Requires **Python >=3.9** and it is recommended to work inside a virtual
 environment. Install the latest release from
 [PyPI](https://pypi.org/project/sheshe/):
@@ -58,6 +59,7 @@ gradients and Hessians.
 
 ## Reproducibility
 
+Environment and benchmarking notes are in [docs/reproducibility.html](docs/reproducibility.html).
 This project was developed and tested on:
 
 - **OS:** Ubuntu 24.04.2 LTS
@@ -77,6 +79,8 @@ PYTHONPATH=src pytest -q
 ---
 
 ## Quick API
+
+A full reference is available in [docs/quick_api.html](docs/quick_api.html).
 
 The library exposes seven main objects:
 
@@ -877,20 +881,8 @@ python experiments/paper_experiments.py --runs 5
 ---
 
 ## Key parameters
-- `base_2d_rays` → controls angular resolution in 2D (32 by default). 3D scales
-  to ~34; d>3 uses subspaces.
-- `direction` → "center_out" | "outside_in" to locate the inflection point.
-- `scan_radius_factor`, `scan_steps` → size and resolution of the radial scan.
-- `optim_method` → `"gradient_ascent"` (default) or `"trust_region_newton"`; the
-  trust-region variant uses gradients and Hessians to solve quadratic
-  subproblems inside an adaptive radius and respects box constraints.
-- `grad_*` → hyperparameters of gradient ascent (rate, iterations, tolerances;
-  used only when `optim_method="gradient_ascent"`).
-- `max_subspaces` → max number of subspaces considered when d>3.
-- `density_alpha` / `density_k` → optional density penalty computed with an
-  HNSW k‑NN search (via `hnswlib`) to keep centers inside the data cloud. The
-  normalized value is multiplied by `(density(x))**density_alpha`; set
-  `density_alpha=0` to disable.
+See [docs/key_parameters.html](docs/key_parameters.html) for a complete list of
+hyperparameters and their effects.
 
 ---
 
@@ -904,6 +896,7 @@ python experiments/paper_experiments.py --runs 5
 ---
 
 ## Limitations
+Further details are available in [docs/limitations.html](docs/limitations.html).
 - Depends on the **surface** produced by the base model (can be rough in RF).
 - In high dimension, the boundary is an **approximation** (subspaces).
 - Finds **local maxima** (does not guarantee the global one), mitigated with
