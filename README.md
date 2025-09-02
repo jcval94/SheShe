@@ -17,7 +17,11 @@ surface.
 - Human-readable rule extraction through `RegionInterpreter`.
 - Built-in plotting utilities for pairwise and 3D visualisations.
 
-*Feature overview figure omitted (binary assets are not allowed).* 
+*Feature overview figure omitted (binary assets are not allowed).*
+
+## Documentation
+
+The full project documentation is available at [jcval94.github.io/SheShe](https://jcval94.github.io/SheShe/).
 
 ---
 

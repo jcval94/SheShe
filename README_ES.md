@@ -16,7 +16,11 @@ traza los clúesteres directamente sobre la superficie de decisión.
 - Extracción de reglas interpretables a través de `RegionInterpreter`.
 - Utilidades de graficado integradas para visualizaciones 2D y 3D.
 
-*Figura de resumen de características omitida (no se permiten archivos binarios).* 
+*Figura de resumen de características omitida (no se permiten archivos binarios).*
+
+## Documentación
+
+La documentación del proyecto está disponible en [jcval94.github.io/SheShe](https://jcval94.github.io/SheShe/).
 
 ---
 
