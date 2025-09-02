@@ -1,0 +1,142 @@
+---
+layout: default
+title: "Method matrix"
+description: "Supported methods across SheShe predictors"
+nav_order: 6
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Method matrix</h1>
+
+<p>This table summarizes which API methods are implemented by each predictor.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></th>
+      <th><a href="shushu.html">ShuShu</a></th>
+      <th><a href="cheche.html">CheChe</a></th>
+      <th><a href="modalscoutensemble.html">ModalScoutEnsemble</a></th>
+      <th>Brief description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>fit</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Fit the model to the dataset.</td>
+    </tr>
+    <tr>
+      <td><code>fit_predict</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Train and return assigned labels or regions.</td>
+    </tr>
+    <tr>
+      <td><code>fit_transform</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Fit and transform data into an internal representation.</td>
+    </tr>
+    <tr>
+      <td><code>transform</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Transform new samples according to the trained model.</td>
+    </tr>
+    <tr>
+      <td><code>predict</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Predict labels or values for new samples.</td>
+    </tr>
+    <tr>
+      <td><code>predict_proba</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Estimate prediction probabilities or confidence.</td>
+    </tr>
+    <tr>
+      <td><code>decision_function</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Return score or distance to the decision boundary.</td>
+    </tr>
+    <tr>
+      <td><code>predict_regions</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Indicate the region or cluster each sample belongs to. Similar to <code>get_cluster</code> in some predictors.</td>
+    </tr>
+    <tr>
+      <td><code>score</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Compute a performance metric on test data.</td>
+    </tr>
+    <tr>
+      <td><code>save</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Save the trained model to disk.</td>
+    </tr>
+    <tr>
+      <td><code>load</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Load a previously saved model.</td>
+    </tr>
+    <tr>
+      <td><code>plot_pairs</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Plot feature pairs with regions or clusters.</td>
+    </tr>
+    <tr>
+      <td><code>plot_pair_3d</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Plot two features and the response in 3D.</td>
+    </tr>
+    <tr>
+      <td><code>interpretability_summary</code></td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>✓</td>
+      <td>Interpretability summary of regions or the model.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>See the <a href="../README.md#method-matrix">README</a> for more context.</p>
+
