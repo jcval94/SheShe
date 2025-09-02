@@ -625,7 +625,21 @@ class CheChe:
             ax.scatter(pts[:, 0], pts[:, 1], s=10, alpha=0.5, label="data")
             frontier = self.get_frontier((i, j), class_index=class_index)
             frontier = np.concatenate([frontier, frontier[:1]], axis=0)
-            ax.plot(frontier[:, 0], frontier[:, 1], color="red", label="frontier")
+            cid = None
+            target_label = None
+            if self.regions_:
+                if self.mode_ in ("multiclass", "regression") and class_index is not None:
+                    target_label = self.per_class_[class_index]["label"]
+                for reg in self.regions_:
+                    dims = tuple(reg.get("dims", ()))
+                    if dims != (i, j):
+                        continue
+                    if target_label is not None and reg.get("label") != target_label:
+                        continue
+                    cid = reg.get("cluster_id")
+                    break
+            lbl = f"frontier {cid}" if cid is not None else "frontier"
+            ax.plot(frontier[:, 0], frontier[:, 1], color="red", label=lbl)
             if feature_names is not None and len(feature_names) > max(i, j):
                 ax.set_xlabel(feature_names[i])
                 ax.set_ylabel(feature_names[j])
