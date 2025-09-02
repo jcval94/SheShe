@@ -16,14 +16,14 @@ nav_order: 4
 <p>projections and offers helpers like <code>pretty_print</code> for reporting. Optional</p>
 <p>LLM backends can turn the summaries into natural‑language descriptions.</p>
 <h2>Example</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import RegionInterpreter
 ri = RegionInterpreter(feature_names=["sepal", "petal"])
 summary = ri.summarize(region)
 </code></pre>
 
 <h2>Usage examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import RegionInterpreter
 
 ri = RegionInterpreter(feature_names=["sepal", "petal"])
@@ -31,7 +31,7 @@ ri.summarize(region)       # summarize a single region
 ri.summarize([region])     # summarize a list of regions
 </code></pre>
 <h2>Additional examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sklearn.datasets import load_iris
 from sheshe import ModalBoundaryClustering, RegionInterpreter
 
