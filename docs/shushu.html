@@ -20,6 +20,24 @@ ss = ShuShu()
 ss.fit(X, y)
 labels = ss.predict(X)
 </code></pre>
+
+<h2>Usage examples</h2>
+<pre><code>
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0)
+shu.fit(X, y)                      # fit
+shu.fit_predict(X, y)              # fit_predict
+shu.fit_transform(X, y)            # fit_transform
+shu.fit(X, y).transform(X)         # transform
+shu.fit(X, y).predict(X)           # predict
+shu.fit(X, y).predict_proba(X)     # predict_proba
+shu.fit(X, y).decision_function(X) # decision_function
+shu.fit(X, y).predict_regions(X)   # predict_regions
+shu.fit(X, y).score(X, y)          # score
+shu.fit(X, y).save("shu.joblib")   # save
+ShuShu.load("shu.joblib")
+</code></pre>
 <h2>Parameters</h2>
 <ul>
 <li><code>clusterer_factory</code> (callable or <code>None</code>, default <code>None</code>): factory returning

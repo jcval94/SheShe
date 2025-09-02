@@ -20,6 +20,24 @@ mbc = ModalBoundaryClustering()
 mbc.fit(X, y)
 labels = mbc.predict(X)
 </code></pre>
+
+<h2>Usage examples</h2>
+<pre><code>
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0)
+mbc.fit(X, y)                      # fit
+mbc.fit_predict(X, y)              # fit_predict
+mbc.fit_transform(X, y)            # fit_transform
+mbc.fit(X, y).transform(X)         # transform
+mbc.fit(X, y).predict(X)           # predict
+mbc.fit(X, y).predict_proba(X)     # predict_proba
+mbc.fit(X, y).decision_function(X) # decision_function
+mbc.fit(X, y).predict_regions(X)   # predict_regions
+mbc.fit(X, y).score(X, y)          # score
+mbc.fit(X, y).save("mbc.joblib")   # save
+ModalBoundaryClustering.load("mbc.joblib")
+</code></pre>
 <h2>Parameters</h2>
 <ul>
 <li><code>base_estimator</code> (BaseEstimator, default <code>None</code>): model used to compute

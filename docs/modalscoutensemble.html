@@ -21,6 +21,25 @@ mse = ModalScoutEnsemble(base_estimator=LogisticRegression())
 mse.fit(X, y)
 labels = mse.predict(X)
 </code></pre>
+
+<h2>Usage examples</h2>
+<pre><code>
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0)
+mse.fit(X, y)                      # fit
+mse.fit_predict(X, y)              # fit_predict
+mse.fit_transform(X, y)            # fit_transform
+mse.fit(X, y).transform(X)         # transform
+mse.fit(X, y).predict(X)           # predict
+mse.fit(X, y).predict_proba(X)     # predict_proba
+mse.fit(X, y).decision_function(X) # decision_function
+mse.fit(X, y).predict_regions(X)   # predict_regions
+mse.fit(X, y).score(X, y)          # score
+mse.fit(X, y).save("mse.joblib")   # save
+ModalScoutEnsemble.load("mse.joblib")
+</code></pre>
 <h2>Parameters</h2>
 <ul>
 <li><code>base_estimator</code> (<code>BaseEstimator</code>): model used to compute probabilities or

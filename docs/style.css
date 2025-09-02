@@ -1,4 +1,6 @@
-body {
+/* Scope all custom styles to the main content area so that the
+   default layout from the just-the-docs theme is not disrupted. */
+.main-content {
   font-family: "Helvetica Neue", Arial, sans-serif;
   line-height: 1.6;
   background-color: #fdfdfd;
@@ -8,23 +10,25 @@ body {
   padding: 2rem;
 }
 
-h1, h2, h3 {
+.main-content h1,
+.main-content h2,
+.main-content h3 {
   color: #003b5c;
 }
 
-pre {
+.main-content pre {
   background: #f0f0f0;
   padding: 1rem;
   overflow-x: auto;
   border-radius: 4px;
 }
 
-.doc-image {
+.main-content .doc-image {
   text-align: center;
   margin: 2rem 0;
 }
 
-.doc-image img {
+.main-content .doc-image img {
   max-width: 100%;
   height: auto;
   border: 1px solid #ddd;
