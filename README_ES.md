@@ -8,6 +8,9 @@ SheShe convierte cualquier modelo probabilístico en un explorador guiado de su 
 - Extracción de reglas y exploración de subespacios
 - Herramientas de graficado 2D/3D
 
+## Resumen matemático
+SheShe aproxima el problema <code>max_x f(x)</code> siguiendo trayectorias de ascenso por gradiente hacia máximos locales y delimitando las regiones vecinas. Las ecuaciones detalladas se encuentran en la documentación.
+
 ## Instalación
 Requiere Python ≥3.9. Instala desde [PyPI](https://pypi.org/project/sheshe/):
 

@@ -24,6 +24,10 @@ plt.show()
 <p>It summarises each region with axis‑aligned boxes, highlights informative</p>
 <p>projections and offers helpers like <code>pretty_print</code> for reporting. Optional</p>
 <p>LLM backends can turn the summaries into natural‑language descriptions.</p>
+<h2>Mathematical formulation</h2>
+<p>For each feature <code>j</code>, an axis‑aligned rule uses quantiles <code>[Q_q(x_j), Q_{1-q}(x_j)]</code>, capturing about <code>1-2q</code> of the data.</p>
+<p>Capped radii are flagged using the z‑score <code>z=(r-μ)/σ</code> when <code>|z| &gt; cap_threshold</code>.</p>
+<p><strong>Example:</strong> with <code>q_box=0.05</code> and values 1‑10, the rule becomes <code>[1.45, 9.55]</code>. A radius 3 with mean 2 and <code>σ=0.3</code> yields <code>z≈3.3</code>.</p>
 <h2>Example</h2>
 <pre><code class="language-python">
 from sheshe import RegionInterpreter

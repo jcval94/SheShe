@@ -10,6 +10,10 @@ nav_order: 0
 
 <p>SheShe transforms a probabilistic model into an explorer of its own decision landscape. It searches for <strong>local maxima</strong> in class probability or predicted value and can outline regions around the discovered modes.</p>
 
+<h2>Mathematical foundation</h2>
+<p>Optimisation follows gradient-ascent updates <code>x_{k+1} = x_k + α∇f(x_k)</code> until the gradient norm falls below a small <code>ε</code>.</p>
+<p>Boundary scans shoot rays from each peak and locate inflection points where <code>d²f/dr² = 0</code> or a percentile drop is reached, delimiting regions around every mode. See <a href="shushu.html">ShuShu</a> and <a href="modalboundaryclustering.html">ModalBoundaryClustering</a> for details.</p>
+
 <h2>Components</h2>
 
 <h3><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></h3>

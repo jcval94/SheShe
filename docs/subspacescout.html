@@ -23,6 +23,10 @@ plt.show()
 <p>run only where it matters in high-dimensional spaces. Uses mutual information or</p>
 <p>optional model-based scorers to rank interactions and employs beam search to</p>
 <p>enumerate promising subspaces.</p>
+<h2>Mathematical formulation</h2>
+<p>Mutual information between a subset <code>X</code> and target <code>Y</code> is <code>I(X;Y)=∑_{x,y} p(x,y) log(p(x,y)/(p(x)p(y)))</code>.</p>
+<p>The synergy objective for a set <code>S</code> is <code>Synergy(S) = I(S;Y) - ∑_{i∈S} I(X_i;Y)</code>, capturing information beyond individual features.</p>
+<p>Beam search grows subspaces order by order and retains those with highest scores.</p>
 <h2>Example</h2>
 <pre><code class="language-python">
 from sheshe import SubspaceScout
