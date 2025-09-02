@@ -8,9 +8,16 @@ nav_order: 6
 
 <h1>CheChe</h1>
 
-<figure class="doc-image">
-  <img src="images/cheche.png" alt="CheChe diagram">
-</figure>
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import CheChe
+
+X, y = load_iris(return_X_y=True)
+che = CheChe().fit(X, y)
+che.plot_pairs(X, y, max_pairs=1)
+plt.show()
+</code></pre>
 <p>Computes convex-hull frontiers for selected feature pairs and provides simple</p>
 <p>2D visualisations. Useful for exploring decision boundaries or cluster shapes,</p>
 <p>it can subsample points via <code>mapping_level</code> and plot frontiers per class or</p>

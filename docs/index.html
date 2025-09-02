@@ -9,9 +9,16 @@ has_children: true
 
 <h1>SheShe</h1>
 
-<figure class="doc-image">
-  <img src="images/overview.png" alt="SheShe overview diagram">
-</figure>
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+sh.plot_pairs(X, y, max_pairs=1)
+plt.show()
+</code></pre>
 
 <p>Smart High-dimensional Edge Segmentation &amp; Hyperboundary Explorer</p>
 

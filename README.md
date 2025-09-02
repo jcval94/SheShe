@@ -17,7 +17,19 @@ surface.
 - Human-readable rule extraction through `RegionInterpreter`.
 - Built-in plotting utilities for pairwise and 3D visualisations.
 
-*Feature overview figure omitted (binary assets are not allowed).* 
+*Feature overview figure omitted (binary assets are not allowed).*
+Generate an equivalent plot on your machine:
+
+```python
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+sh.plot_pairs(X, y, max_pairs=1)
+plt.show()
+```
 
 ---
 
@@ -77,6 +89,18 @@ The library exposes seven main objects:
 - `CheChe` – compute 2D frontiers on selected feature pairs
 
 Figures illustrating these objects are omitted because binary assets are not allowed in this repository.
+You can visualise a 3D decision surface with:
+
+```python
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+sh.plot_pair_3d(X, (0, 1), class_label=sh.classes_[0])
+plt.show()
+```
 
 ```python
 from sheshe import (
