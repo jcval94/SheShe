@@ -1,0 +1,61 @@
+---
+layout: default
+title: "Key parameters"
+description: "Important hyperparameters and their effects"
+nav_order: 7
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Key parameters</h1>
+
+<p>Main hyperparameters that influence search and clustering.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Effect</th>
+      <th>Reference</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>base_2d_rays</code></td>
+      <td>Controls angular resolution in 2D (default 32). 3D scales to ~34; higher dimensions use subspaces.</td>
+      <td><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></td>
+    </tr>
+    <tr>
+      <td><code>direction</code></td>
+      <td>Selects scan direction to locate the inflection point: <code>center_out</code> or <code>outside_in</code>.</td>
+      <td><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></td>
+    </tr>
+    <tr>
+      <td><code>scan_radius_factor</code>, <code>scan_steps</code></td>
+      <td>Set size and resolution of the radial scan around seed points.</td>
+      <td><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></td>
+    </tr>
+    <tr>
+      <td><code>optim_method</code></td>
+      <td>Choose between <code>gradient_ascent</code> (default) or <code>trust_region_newton</code> for local maximisation.</td>
+      <td><a href="shushu.html">ShuShu</a></td>
+    </tr>
+    <tr>
+      <td><code>grad_*</code></td>
+      <td>Hyperparameters for gradient ascent (rate, iterations, tolerances); used when <code>optim_method="gradient_ascent"</code>.</td>
+      <td><a href="shushu.html">ShuShu</a></td>
+    </tr>
+    <tr>
+      <td><code>max_subspaces</code></td>
+      <td>Maximum number of subspaces considered when dimensionality &gt; 3.</td>
+      <td><a href="subspacescout.html">SubspaceScout</a></td>
+    </tr>
+    <tr>
+      <td><code>density_alpha</code>, <code>density_k</code></td>
+      <td>Optional density penalty using HNSW k‑NN to keep centres inside the data cloud; disable with <code>density_alpha=0</code>.</td>
+      <td><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Defaults favour speed; see <a href="highlights.html">Highlights</a> for performance tips and <a href="limitations.html">Limitations</a> for known constraints.</p>
