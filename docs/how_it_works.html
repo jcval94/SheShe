@@ -1,0 +1,24 @@
+---
+layout: default
+title: "How It Works"
+parent: SheShe
+nav_order: 0
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>How SheShe Works</h1>
+
+<p>SheShe transforms a probabilistic model into an explorer of its own decision landscape. It searches for <strong>local maxima</strong> in class probability or predicted value and can outline regions around the discovered modes.</p>
+
+<h2>Components</h2>
+
+<h3><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></h3>
+<p>This clustering approach scans score surfaces for separated modes and draws supervised boundaries around each one. It performs its own optimisation and does not depend on ShuShu or CheChe.</p>
+
+<h3><a href="shushu.html">ShuShu</a></h3>
+<p>ShuShu is a lightweight gradient-ascent optimiser that can probe any score function. It locates local maxima independently and can be combined with other tools as needed.</p>
+
+<h3><a href="cheche.html">CheChe</a></h3>
+<p>CheChe projects optimisation paths into two dimensions and draws convex-hull frontiers for selected feature pairs. It operates separately from ModalBoundaryClustering and ShuShu to provide visual analysis.</p>
+
+<p>These independent components let SheShe reveal the structure of complex models by following their peaks and mapping boundaries in whichever way best suits the task.</p>
