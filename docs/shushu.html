@@ -62,6 +62,10 @@ def paraboloid(Z):
 
 sc = ShuShu(random_state=0).fit(np.random.rand(100, 2), score_fn=paraboloid)
 print(sc.centroids_)
+
+from sklearn.linear_model import LogisticRegression
+model = LogisticRegression(max_iter=200).fit(X, y)
+ShuShu(random_state=0).fit(X, y, score_model=model)
 </code></pre>
 <h2>Parameters</h2>
 <ul>

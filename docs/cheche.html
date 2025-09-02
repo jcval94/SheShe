@@ -58,6 +58,15 @@ ch = CheChe().fit(
 )
 ch.plot_pairs(X, class_index=0)
 </code></pre>
+<pre><code class="language-python">
+from sklearn.linear_model import LogisticRegression
+
+model = LogisticRegression(max_iter=200).fit(X, y)
+CheChe().fit(X, y, score_model=model)
+
+score_fn = lambda Z: model.predict_proba(Z)[:, 0]
+CheChe().fit(X, score_fn=score_fn)
+</code></pre>
 <h2>Parameters</h2>
 <ul>
 <li><code>random_state</code> (<code>int</code> or <code>None</code>, default <code>None</code>): seed for reproducibility.
