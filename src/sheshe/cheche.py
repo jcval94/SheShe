@@ -12,7 +12,7 @@ to evaluate, rather than exhaustively exploring all possible pairs.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Self
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Self, Union
 from itertools import combinations
 
 import numpy as np
@@ -586,6 +586,91 @@ class CheChe:
 
         fig.tight_layout()
         return fig, axes
+
+    # ------------------------------------------------------------------
+    def plot_classes(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        grid_res: int = 200,
+        contour_levels: Optional[Union[np.ndarray, List[float]]] = None,
+        max_paths: int = 20,
+        show_paths: bool = True,
+    ) -> None:
+        """Plot stored frontiers for each class.
+
+        This method mirrors the signature of :meth:`ShuShu.plot_classes` for
+        API compatibility but ignores ``grid_res``, ``contour_levels``,
+        ``max_paths`` and ``show_paths`` as ``CheChe`` does not compute score
+        surfaces nor optimization paths.  For every class discovered during
+        fitting, a separate figure is generated for each stored feature pair
+        where the frontier polygon is overlaid on the scatter plot of all data
+        points.
+        """
+
+        import matplotlib.pyplot as plt  # optional dependency kept local
+
+        if self.mode_ is None or not self.per_class_:
+            raise RuntimeError(
+                "plot_classes only available after fitting in classification or regression mode"
+            )
+
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y)
+        uniq = np.unique(y)
+        palette = [
+            "#e41a1c",
+            "#377eb8",
+            "#4daf4a",
+            "#984ea3",
+            "#ff7f00",
+            "#a65628",
+            "#f781bf",
+            "#999999",
+        ]
+        class_colors = {c: palette[i % len(palette)] for i, c in enumerate(uniq)}
+
+        feature_names = (
+            self.feature_names_
+            if self.feature_names_ is not None
+            else [f"x{j}" for j in range(X.shape[1])]
+        )
+
+        for ci, info in self.per_class_.items():
+            label = info["label"]
+            color = class_colors.get(label, "red")
+            fr: Dict[Tuple[int, int], np.ndarray] = info["frontiers"]
+            for (i, j), boundary in fr.items():
+                fig, ax = plt.subplots()
+                for cls in uniq:
+                    mask = y == cls
+                    ax.scatter(
+                        X[mask, i],
+                        X[mask, j],
+                        s=18,
+                        alpha=0.8,
+                        label=str(cls),
+                        color=class_colors[cls],
+                        edgecolor="k",
+                        linewidths=0.3,
+                    )
+
+                B = np.concatenate([boundary, boundary[:1]], axis=0)
+                ax.plot(
+                    B[:, 0],
+                    B[:, 1],
+                    linewidth=2,
+                    color=color,
+                    label=f"frontera {label}",
+                )
+
+                ax.set_xlabel(feature_names[i])
+                ax.set_ylabel(feature_names[j])
+                ax.set_title(
+                    f"Prob. clase '{label}' vs ({feature_names[i]},{feature_names[j]})"
+                )
+                ax.legend()
+                fig.tight_layout()
 
     # ------------------------------------------------------------------
     def plot_pair_3d(
