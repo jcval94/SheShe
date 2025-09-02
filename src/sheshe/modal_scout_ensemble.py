@@ -772,6 +772,20 @@ class ModalScoutEnsemble(BaseEstimator):
       raise TypeError("Loaded object is not a ModalScoutEnsemble instance")
     return model
 
+  def summary_tables(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Resumen simple por submodelo y por región."""
+
+    if not self.models_:
+      return pd.DataFrame(), pd.DataFrame()
+    rows_m: List[Dict[str, Any]] = []
+    rows_r: List[Dict[str, Any]] = []
+    for idx, (w, mbc) in enumerate(zip(self.weights_, self.models_)):
+      regs = getattr(mbc, "regions_", []) or []
+      rows_m.append({"model_idx": idx, "n_regions": len(regs), "weight": float(w)})
+      for reg in regs:
+        rows_r.append({"model_idx": idx, "cluster_id": reg.cluster_id, "label": reg.label})
+    return pd.DataFrame(rows_m), pd.DataFrame(rows_r)
+
   def report(self) -> List[Dict[str, Any]]:
     """Resumen por subespacio (ordenado por peso)."""
     if self.ensemble_method.lower() == "shushu":
@@ -823,6 +837,14 @@ class ModalScoutEnsemble(BaseEstimator):
       raise IndexError("model_idx fuera de rango.")
     return self.models_[model_idx], self.features_[model_idx]
 
+  def get_frontier(self, model_idx: int, cluster_id: int, dims: Sequence[int]) -> np.ndarray:
+    """Recupera la frontera de un submodelo para un par de features globales."""
+
+    mbc, feats = self._get_submodel(model_idx)
+    feat_map = {f: i for i, f in enumerate(feats)}
+    dims_local = [feat_map[d] for d in dims]
+    return mbc.get_frontier(cluster_id, dims_local)
+
   def plot_pairs(
     self,
     X: np.ndarray,
@@ -861,6 +883,11 @@ class ModalScoutEnsemble(BaseEstimator):
       block_size=block_size,
       max_classes=max_classes,
     )
+
+  def plot_classes(self, X: np.ndarray, y: np.ndarray, **kwargs):
+    """Atajo que delega en :meth:`plot_pairs` para compatibilidad."""
+
+    return self.plot_pairs(X, y=y, **kwargs)
 
   def plot_pair_3d(
     self,

@@ -531,6 +531,53 @@ class CheChe:
         return self.frontiers_[dims_t]
 
     # ------------------------------------------------------------------
+    def summary_tables(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Summaries of stored frontiers."""
+
+        rows_c: List[Dict[str, Any]] = []
+        rows_f: List[Dict[str, Any]] = []
+        if self.mode_ in ("multiclass", "regression") and self.per_class_:
+            for ci, info in self.per_class_.items():
+                label = info["label"]
+                fr = info.get("frontiers", {})
+                rows_c.append({"class_index": ci, "class_label": label, "n_frontiers": len(fr)})
+                for dims, boundary in fr.items():
+                    rows_f.append(
+                        {
+                            "class_index": ci,
+                            "class_label": label,
+                            "dims": dims,
+                            "n_vertices": int(len(boundary)),
+                        }
+                    )
+        else:
+            rows_c.append({"class_index": 0, "class_label": None, "n_frontiers": len(self.frontiers_)})
+            for dims, boundary in self.frontiers_.items():
+                rows_f.append({"class_index": 0, "class_label": None, "dims": dims, "n_vertices": int(len(boundary))})
+        return pd.DataFrame(rows_c), pd.DataFrame(rows_f)
+
+    def report(self) -> List[Dict[str, Any]]:
+        """Return frontier information for each stored pair."""
+
+        info: List[Dict[str, Any]] = []
+        if self.mode_ in ("multiclass", "regression") and self.per_class_:
+            for ci, details in self.per_class_.items():
+                label = details["label"]
+                for dims, boundary in details.get("frontiers", {}).items():
+                    info.append(
+                        {
+                            "class_index": ci,
+                            "class_label": label,
+                            "dims": dims,
+                            "n_vertices": int(len(boundary)),
+                        }
+                    )
+        else:
+            for dims, boundary in self.frontiers_.items():
+                info.append({"dims": dims, "n_vertices": int(len(boundary))})
+        return info
+
+    # ------------------------------------------------------------------
     def plot_pairs(
         self,
         X: np.ndarray,

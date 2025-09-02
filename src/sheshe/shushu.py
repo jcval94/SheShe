@@ -889,6 +889,38 @@ class ShuShu:
             "geometry": geometry,
         }
 
+    def get_frontier(self, cluster_id: int, dims: Sequence[int]) -> Optional[np.ndarray]:
+        """Return a simple frontier approximation for a given cluster.
+
+        The stored geometry is used to build a rectangle in the requested
+        two-dimensional subspace.
+
+        Parameters
+        ----------
+        cluster_id : int
+            Identifier of the region to fetch.
+        dims : sequence of int
+            Two feature indices defining the subspace of interest.
+        """
+
+        info = self.get_cluster(cluster_id, with_geometry=True)
+        if not info or info.get("geometry") is None:
+            return None
+        dims_t = tuple(dims)
+        if len(dims_t) != 2:
+            raise ValueError("dims must contain exactly two indices")
+        geom = info["geometry"]
+        lower = np.asarray(geom["lower"])[list(dims_t)]
+        upper = np.asarray(geom["upper"])[list(dims_t)]
+        return np.array(
+            [
+                [lower[0], lower[1]],
+                [lower[0], upper[1]],
+                [upper[0], upper[1]],
+                [upper[0], lower[1]],
+            ]
+        )
+
     def predict_regions(
         self, X: npt.NDArray[np.float_] | pd.DataFrame
     ) -> pd.DataFrame:
@@ -1421,6 +1453,13 @@ class ShuShu:
         per_class_df = pd.DataFrame(rows_c)
         per_centroid_df = pd.DataFrame(rows_ct)
         return per_class_df, per_centroid_df
+
+    def report(self) -> List[Dict[str, Any]]:
+        """Return stored cluster information."""
+
+        if not self.clusters_:
+            return []
+        return [dict(c) for c in self.clusters_]
 
     def save(self, filepath: Union[str, Path]) -> None:
         """Serialize this instance using ``joblib.dump``.
