@@ -16,7 +16,7 @@ from sheshe import ModalBoundaryClustering
 
 X, y = load_iris(return_X_y=True)
 sh = ModalBoundaryClustering().fit(X, y)
-sh.plot_pairs(X, y, max_pairs=1)
+sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
 plt.show()
 </code></pre>
 

@@ -15,7 +15,7 @@ from sheshe import ModalScoutEnsemble
 
 X, y = load_iris(return_X_y=True)
 mse = ModalScoutEnsemble().fit(X, y)
-mse.plot_pairs(X, y, max_pairs=1)
+mse.plot_pairs(X, y, max_pairs=1, show_histograms=True)
 plt.show()
 </code></pre>
 <p>Ensemble that applies <code>ModalBoundaryClustering</code> on the most promising</p>
@@ -155,8 +155,8 @@ print(mse.predict_proba(X[:5]))
 </li>
 <li><code>predict_regions(X)</code> – DataFrame with region assignments.
 </li>
-<li><code>plot_pairs(X, y=None, **kwargs)</code> – delegate to
- <code>ModalBoundaryClustering.plot_pairs</code> for a selected submodel.
+<li><code>plot_pairs(X, y=None, show_histograms=False, **kwargs)</code> – delegate to
+ <code>ModalBoundaryClustering.plot_pairs</code> for a selected submodel, including optional marginal histograms.
 </li>
 <li><code>plot_pair_3d(X, pair, **kwargs)</code> – 3D surface for a feature pair of a
  submodel.

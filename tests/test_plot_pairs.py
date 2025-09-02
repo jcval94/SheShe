@@ -78,3 +78,26 @@ def test_shushu_plot_pairs_show_centroids():
     assert all("centro" not in txt for txt in texts)
     plt.close('all')
 
+
+def test_plot_pairs_histograms():
+    X, y = load_iris(return_X_y=True)
+    sh = ModalBoundaryClustering(random_state=0).fit(X, y)
+    sh.plot_pairs(X, y, max_pairs=1, max_classes=1, show_histograms=True)
+    fig = plt.gcf()
+    assert len(fig.axes) >= 4
+    plt.close('all')
+
+
+def test_shushu_plot_pairs_histograms():
+    X, y = load_iris(return_X_y=True)
+    sh = ShuShu(
+        k=5,
+        rf_estimators=5,
+        importance_sample_size=60,
+        max_iter=5,
+        random_state=0,
+    ).fit(X, y)
+    fig, _ = sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+    assert len(fig.axes) == 3
+    plt.close('all')
+

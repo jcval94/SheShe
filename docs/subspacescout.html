@@ -16,7 +16,7 @@ from sheshe import SubspaceScout, ModalBoundaryClustering
 X, y = load_iris(return_X_y=True)
 scout = SubspaceScout().fit(X, y)
 pair = scout.results_[0]["features"]
-ModalBoundaryClustering().fit(X, y).plot_pairs(X, y, pairs=[pair])
+ModalBoundaryClustering().fit(X, y).plot_pairs(X, y, pairs=[pair], show_histograms=True)
 plt.show()
 </code></pre>
 <p>Identifies informative feature subsets so that <code>ModalBoundaryClustering</code> can</p>

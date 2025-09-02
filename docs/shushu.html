@@ -15,7 +15,7 @@ from sheshe import ShuShu
 
 X, y = load_iris(return_X_y=True)
 sh = ShuShu().fit(X, y)
-sh.plot_pairs(X, y, max_pairs=1)
+sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
 plt.show()
 </code></pre>
 <p>Gradient-based optimiser that searches for local maxima of a scalar score or</p>
@@ -97,7 +97,7 @@ ShuShu(random_state=0).fit(X, y, score_model=model)
 </li>
 <li><code>fit_transform(X, y=None, **kwargs)</code> – combine <code>fit</code> and <code>transform</code>.
 </li>
-<li><code>plot_pairs(X, y=None, max_pairs=None)</code> – scatter plots for feature pairs.
+<li><code>plot_pairs(X, y=None, max_pairs=None, show_histograms=False)</code> – scatter plots for feature pairs with optional marginal histograms.
 </li>
 <li><code>plot_classes(X, y, grid_res=200, contour_levels=None, max_paths=20,
  show_paths=True)</code> – visualise class-wise score surfaces.

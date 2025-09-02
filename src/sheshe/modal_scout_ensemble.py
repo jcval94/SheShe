@@ -869,6 +869,7 @@ class ModalScoutEnsemble(BaseEstimator):
     feature_names: Optional[Sequence[str]] = None,
     block_size: Optional[int] = None,
     max_classes: Optional[int] = None,
+    show_histograms: bool = False,
   ) -> None:
     """Visualiza superficies 2D para un submodelo específico.
 
@@ -877,6 +878,7 @@ class ModalScoutEnsemble(BaseEstimator):
     el submodelo dentro del ensamble.
     ``feature_names`` permite especificar nombres globales de las features,
     que se ajustarán al subespacio del modelo elegido.
+    ``show_histograms`` permite dibujar histogramas marginales en cada gráfico.
     """
     mbc, feats = self._get_submodel(model_idx)
     feats_list = list(feats)
@@ -896,6 +898,7 @@ class ModalScoutEnsemble(BaseEstimator):
       feature_names=sub_names,
       block_size=block_size,
       max_classes=max_classes,
+      show_histograms=show_histograms,
     )
 
   def plot_classes(self, X: np.ndarray, y: np.ndarray, **kwargs):
