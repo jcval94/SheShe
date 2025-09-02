@@ -1091,7 +1091,9 @@ class ShuShu:
                         continue
                     ctr = np.atleast_1d(np.asarray(ctr))
                     if ctr.ndim == 1 and ctr.shape[0] > max(i, j):
-                        ax.scatter(ctr[i], ctr[j], marker="X", s=80, color="k", label="centro")
+                        cid = reg.get("cluster_id")
+                        lbl = f"centro {cid}" if cid is not None else "centro"
+                        ax.scatter(ctr[i], ctr[j], marker="X", s=80, color="k", label=lbl)
             ax.set_xlabel(feature_names[i])
             ax.set_ylabel(feature_names[j])
             ax.legend(loc="best")
@@ -1194,17 +1196,27 @@ class ShuShu:
                     linewidths=0.3,
                 )
 
-            if c.centroids_ is not None and c.centroids_.shape[0] > 0:
-                C2 = c.centroids_[:, [d1, d2]]
-                ax.scatter(
-                    C2[:, 0],
-                    C2[:, 1],
-                    marker="X",
-                    s=80,
-                    color=col,
-                    edgecolor="k",
-                    label=f"centro {label} ({c.centroids_.shape[0]})",
-                )
+            cluster_id_map: Dict[int, int] = {}
+            if c.clusters_:
+                for cl in c.clusters_:
+                    gid = None
+                    if self.regions_:
+                        for reg in self.regions_:
+                            if reg.get("label") == label and np.allclose(reg.get("centroid"), cl.get("centroid")):
+                                gid = reg.get("cluster_id")
+                                break
+                    gid = cl["label"] if gid is None else gid
+                    cluster_id_map[cl["label"]] = gid
+                    ctr = cl["centroid"][[d1, d2]]
+                    ax.scatter(
+                        ctr[0],
+                        ctr[1],
+                        marker="X",
+                        s=80,
+                        color=col,
+                        edgecolor="k",
+                        label=f"centro {gid}",
+                    )
 
             if show_paths and c.paths_:
                 for i in range(min(max_paths, len(c.paths_))):
@@ -1222,12 +1234,14 @@ class ShuShu:
                     try:
                         hull = ConvexHull(ap2)
                         H = ap2[hull.vertices]
+                        bid = cluster_id_map.get(biggest["label"], biggest["label"])
                         ax.plot(
                             np.r_[H[:, 0], H[0, 0]],
                             np.r_[H[:, 1], H[0, 1]],
                             linewidth=2,
                             color=col,
                             alpha=0.9,
+                            label=f"frontera cluster {bid}",
                         )
                     except Exception:
                         pass
