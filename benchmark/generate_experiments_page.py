@@ -70,7 +70,9 @@ def main():
         parts.append(f'<h2>{name}</h2>')
         if desc:
             parts.append(f'<p>{desc}</p>')
+        parts.append('<div class="scroll-table">')
         parts.append(df.to_html(index=False))
+        parts.append('</div>')
 
     DOC_FILE.write_text('\n'.join(parts), encoding='utf-8')
 
