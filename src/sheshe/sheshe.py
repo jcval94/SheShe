@@ -2196,6 +2196,82 @@ class ModalBoundaryClustering(BaseEstimator):
                 return reg
         return None
 
+    def get_frontier(self, cluster_id: int, dims: Sequence[int]) -> np.ndarray:
+        """Approximate frontier for a cluster on a pair of features.
+
+        The frontier is estimated by projecting the ray directions of the
+        cluster region onto the requested two dimensions and expanding them
+        according to their radii.
+
+        Parameters
+        ----------
+        cluster_id : int
+            Identifier of the cluster to fetch.
+        dims : sequence of int
+            Two feature indices defining the subspace of interest.
+
+        Returns
+        -------
+        ndarray of shape (n_rays, 2)
+            Points describing the frontier in the selected subspace.
+        """
+
+        check_is_fitted(self, "regions_")
+        reg = self.get_cluster(cluster_id)
+        if reg is None:
+            raise KeyError(f"cluster_id {cluster_id} not found")
+        dims_t = tuple(dims)
+        if len(dims_t) != 2:
+            raise ValueError("dims must contain exactly two indices")
+        center = reg.center[list(dims_t)]
+        dirs = reg.directions[:, list(dims_t)]
+        pts = center + dirs * reg.radii[:, None]
+        return pts
+
+    def summary_tables(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Basic summary tables of regions by class and cluster."""
+
+        check_is_fitted(self, "regions_")
+        if not self.regions_:
+            return pd.DataFrame(), pd.DataFrame()
+        rows_c: List[Dict[str, Any]] = []
+        rows_r: List[Dict[str, Any]] = []
+        labels = sorted({reg.label for reg in self.regions_})
+        for lbl in labels:
+            regs = [r for r in self.regions_ if r.label == lbl]
+            rows_c.append({"class_label": lbl, "n_regions": len(regs)})
+        for reg in self.regions_:
+            rows_r.append(
+                {
+                    "class_label": reg.label,
+                    "cluster_id": reg.cluster_id,
+                    "score": reg.score,
+                    "peak_value": reg.peak_value_real,
+                }
+            )
+        return pd.DataFrame(rows_c), pd.DataFrame(rows_r)
+
+    def report(self) -> List[Dict[str, Any]]:
+        """Lightweight report of discovered regions."""
+
+        check_is_fitted(self, "regions_")
+        info: List[Dict[str, Any]] = []
+        for reg in self.regions_:
+            info.append(
+                {
+                    "cluster_id": reg.cluster_id,
+                    "label": reg.label,
+                    "score": reg.score,
+                    "peak_value": reg.peak_value_real,
+                }
+            )
+        return info
+
+    def plot_classes(self, X: np.ndarray, y: np.ndarray, **kwargs):
+        """Convenience wrapper over :meth:`plot_pairs` for API parity."""
+
+        return self.plot_pairs(X, y=y, **kwargs)
+
     def predict_proba(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
         """Classification: class probabilities or decision scores.
 
