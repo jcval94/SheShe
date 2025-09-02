@@ -12,7 +12,9 @@ nav_order: 2
   <img src="images/subspacescout.png" alt="SubspaceScout diagram">
 </figure>
 <p>Identifies informative feature subsets so that <code>ModalBoundaryClustering</code> can</p>
-<p>run only where it matters in high-dimensional spaces.</p>
+<p>run only where it matters in high-dimensional spaces. Uses mutual information or</p>
+<p>optional model-based scorers to rank interactions and employs beam search to</p>
+<p>enumerate promising subspaces.</p>
 <h2>Example</h2>
 <pre><code>
 from sheshe import SubspaceScout
@@ -28,6 +30,27 @@ from sheshe import SubspaceScout
 scout = SubspaceScout(random_state=0)
 scout.fit(X, y)          # fit
 results = scout.results_ # access discovered subspaces
+</code></pre>
+<h2>Additional examples</h2>
+<pre><code>
+from sheshe import SubspaceScout
+
+scout = SubspaceScout(
+    # model_method='lightgbm',  # default uses mutual information
+    max_order=4,
+    top_m=50,
+    base_pairs_limit=12,
+    beam_width=10,
+    extend_candidate_pool=16,
+    branch_per_parent=4,
+    marginal_gain_min=1e-3,
+    max_eval_per_order=150,
+    sample_size=4096,
+    time_budget_s=None,
+    task='classification',
+    random_state=0,
+)
+subspaces = scout.fit(X, y)
 </code></pre>
 <h2>Parameters</h2>
 <ul>

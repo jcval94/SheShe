@@ -12,7 +12,9 @@ nav_order: 3
   <img src="images/modalscoutensemble.png" alt="ModalScoutEnsemble diagram">
 </figure>
 <p>Ensemble that applies <code>ModalBoundaryClustering</code> on the most promising</p>
-<p>subspaces discovered by <code>SubspaceScout</code>.</p>
+<p>subspaces discovered by <code>SubspaceScout</code>. Each submodel is weighted by scout</p>
+<p>score, cross-validation and feature importance, and the ensemble can delegate</p>
+<p>optimisation to <code>ShuShu</code> when <code>ensemble_method="shushu"</code>.</p>
 <h2>Example</h2>
 <pre><code>
 from sheshe import ModalScoutEnsemble
@@ -39,6 +41,27 @@ mse.fit(X, y).predict_regions(X)   # predict_regions
 mse.fit(X, y).score(X, y)          # score
 mse.fit(X, y).save("mse.joblib")   # save
 ModalScoutEnsemble.load("mse.joblib")
+</code></pre>
+<h2>Additional examples</h2>
+<pre><code>
+from sheshe import ModalScoutEnsemble
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+mse = ModalScoutEnsemble(
+    base_estimator=LogisticRegression(max_iter=200),
+    task="classification",
+    random_state=0,
+    scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+    cv=2,
+    # ensemble_method="shushu" would use the ShuShu optimizer
+)
+mse.fit(X, y)
+print(mse.predict(X[:5]))
+print(mse.predict_proba(X[:5]))
 </code></pre>
 <h2>Parameters</h2>
 <ul>
