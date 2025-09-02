@@ -255,6 +255,8 @@ class ModalScoutEnsemble(BaseEstimator):
     self.imp_scores_: List[float] = []
     self.classes_: Optional[np.ndarray] = None
     self.fitted_task_: Optional[str] = None
+    self.model_ = None
+    self.score_fn_ = None
     self._cache: Dict[str, Any] = {}
 
   # ---------- internos ----------
@@ -315,13 +317,22 @@ class ModalScoutEnsemble(BaseEstimator):
 
   # ---------- API sklearn ----------
 
-  def fit(self, X: npt.NDArray[np.float_] | pd.DataFrame, y: npt.NDArray) -> Self:
+  def fit(
+      self,
+      X: npt.NDArray[np.float_] | pd.DataFrame,
+      y: npt.NDArray,
+      *,
+      score_fn: Optional[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]] = None,
+      score_model=None,
+  ) -> Self:
+    self.score_fn_ = score_fn
+    self.model_ = score_model
     if self.ensemble_method.lower() == "shushu":
       from .shushu import ShuShu
       sh_args = dict(random_state=self.random_state)
       sh_args.update(self.shushu_kwargs or {})
       self.shushu_model_ = ShuShu(**sh_args)
-      self.shushu_model_.fit(np.asarray(X, dtype=float), y)
+      self.shushu_model_.fit(np.asarray(X, dtype=float), y, score_fn=score_fn, score_model=score_model)
       self.fitted_task_ = self.task or infer_task(y)
       if hasattr(self.shushu_model_, "classes_"):
         self.classes_ = np.asarray(self.shushu_model_.classes_)
@@ -413,7 +424,7 @@ class ModalScoutEnsemble(BaseEstimator):
 
       # Ajuste final
       model = ctor()
-      model.fit(Xs_local, y)
+      model.fit(Xs_local, y, score_fn=score_fn, score_model=score_model)
       return feats, model, cv_s, imp_s
 
     if use_joblib:
@@ -493,7 +504,10 @@ class ModalScoutEnsemble(BaseEstimator):
     return self
 
   def fit_predict(
-      self, X: npt.NDArray[np.float_] | pd.DataFrame, y: npt.NDArray
+      self,
+      X: npt.NDArray[np.float_] | pd.DataFrame,
+      y: npt.NDArray,
+      **fit_kwargs,
   ) -> npt.NDArray[np.int_]:
     """Ajusta el ensamble y devuelve las predicciones para ``X``.
 
@@ -511,7 +525,7 @@ class ModalScoutEnsemble(BaseEstimator):
     ndarray
         Predicciones del modelo para cada muestra de ``X``.
     """
-    self.fit(X, y)
+    self.fit(X, y, **fit_kwargs)
     return self.predict(X)
 
   def predict_proba(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:

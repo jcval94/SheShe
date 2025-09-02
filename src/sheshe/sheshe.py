@@ -1070,6 +1070,10 @@ class ModalBoundaryClustering(BaseEstimator):
         self.cluster_metrics_reg = cluster_metrics_reg
         self.fast_membership = fast_membership
 
+        # API compatibility with other predictors
+        self.model_ = None
+        self.score_fn_ = None
+
         self._cache: Dict[str, Any] = {}
         self._P_all: Optional[np.ndarray] = None
         self._yhat_all: Optional[np.ndarray] = None
@@ -1575,7 +1579,12 @@ class ModalBoundaryClustering(BaseEstimator):
     # ---------- Public API ----------
 
     def fit(
-        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
+        *,
+        score_fn: Optional[Callable[[npt.NDArray[np.float_]], npt.NDArray[np.float_]]] = None,
+        score_model=None,
     ) -> Self:
         """Fit the modal boundary clustering model.
 
@@ -1592,6 +1601,8 @@ class ModalBoundaryClustering(BaseEstimator):
             X = np.asarray(X, dtype=float)
             self.n_features_in_ = X.shape[1]
             self.feature_names_in_ = list(X.columns) if isinstance(X, pd.DataFrame) else None
+            self.score_fn_ = score_fn
+            self.model_ = score_model
 
             # indicators to diagnose empty-direction regions
             self.debug_indicators_ = {"flat_grad": 0, "subspace_issue": 0}
@@ -1962,14 +1973,17 @@ class ModalBoundaryClustering(BaseEstimator):
         return self
 
     def fit_predict(
-        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
+        **fit_kwargs,
     ) -> npt.NDArray[np.int_]:
         """Fit the model and return the prediction for ``X``.
 
         Common *sklearn* shortcut equivalent to calling :meth:`fit` and then
         :meth:`predict` on the same data.
         """
-        self.fit(X, y)
+        self.fit(X, y, **fit_kwargs)
         return self.predict(X)
 
     def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
@@ -2003,14 +2017,17 @@ class ModalBoundaryClustering(BaseEstimator):
         return D
 
     def fit_transform(
-        self, X: npt.NDArray[np.float_] | pd.DataFrame, y: Optional[npt.NDArray] = None
+        self,
+        X: npt.NDArray[np.float_] | pd.DataFrame,
+        y: Optional[npt.NDArray] = None,
+        **fit_kwargs,
     ) -> npt.NDArray[np.float_]:
         """Fit the model and transform ``X``.
 
         This convenience method is equivalent to calling :meth:`fit` followed
         immediately by :meth:`transform` on the same data.
         """
-        self.fit(X, y)
+        self.fit(X, y, **fit_kwargs)
         return self.transform(X)
 
     def _membership_matrix(self, X: np.ndarray) -> np.ndarray:
