@@ -1,0 +1,55 @@
+---
+layout: default
+title: RegionInterpreter
+parent: SheShe
+nav_order: 4
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>RegionInterpreter</h1>
+
+<figure class="doc-image">
+  <img src="images/regioninterpreter.png" alt="RegionInterpreter diagram">
+</figure>
+<p>Converts <code>ClusterRegion</code> objects into compact human‑readable rule sets.</p>
+<h2>Example</h2>
+<pre><code>
+from sheshe import RegionInterpreter
+ri = RegionInterpreter(feature_names=["sepal", "petal"])
+summary = ri.summarize(region)
+</code></pre>
+<h2>Parameters</h2>
+<ul>
+<li><code>feature_names</code> (<code>list[str]</code> or <code>None</code>, default <code>None</code>): names for each
+ feature used in the generated rules.
+</li>
+<li><code>q_box</code> (<code>float</code>, default <code>0.05</code>): quantile used to compute robust axis-aligned
+ boxes.
+</li>
+<li><code>k_pairs</code> (<code>int</code>, default <code>2</code>): number of informative 2D projections to
+ include.
+</li>
+<li><code>decimals</code> (<code>int</code>, default <code>2</code>): decimal precision in the emitted rules.
+</li>
+<li><code>cap_threshold</code> (<code>float</code>, default <code>6.393</code>): z-score threshold to mark capped
+ radii.
+</li>
+<li><code>near_const_tol</code> (<code>float</code>, default <code>0.12</code>): tolerance to report nearly constant
+ dimensions.
+</li>
+<li><code>inverse_transform</code> (callable, optional): function applied to points before
+ rule extraction (e.g. inverse scaling).
+</li>
+<li><code>feature_bounds</code> (<code>Sequence[Tuple[float, float]]</code> or <code>None</code>): hard bounds for
+ each feature to clamp boxes.
+</li>
+<li><code>include_center_in_box</code> (<code>bool</code>, default <code>True</code>): include region centre when
+ computing axis-aligned boxes.
+</li>
+</ul>
+<h2>Methods</h2>
+<ul>
+<li><code>summarize(regions)</code> – return a list of dictionaries containing headlines,
+ axis-aligned rules and pairwise projections for the provided regions.
+</li>
+</ul>

@@ -1,0 +1,168 @@
+---
+layout: default
+title: ModalBoundaryClustering
+parent: SheShe
+nav_order: 1
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>ModalBoundaryClustering</h1>
+
+<figure class="doc-image">
+  <img src="images/modalboundaryclustering.png" alt="ModalBoundaryClustering diagram">
+</figure>
+<p>Learns regions of high probability or predicted value by climbing local maxima of a</p>
+<p>base estimator.</p>
+<h2>Example</h2>
+<pre><code>
+from sheshe import ModalBoundaryClustering
+mbc = ModalBoundaryClustering()
+mbc.fit(X, y)
+labels = mbc.predict(X)
+</code></pre>
+<h2>Parameters</h2>
+<ul>
+<li><code>base_estimator</code> (BaseEstimator, default <code>None</code>): model used to compute
+ probabilities or predictions. Defaults to <code>LogisticRegression</code> when <code>None</code>.
+</li>
+<li><code>task</code> (<code>str</code>, default <code>"classification"</code>): "classification" or
+ "regression".
+</li>
+<li><code>base_2d_rays</code> (<code>int</code>, default <code>32</code>): number of radial directions in 2D;
+ automatically reduced for high-dimensional data when <code>auto_rays_by_dim</code> is
+ <code>True</code>.
+</li>
+<li><code>direction</code> (<code>{"center_out", "outside_in"}</code>, default <code>"center_out"</code>):
+ direction used to locate inflection points along each ray.
+</li>
+<li><code>stop_criteria</code> (<code>{"inflexion", "percentile"}</code>, default <code>"inflexion"</code>):
+ rule to stop radial expansion.
+</li>
+<li><code>percentile_bins</code> (<code>int</code>, default <code>20</code>): bins for percentile-based stopping.
+</li>
+<li><code>scan_radius_factor</code> (<code>float</code>, default <code>3.0</code>): maximum scan radius as a
+ multiple of the global standard deviation.
+</li>
+<li><code>scan_steps</code> (<code>int</code>, default <code>24</code>): number of steps sampled along each ray.
+</li>
+<li><code>smooth_window</code> (<code>int</code> or <code>None</code>, default <code>None</code>): moving-average window to
+ smooth radial scans.
+</li>
+<li><code>drop_fraction</code> (<code>float</code>, default <code>0.5</code>): fallback drop from the peak when no
+ inflection is found.
+</li>
+<li><code>bounds_margin</code> (<code>float</code>, default <code>0.05</code>): margin added to data bounds to
+ avoid clipping during scans.
+</li>
+<li><code>grad_lr</code> (<code>float</code>, default <code>0.2</code>): learning rate for gradient ascent.
+</li>
+<li><code>grad_max_iter</code> (<code>int</code>, default <code>80</code>): maximum iterations for gradient
+ ascent.
+</li>
+<li><code>grad_tol</code> (<code>float</code>, default <code>1e-5</code>): tolerance on gradient norm to stop the
+ ascent.
+</li>
+<li><code>grad_eps</code> (<code>float</code>, default <code>1e-3</code>): finite-difference step for gradients.
+</li>
+<li><code>optim_method</code> (<code>str</code>, default <code>"gradient_ascent"</code>): optimisation strategy;
+ accepts <code>"gradient_ascent"</code> or <code>"trust_region_newton"</code>.
+</li>
+<li><code>n_max_seeds</code> (<code>int</code>, default <code>2</code>): number of random starting points.
+</li>
+<li><code>random_state</code> (<code>int</code>, default <code>42</code>): seed for reproducibility.
+</li>
+<li><code>percentile_sample_size</code> (<code>int</code>, default <code>50000</code>): sample size to compute
+ percentile thresholds.
+</li>
+<li><code>max_subspaces</code> (<code>int</code>, default <code>20</code>): maximum subspaces explored when
+ <code>X</code> has more than three dimensions.
+</li>
+<li><code>verbose</code> (<code>int</code>, default <code>0</code>): logging level; <code>0</code> silent, <code>1</code> summary,
+ <code>2</code> detailed.
+</li>
+<li><code>save_labels</code> (<code>bool</code>, default <code>False</code>): store label assignments to disk.
+</li>
+<li><code>prediction_within_region</code> (<code>bool</code>, default <code>False</code>): evaluate the base
+ estimator only within each region before predicting.
+</li>
+<li><code>out_dir</code> (<code>str</code> or <code>Path</code>, optional): directory where auxiliary files are
+ written.
+</li>
+<li><code>auto_rays_by_dim</code> (<code>bool</code>, default <code>True</code>): automatically reduce the number
+ of rays in high dimension.
+</li>
+<li><code>ray_mode</code> (<code>str</code>, default <code>"grad"</code>): strategy used to generate candidate
+ rays.
+</li>
+<li><code>use_spsa</code> (<code>bool</code>, default <code>True</code>): use SPSA for gradient estimates when
+ analytical gradients are unavailable.
+</li>
+<li><code>spsa_delta</code> (<code>float</code>, default <code>1e-2</code>): SPSA perturbation size.
+</li>
+<li><code>spsa_avg</code> (<code>int</code>, default <code>4</code>): number of SPSA evaluations per gradient
+ estimate.
+</li>
+<li><code>ls_alpha0</code> (<code>float</code>, default <code>0.5</code>): initial step size for line search.
+</li>
+<li><code>ls_shrink</code> (<code>float</code>, default <code>0.5</code>): multiplicative shrink factor during
+ line search.
+</li>
+<li><code>ls_min_alpha</code> (<code>float</code>, default <code>1e-3</code>): minimum allowed step size.
+</li>
+<li><code>arc_max_steps</code> (<code>int</code>, default <code>64</code>): maximum steps for arc exploration.
+</li>
+<li><code>arc_len_max</code> (<code>float</code>, default <code>3.0</code>): maximum arc length.
+</li>
+<li><code>line_refine_steps</code> (<code>int</code>, default <code>8</code>): refinement steps when mapping
+ boundaries.
+</li>
+<li><code>use_adaptive_scan</code> (<code>bool</code> or <code>None</code>, default <code>None</code>): enable adaptive
+ radial scan when dimensionality is high.
+</li>
+<li><code>batch_size</code> (<code>int</code>, default <code>16384</code>): batch size for model evaluations.
+</li>
+<li><code>coarse_steps</code> (<code>int</code>, default <code>12</code>): number of coarse scan steps in high
+ dimension.
+</li>
+<li><code>refine_steps</code> (<code>int</code>, default <code>4</code>): number of refinement steps after the
+ coarse scan.
+</li>
+<li><code>early_exit_patience</code> (<code>int</code>, default <code>1</code>): early termination patience for
+ flat regions.
+</li>
+<li><code>density_alpha</code> (<code>float</code>, default <code>0.0</code>): exponent for density penalty.
+</li>
+<li><code>density_k</code> (<code>int</code>, default <code>15</code>): neighbour count for density estimation.
+</li>
+<li><code>cluster_metrics_cls</code> (<code>dict</code> or <code>None</code>): callbacks to evaluate clusters in
+ classification mode.
+</li>
+<li><code>cluster_metrics_reg</code> (<code>dict</code> or <code>None</code>): callbacks for regression mode.
+</li>
+<li><code>fast_membership</code> (<code>bool</code>, default <code>False</code>): enable approximate membership
+ computation.
+</li>
+</ul>
+<h2>Methods</h2>
+<ul>
+<li><code>fit(X, y)</code> – learn regions from data and labels.
+</li>
+<li><code>predict(X)</code> – assign cluster ids to samples.
+</li>
+<li><code>fit_predict(X, y=None)</code> – convenience wrapper around <code>fit</code> + <code>predict</code>.
+</li>
+<li><code>predict_proba(X)</code> – return per-cluster probabilities.
+</li>
+<li><code>decision_function(X)</code> – base-estimator decision scores.
+</li>
+<li><code>predict_regions(X, label_path=None)</code> – cluster ids and optional label dump.
+</li>
+<li><code>interpretability_summary(feature_names=None)</code> – tabular region summary.
+</li>
+<li><code>plot_pairs(X, y=None, max_pairs=None)</code> – 2D decision plots for feature
+ pairs.
+</li>
+<li><code>plot_pair_3d(X, pair, class_label=None, grid_res=50, alpha_surface=0.6,
+ engine="matplotlib")</code> – render a 3D surface for a feature pair.
+</li>
+</ul>

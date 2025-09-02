@@ -1,0 +1,50 @@
+---
+layout: default
+title: SheShe
+nav_order: 1
+has_children: true
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>SheShe</h1>
+
+<figure class="doc-image">
+  <img src="images/overview.png" alt="SheShe overview diagram">
+</figure>
+
+<p>Smart High-dimensional Edge Segmentation &amp; Hyperboundary Explorer</p>
+
+<p>SheShe converts any probabilistic model into an explorer of its own decision landscape. It follows local maxima of class probability or predicted value to uncover crisp, human‑readable regions that respect the supervised boundary of the problem.</p>
+
+<h2>Getting started</h2>
+
+<p>Install the library and run the basic tests:</p>
+
+<pre><code>pip install sheshe
+PYTHONPATH=src pytest tests/test_basic.py::test_import_and_fit -q
+</code></pre>
+
+<h2>Predictors</h2>
+
+<p>The project exposes several predictors and utilities. Each section below describes one of them in more detail:</p>
+
+<ul>
+  <li><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></li>
+  <li><a href="subspacescout.html">SubspaceScout</a></li>
+  <li><a href="modalscoutensemble.html">ModalScoutEnsemble</a></li>
+  <li><a href="regioninterpreter.html">RegionInterpreter</a></li>
+  <li><a href="shushu.html">ShuShu</a></li>
+  <li><a href="cheche.html">CheChe</a></li>
+</ul>
+
+<h2>Contribute</h2>
+
+<p>Improvements are welcome! Fork the repository, install development dependencies, and run the tests:</p>
+
+<pre><code>pip install -e ".[dev]"
+PYTHONPATH=src pytest -q
+</code></pre>
+
+<p>Released under the MIT License.</p>
+
