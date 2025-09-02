@@ -1,0 +1,29 @@
+---
+layout: default
+title: "Limitations"
+description: "Known constraints and mitigation strategies for SheShe"
+nav_order: 8
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Limitations</h1>
+
+<p>SheShe provides tools for modal analysis, but several limitations apply:</p>
+
+<h2>Dependence on surface representation</h2>
+<p>The algorithms assume a smooth and well-sampled surface. Imperfect meshes or sparse points degrade boundary estimates.</p>
+<p><strong>Mitigation:</strong> preprocess meshes to remove noise, interpolate missing regions and validate against known benchmarks.</p>
+
+<h2>High-dimensional approximations</h2>
+<p>In very high dimensions SheShe relies on approximations that may miss subtle structures and increase computation time.</p>
+<p><strong>Mitigation:</strong> apply dimensionality reduction or focus on informative subspaces with <a href="./subspacescout.html">SubspaceScout</a>.</p>
+
+<h2>Noise and sampling sensitivity</h2>
+<p>Noisy or sparsely sampled data can produce unstable boundaries.</p>
+<p><strong>Mitigation:</strong> denoise inputs and aggregate multiple runs through <a href="./modalscoutensemble.html">ModalScoutEnsemble</a>.</p>
+
+<h2>Parameter tuning</h2>
+<p>Performance depends on choosing suitable bandwidths and clustering thresholds.</p>
+<p><strong>Mitigation:</strong> explore settings via the <a href="./quick_api.html">Quick API</a> and cross-validation.</p>
+
