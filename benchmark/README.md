@@ -2,6 +2,8 @@
 
 Este directorio contiene los resultados de pruebas de rendimiento y calidad para `SheShe` comparado con otros algoritmos clásicos.
 
+Para documentación completa de SheShe, visita [jcval94.github.io/SheShe](https://jcval94.github.io/SheShe/).
+
 ## Calidad de clustering
 
 Los siguientes resultados muestran el mejor `Adjusted Rand Index (ARI)` y `V-measure` alcanzados por cada algoritmo en distintos conjuntos de datos.

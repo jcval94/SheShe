@@ -3,6 +3,8 @@
 Este directorio contiene scripts reproducibles que generan las tablas y figuras
 utilizadas en el artículo de SheShe.
 
+Para documentación completa de SheShe, visita [jcval94.github.io/SheShe](https://jcval94.github.io/SheShe/).
+
 Las métricas reflejan el nuevo modo de rayos `grad`, que reemplaza al anterior
 `grid` con mejoras significativas de rendimiento (ver
 [benchmark/README.md](../benchmark/README.md)).
