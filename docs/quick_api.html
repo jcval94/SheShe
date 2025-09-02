@@ -1,0 +1,77 @@
+---
+layout: default
+title: "Quick API"
+description: "Public objects exposed by the SheShe package"
+nav_order: 5
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Quick API</h1>
+
+<p>The following objects are available for import:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Submodule</th>
+      <th>Object</th>
+      <th>Import statement</th>
+      <th>Description</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>cheche</code></td>
+      <td><code>CheChe</code></td>
+      <td><code>from sheshe import CheChe</code></td>
+      <td>Compute 2D frontiers on selected feature pairs.</td>
+      <td><a href="cheche.html">cheche.html</a></td>
+    </tr>
+    <tr>
+      <td><code>sheshe</code></td>
+      <td><code>ClusterRegion</code></td>
+      <td><code>from sheshe import ClusterRegion</code></td>
+      <td>Dataclass describing a discovered region.</td>
+      <td>&mdash;</td>
+    </tr>
+    <tr>
+      <td><code>sheshe</code></td>
+      <td><code>ModalBoundaryClustering</code></td>
+      <td><code>from sheshe import ModalBoundaryClustering</code></td>
+      <td>Supervised clustering driven by model probabilities or predictions.</td>
+      <td><a href="modalboundaryclustering.html">modalboundaryclustering.html</a></td>
+    </tr>
+    <tr>
+      <td><code>modal_scout_ensemble</code></td>
+      <td><code>ModalScoutEnsemble</code></td>
+      <td><code>from sheshe import ModalScoutEnsemble</code></td>
+      <td>Explore subspaces with ensembles of scouts.</td>
+      <td><a href="modalscoutensemble.html">modalscoutensemble.html</a></td>
+    </tr>
+    <tr>
+      <td><code>region_interpretability</code></td>
+      <td><code>RegionInterpreter</code></td>
+      <td><code>from sheshe import RegionInterpreter</code></td>
+      <td>Turn <code>ClusterRegion</code> objects into human-readable rules.</td>
+      <td><a href="regioninterpreter.html">regioninterpreter.html</a></td>
+    </tr>
+    <tr>
+      <td><code>shushu</code></td>
+      <td><code>ShuShu</code></td>
+      <td><code>from sheshe import ShuShu</code></td>
+      <td>Gradient-based search for local maxima.</td>
+      <td><a href="shushu.html">shushu.html</a></td>
+    </tr>
+    <tr>
+      <td><code>subspace_scout</code></td>
+      <td><code>SubspaceScout</code></td>
+      <td><code>from sheshe import SubspaceScout</code></td>
+      <td>Explore subspaces to seed region discovery.</td>
+      <td><a href="subspacescout.html">subspacescout.html</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Detailed usage examples remain in the <a href="../README.md#quick-api">README</a>.</p>

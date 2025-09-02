@@ -1,0 +1,106 @@
+---
+layout: default
+title: "Documentation Conventions"
+description: "Style and migration rules for SheShe docs"
+nav_order: 99
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Documentation Conventions</h1>
+
+<h2>Front matter</h2>
+<p>Each HTML page must begin with YAML front matter. Use the following template and adjust values as needed:</p>
+
+<pre><code>---
+layout: default
+title: "Page Title"
+description: "Short summary of the page"
+nav_order: 10
+---</code></pre>
+
+<h2>Headings</h2>
+<ul>
+  <li>Use a single <code>&lt;h1&gt;</code> that matches the page title.</li>
+  <li>Structure content with <code>&lt;h2&gt;</code> for sections and <code>&lt;h3&gt;</code> for subsections.</li>
+  <li>Do not skip heading levels.</li>
+</ul>
+
+<h2>Referencing the README</h2>
+<ul>
+  <li>Avoid duplicating long explanations that already exist in <code>README.md</code>.</li>
+  <li>When original content remains in the README, link to it using relative paths, e.g. <a href="../README.md#installation">Installation</a>.</li>
+  <li>Summaries may be included on Pages when useful, but keep the README as the canonical source for full instructions.</li>
+</ul>
+
+<h2>Links</h2>
+<ul>
+  <li>Use relative links with explicit file extensions, e.g. <a href="./quick_api.html">Quick API</a>.</li>
+  <li>Prefer <code>./</code> for same directory and <code>../</code> for parent directories.</li>
+  <li>Verify links before committing using a link checker such as <code>lychee</code>: <code>lychee docs/**/*.html</code>.</li>
+</ul>
+
+<h2>Migration checklist</h2>
+
+<h3>Highlights</h3>
+<ul>
+  <li>[ ] Create <code>docs/highlights.html</code>.</li>
+  <li>[ ] Add front matter and a single H1.</li>
+  <li>[ ] Summarise key benefits in bullets and link to predictor pages and Quick API.</li>
+</ul>
+
+<h3>Installation</h3>
+<ul>
+  <li>[ ] Create <code>docs/installation.html</code>.</li>
+  <li>[ ] Outline full install instructions including optional <code>numba</code> acceleration.</li>
+  <li>[ ] Reference requirements from README to avoid divergence.</li>
+</ul>
+
+<h3>Reproducibility</h3>
+<ul>
+  <li>[ ] Create <code>docs/reproducibility.html</code>.</li>
+  <li>[ ] Document OS, hardware, Python version and environment recreation steps.</li>
+</ul>
+
+<h3>Quick API</h3>
+<ul>
+  <li>[ ] Create <code>docs/quick_api.html</code>.</li>
+  <li>[ ] List public objects with brief descriptions.</li>
+</ul>
+
+<h3>Method matrix</h3>
+<ul>
+  <li>[ ] Create <code>docs/method_matrix.html</code>.</li>
+  <li>[ ] Translate table of implemented methods for each object.</li>
+</ul>
+
+<h3>Experiments &amp; Benchmarks</h3>
+<ul>
+  <li>[ ] Create <code>docs/experiments_benchmarks.html</code>.</li>
+  <li>[ ] Summarise available scripts and link to results in <code>benchmark/</code>.</li>
+</ul>
+
+<h3>Key parameters</h3>
+<ul>
+  <li>[ ] Create <code>docs/key_parameters.html</code>.</li>
+  <li>[ ] Describe tunable hyperparameters and their effects.</li>
+</ul>
+
+<h3>Performance tips</h3>
+<ul>
+  <li>[ ] Create <code>docs/performance_tips.html</code>.</li>
+  <li>[ ] Provide guidance for speeding up computations and scaling to high dimensions.</li>
+</ul>
+
+<h3>Limitations</h3>
+<ul>
+  <li>[ ] Create <code>docs/limitations.html</code>.</li>
+  <li>[ ] Clarify algorithmic and practical constraints.</li>
+</ul>
+
+<h3>Images</h3>
+<ul>
+  <li>[ ] Create <code>docs/images.html</code>.</li>
+  <li>[ ] Explain omission of binary assets and reference external repositories if needed.</li>
+</ul>
+

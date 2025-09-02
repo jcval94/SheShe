@@ -12,7 +12,9 @@ nav_order: 1
   <img src="images/modalboundaryclustering.png" alt="ModalBoundaryClustering diagram">
 </figure>
 <p>Learns regions of high probability or predicted value by climbing local maxima of a</p>
-<p>base estimator.</p>
+<p>base estimator. Radial scans trace boundary surfaces around each mode and</p>
+<p>gradient ascent refines the centres, enabling both classification and regression</p>
+<p>workflows.</p>
 <h2>Example</h2>
 <pre><code>
 from sheshe import ModalBoundaryClustering
@@ -37,6 +39,27 @@ mbc.fit(X, y).predict_regions(X)   # predict_regions
 mbc.fit(X, y).score(X, y)          # score
 mbc.fit(X, y).save("mbc.joblib")   # save
 ModalBoundaryClustering.load("mbc.joblib")
+</code></pre>
+<h2>Additional examples</h2>
+<pre><code>
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+labels = ModalBoundaryClustering().fit_predict(X, y)
+
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+
+reg = ModalBoundaryClustering(task="regression").fit(X_train, y_train)
+reg_retrained = ModalBoundaryClustering(
+    base_estimator=RandomForestRegressor(random_state=0),
+    task="regression",
+).fit(X_train, y_train)
 </code></pre>
 <h2>Parameters</h2>
 <ul>

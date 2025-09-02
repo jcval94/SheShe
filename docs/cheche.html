@@ -12,7 +12,9 @@ nav_order: 6
   <img src="images/cheche.png" alt="CheChe diagram">
 </figure>
 <p>Computes convex-hull frontiers for selected feature pairs and provides simple</p>
-<p>2D visualisations.</p>
+<p>2D visualisations. Useful for exploring decision boundaries or cluster shapes,</p>
+<p>it can subsample points via <code>mapping_level</code> and plot frontiers per class or</p>
+<p>for scalar score functions.</p>
 <h2>Example</h2>
 <pre><code>
 from sheshe import CheChe
@@ -34,6 +36,20 @@ che.fit(X, y).predict_regions(X)   # predict_regions
 che.fit(X, y).decision_function(X) # decision_function
 che.fit(X, y).save("che.joblib")   # save
 CheChe.load("che.joblib")
+</code></pre>
+<h2>Additional examples</h2>
+<pre><code>
+from sklearn.datasets import load_iris
+from sheshe import CheChe
+
+X, y = load_iris(return_X_y=True)
+ch = CheChe().fit(
+    X,
+    y,
+    feature_names=["sepal length", "sepal width", "petal length", "petal width"],
+    mapping_level=2,  # use every other sample
+)
+ch.plot_pairs(X, class_index=0)
 </code></pre>
 <h2>Parameters</h2>
 <ul>

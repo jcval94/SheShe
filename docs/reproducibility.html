@@ -1,0 +1,62 @@
+---
+layout: default
+title: "Reproducibility"
+description: "Steps to recreate the SheShe environment"
+nav_order: 4
+---
+
+<link rel="stylesheet" href="style.css">
+
+<h1>Reproducibility</h1>
+
+<h2>Reference system</h2>
+<ul>
+  <li><strong>OS:</strong> Ubuntu 24.04.2 LTS</li>
+  <li><strong>CPU:</strong> Intel(R) Xeon(R) Platinum 8171M CPU @ 2.60GHz</li>
+  <li><strong>GPU:</strong> None</li>
+  <li><strong>Python:</strong> 3.12.10</li>
+ </ul>
+
+<h2>Environment setup</h2>
+<ol>
+  <li>Create and activate a virtual environment:
+<pre><code>python -m venv .venv
+source .venv/bin/activate</code></pre>
+  </li>
+  <li>Install development dependencies and run tests to verify:
+<pre><code>pip install -e ".[dev]"
+PYTHONPATH=src pytest -q</code></pre>
+  </li>
+</ol>
+
+<h2>Random seeds</h2>
+<p>All SheShe estimators accept a <code>random_state</code> argument to ensure deterministic results:</p>
+<pre><code>from sheshe import ModalBoundaryClustering
+clustering = ModalBoundaryClustering(random_state=0)</code></pre>
+<p>Set the same <code>random_state</code> across runs to reproduce experiments.</p>
+
+<h2>Export system information</h2>
+<p>Capture exact package versions and platform details for future reference:</p>
+<pre><code>python -m pip freeze > packages.txt
+python - <<'PY'
+import json, platform, sys
+info = {
+    "platform": platform.platform(),
+    "python": sys.version,
+}
+print(json.dumps(info, indent=2))
+PY
+</code></pre>
+
+<h2>How to report differences</h2>
+<p>If results differ from published benchmarks:</p>
+<ul>
+  <li>Share the generated <code>packages.txt</code> and platform JSON.</li>
+  <li>Describe the dataset and parameters used, including <code>random_state</code> values.</li>
+  <li>Open an issue with logs and reproduction steps.</li>
+</ul>
+
+<h2>TODO</h2>
+<ul>
+  <li>Specify recommended RAM capacity.</li>
+</ul>
