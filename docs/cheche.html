@@ -20,6 +20,21 @@ cc = CheChe()
 cc.fit(X, y)
 cc.plot_pairs(X)
 </code></pre>
+
+<h2>Usage examples</h2>
+<pre><code>
+from sheshe import CheChe
+
+che = CheChe(random_state=0)
+che.fit(X, y)                      # fit
+che.fit_predict(X, y)              # fit_predict
+che.fit(X, y).predict(X)           # predict
+che.fit(X, y).predict_proba(X)     # predict_proba
+che.fit(X, y).predict_regions(X)   # predict_regions
+che.fit(X, y).decision_function(X) # decision_function
+che.fit(X, y).save("che.joblib")   # save
+CheChe.load("che.joblib")
+</code></pre>
 <h2>Parameters</h2>
 <ul>
 <li><code>random_state</code> (<code>int</code> or <code>None</code>, default <code>None</code>): seed for reproducibility.

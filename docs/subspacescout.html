@@ -20,6 +20,15 @@ scout = SubspaceScout()
 scout.fit(X, y)
 subspaces = scout.results_
 </code></pre>
+
+<h2>Usage examples</h2>
+<pre><code>
+from sheshe import SubspaceScout
+
+scout = SubspaceScout(random_state=0)
+scout.fit(X, y)          # fit
+results = scout.results_ # access discovered subspaces
+</code></pre>
 <h2>Parameters</h2>
 <ul>
 <li><code>model_method</code> (<code>None</code> or <code>"lightgbm"</code> or <code>"ebm"</code>, default <code>None</code>): model
