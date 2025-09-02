@@ -17,7 +17,16 @@ surface.
 - Human-readable rule extraction through `RegionInterpreter`.
 - Built-in plotting utilities for pairwise and 3D visualisations.
 
-*Feature overview figure omitted (binary assets are not allowed).* 
+*Feature overview figure omitted (binary assets are not allowed).* The text-based chart below offers a rough illustration of a two-dimensional decision surface:
+
+```
+y
+^    o
+|   o o
+|  o   o
+| o     o
++--------------> x
+```
 
 ---
 
@@ -889,7 +898,16 @@ python experiments/paper_experiments.py --runs 5
 
 ## Images
 
-Figures have been intentionally omitted because this repository does not permit storing binary assets.
+Figures have been intentionally omitted because this repository does not permit storing binary assets. The following text-based chart demonstrates an example 2D scatter plot:
+
+```
+y
+^    o
+|   o o
+|  o   o
+| o     o
++--------------> x
+```
 
 ---
 

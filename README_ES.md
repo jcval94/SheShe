@@ -16,7 +16,16 @@ traza los clúesteres directamente sobre la superficie de decisión.
 - Extracción de reglas interpretables a través de `RegionInterpreter`.
 - Utilidades de graficado integradas para visualizaciones 2D y 3D.
 
-*Figura de resumen de características omitida (no se permiten archivos binarios).* 
+*Figura de resumen de características omitida (no se permiten archivos binarios).* La siguiente gráfica en texto ilustra de manera aproximada una superficie de decisión bidimensional:
+
+```
+y
+^    o
+|   o o
+|  o   o
+| o     o
++--------------> x
+```
 
 ---
 
@@ -757,7 +766,16 @@ python experiments/paper_experiments.py
 
 ## Imágenes
 
-Las figuras se han omitido deliberadamente porque este repositorio no permite almacenar archivos binarios.
+Las figuras se han omitido deliberadamente porque este repositorio no permite almacenar archivos binarios. La siguiente gráfica basada en texto muestra un ejemplo de dispersión 2D:
+
+```
+y
+^    o
+|   o o
+|  o   o
+| o     o
++--------------> x
+```
 
 ---
 
