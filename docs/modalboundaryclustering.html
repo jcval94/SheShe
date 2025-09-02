@@ -22,6 +22,10 @@ plt.show()
 <p>base estimator. Radial scans trace boundary surfaces around each mode and</p>
 <p>gradient ascent refines the centres, enabling both classification and regression</p>
 <p>workflows.</p>
+<h2>Mathematical formulation</h2>
+<p>Centres are refined with gradient ascent updates <code>x_{k+1} = x_k + α∇f(x_k)</code> until <code>‖∇f(x_k)‖ &lt; grad_tol</code>.</p>
+<p>From each centre, radial scans sample scores <code>f(x_k + r u)</code> along directions <code>u</code>. Scans stop when <code>∂f/∂r = 0</code> (an inflection point) or when the score falls past a percentile or drop fraction of the peak.</p>
+<p>These radii approximate a probability surface from which boundary polygons are built.</p>
 <h2>Example</h2>
 <pre><code class="language-python">
 from sheshe import ModalBoundaryClustering

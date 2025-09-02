@@ -8,6 +8,9 @@ SheShe turns probabilistic models into guided explorers of their decision surfac
 - Rule extraction and subspace exploration
 - 2D/3D plotting utilities
 
+## Mathematical Overview
+SheShe approximates the optimisation problem <code>max_x f(x)</code> by climbing gradient-ascent paths toward local maxima and delineating neighbourhoods around them. Detailed derivations for each module are provided in the documentation.
+
 ## Installation
 Requires Python ≥3.9. Install from [PyPI](https://pypi.org/project/sheshe/):
 

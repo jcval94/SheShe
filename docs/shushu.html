@@ -22,6 +22,9 @@ plt.show()
 <p>class probabilities. Runs one optimisation per class when labels are given and</p>
 <p>can also operate on arbitrary user-defined score functions, returning cluster</p>
 <p>centroids for each discovered mode.</p>
+<h2>Mathematical formulation</h2>
+<p>ShuShu performs gradient-ascent updates <code>x_{t+1} = x_t + η∇f(x_t)</code> until <code>‖∇f(x_t)‖ &lt; tol</code> or a maximum iteration count is reached.</p>
+<p>When analytic gradients are unavailable, it estimates them via SPSA: <code>∂f/∂x_i ≈ (f(x + cΔ) - f(x - cΔ))/(2cΔ_i)</code> with Rademacher perturbations <code>Δ_i ∈ {−1,1}</code>.</p>
 <h2>Example</h2>
 <pre><code class="language-python">
 from sheshe import ShuShu
