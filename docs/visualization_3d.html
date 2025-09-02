@@ -1,0 +1,42 @@
+---
+layout: default
+title: 3D Visualization
+parent: SheShe
+nav_order: 7
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>3D Visualization</h1>
+
+<p>Use <code>plot_pair_3d</code> to render a probability or regression surface
+for any pair of features.</p>
+
+<h2>Example</h2>
+<pre><code>from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+
+# basic surface for the first two features
+mbc.plot_pair_3d(X, pair=(0, 1), class_label=mbc.classes_[0])
+</code></pre>
+
+<h2>Parameters</h2>
+<ul>
+  <li><code>pair</code> (<code>tuple[int, int]</code>): indices of the two features to visualise.</li>
+  <li><code>class_label</code> (<code>int</code> or <code>str</code>, optional): class whose
+      probability surface is drawn. Required for classification.</li>
+  <li><code>grid_res</code> (<code>int</code>, default <code>50</code>): resolution of the 3D grid.</li>
+</ul>
+
+<h2>Plotly example</h2>
+<pre><code>fig = mbc.plot_pair_3d(
+    X,
+    pair=(0, 1),
+    class_label=mbc.classes_[0],
+    grid_res=75,
+    engine="plotly",
+)
+fig.show()
+</code></pre>
