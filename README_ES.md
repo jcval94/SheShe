@@ -16,7 +16,7 @@ pip install sheshe
 ```
 
 ## Documentación
-Consulta la [documentación](docs/index.html) para guías e información detallada.
+Consulta la [documentación](https://jcval94.github.io/SheShe/) para guías e información detallada.
 
 ## Autor
 SheShe es desarrollado por José Carlos Del Valle – [LinkedIn](https://www.linkedin.com/in/jose-carlos-del-valle/) | [Portafolio](https://jcval94.github.io/Portfolio/)
