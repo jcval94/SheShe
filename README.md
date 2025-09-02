@@ -108,6 +108,141 @@ clf = ModalBoundaryClustering(
 reg = ModalBoundaryClustering(task="regression")
 ```
 
+### Method matrix
+
+| Method | ModalBoundaryClustering | ShuShu | CheChe | ModalScoutEnsemble | Brief description |
+| --- | --- | --- | --- | --- | --- |
+| `fit` | ✓ | ✓ | ✓ | ✓ | Fit the model to the dataset. |
+| `fit_predict` | ✓ | ✓ | ✓ | ✓ | Train and return assigned labels or regions. |
+| `fit_transform` | ✓ | ✓ | ✓ | ✓ | Fit and transform data into an internal representation. |
+| `transform` | ✓ | ✓ | ✓ | ✓ | Transform new samples according to the trained model. |
+| `predict` | ✓ | ✓ | ✓ | ✓ | Predict labels or values for new samples. |
+| `predict_proba` | ✓ | ✓ | ✓ | ✓ | Estimate prediction probabilities or confidence. |
+| `decision_function` | ✓ | ✓ | ✓ | ✓ | Return score or distance to the decision boundary. |
+| `predict_regions` | ✓ | ✓ | ✓ | ✓ | Indicate the region or cluster each sample belongs to. Similar to `get_cluster` in some predictors. |
+| `score` | ✓ | ✓ | ✓ | ✓ | Compute a performance metric on test data. |
+| `save` | ✓ | ✓ | ✓ | ✓ | Save the trained model to disk. |
+| `load` | ✓ | ✓ | ✓ | ✓ | Load a previously saved model. |
+| `plot_pairs` | ✓ | ✓ | ✓ | ✓ | Plot feature pairs with regions or clusters. |
+| `plot_pair_3d` | ✓ | ✓ | ✓ | ✓ | Plot two features and the response in 3D. |
+| `interpretability_summary` | ✓ | ✓ | ✓ | ✓ | Interpretability summary of regions or the model. |
+
+#### Usage examples
+
+The following snippets assume `X` and `y` are defined and the classes are imported from `sheshe`.
+
+##### `fit`
+```python
+shu = ShuShu(random_state=0).fit(X, y)
+che = CheChe().fit(X, y)
+sh = ModalBoundaryClustering().fit(X, y)
+mse = ModalScoutEnsemble().fit(X, y)
+```
+
+##### `fit_predict`
+```python
+shu_labels = ShuShu(random_state=0).fit_predict(X, y)
+che_labels = CheChe().fit_predict(X, y)
+sh_labels = ModalBoundaryClustering().fit_predict(X, y)
+mse_labels = ModalScoutEnsemble().fit_predict(X, y)
+```
+
+##### `fit_transform`
+```python
+shu_emb = ShuShu(random_state=0).fit_transform(X, y)
+che_emb = CheChe().fit_transform(X, y)
+sh_emb = ModalBoundaryClustering().fit_transform(X, y)
+mse_emb = ModalScoutEnsemble().fit_transform(X, y)
+```
+
+##### `transform`
+```python
+shu_trans = ShuShu(random_state=0).fit(X, y).transform(X)
+che_trans = CheChe().fit(X, y).transform(X)
+sh_trans = ModalBoundaryClustering().fit(X, y).transform(X)
+mse_trans = ModalScoutEnsemble().fit(X, y).transform(X)
+```
+
+##### `predict`
+```python
+shu_pred = ShuShu(random_state=0).fit(X, y).predict(X)
+che_pred = CheChe().fit(X, y).predict(X)
+sh_pred = ModalBoundaryClustering().fit(X, y).predict(X)
+mse_pred = ModalScoutEnsemble().fit(X, y).predict(X)
+```
+
+##### `predict_proba`
+```python
+shu_proba = ShuShu(random_state=0).fit(X, y).predict_proba(X)
+che_proba = CheChe().fit(X, y).predict_proba(X)
+sh_proba = ModalBoundaryClustering().fit(X, y).predict_proba(X)
+mse_proba = ModalScoutEnsemble().fit(X, y).predict_proba(X)
+```
+
+##### `decision_function`
+```python
+shu_score = ShuShu(random_state=0).fit(X, y).decision_function(X)
+che_score = CheChe().fit(X, y).decision_function(X)
+sh_score = ModalBoundaryClustering().fit(X, y).decision_function(X)
+mse_score = ModalScoutEnsemble().fit(X, y).decision_function(X)
+```
+
+##### `predict_regions`
+```python
+shu_regions = ShuShu(random_state=0).fit(X, y).predict_regions(X)
+che_regions = CheChe().fit(X, y).predict_regions(X)
+sh_regions = ModalBoundaryClustering().fit(X, y).predict_regions(X)
+mse_regions = ModalScoutEnsemble().fit(X, y).predict_regions(X)
+```
+
+##### `score`
+```python
+shu_sc = ShuShu(random_state=0).fit(X, y).score(X, y)
+che_sc = CheChe().fit(X, y).score(X, y)
+sh_sc = ModalBoundaryClustering().fit(X, y).score(X, y)
+mse_sc = ModalScoutEnsemble().fit(X, y).score(X, y)
+```
+
+##### `save`
+```python
+ShuShu(random_state=0).fit(X, y).save("shu.joblib")
+CheChe().fit(X, y).save("che.joblib")
+ModalBoundaryClustering().fit(X, y).save("mbc.joblib")
+ModalScoutEnsemble().fit(X, y).save("mse.joblib")
+```
+
+##### `load`
+```python
+shu = ShuShu.load("shu.joblib")
+che = CheChe.load("che.joblib")
+sh = ModalBoundaryClustering.load("mbc.joblib")
+mse = ModalScoutEnsemble.load("mse.joblib")
+```
+
+##### `plot_pairs`
+```python
+ShuShu(random_state=0).fit(X, y).plot_pairs(X, y)
+CheChe().fit(X, y).plot_pairs(X, y)
+ModalBoundaryClustering().fit(X, y).plot_pairs(X, y)
+ModalScoutEnsemble().fit(X, y).plot_pairs(X, y)
+```
+
+##### `plot_pair_3d`
+```python
+ShuShu(random_state=0).fit(X, y).plot_pair_3d(X, (0, 1))
+CheChe().fit(X, y).plot_pair_3d(X, (0, 1))
+ModalBoundaryClustering().fit(X, y).plot_pair_3d(X, (0, 1))
+ModalScoutEnsemble().fit(X, y).plot_pair_3d(X, (0, 1))
+```
+
+##### `interpretability_summary`
+```python
+shu_int = ShuShu(random_state=0).fit(X, y).interpretability_summary()
+che_int = CheChe().fit(X, y).interpretability_summary()
+sh_int = ModalBoundaryClustering().fit(X, y).interpretability_summary()
+mse_int = ModalScoutEnsemble().fit(X, y).interpretability_summary()
+```
+
 ### Methods
 - `fit(X, y)`
 - `predict(X)`
