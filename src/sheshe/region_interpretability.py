@@ -181,15 +181,47 @@ def _extract_region(reg: Any) -> Tuple[Any, Any, np.ndarray, np.ndarray, np.ndar
         except Exception:
             pass
 
-        def _pick(d, *keys):
+        def _pick(d, *keys, default=None, required=True):
             for k in keys:
                 if k in d:
                     return d[k]
-            raise KeyError(keys[0])
+            if required:
+                raise KeyError(keys[0])
+            return default
 
         center = np.asarray(_pick(reg, "center", "center_", "centroid"), float)
-        directions = np.asarray(_pick(reg, "directions", "directions_", "dirs"), float)
-        radii = np.asarray(_pick(reg, "radii", "radii_", "radius"), float)
+        directions = _pick(reg, "directions", "directions_", "dirs", required=False)
+        radii = _pick(reg, "radii", "radii_", "radius", required=False)
+        infl = _pick(reg, "inflection_points", "inflection_points_", "infl", required=False)
+
+        d = center.size
+        if (directions is None or radii is None) and infl is not None:
+            infl = np.asarray(infl, float)
+            vecs = infl - center[None, :]
+            lengths = np.linalg.norm(vecs, axis=1)
+            dirs_from_infl = vecs / (lengths[:, None] + 1e-12)
+            if directions is None:
+                directions = dirs_from_infl
+            if radii is None:
+                radii = lengths
+
+        if directions is None:
+            r = np.asarray([] if radii is None else radii, float)
+            if r.ndim == 1 and r.size in (d, 2 * d):
+                dirs = np.eye(d, dtype=float)
+                if r.size == d:
+                    dirs = np.vstack([dirs, -dirs])
+                    r = np.tile(r, 2)
+                else:  # r.size == 2*d
+                    dirs = np.vstack([dirs, -dirs])
+                directions = dirs
+                radii = r
+            else:
+                directions = np.zeros((0, d), float)
+                radii = r
+        else:
+            directions = np.asarray(directions, float)
+            radii = np.asarray([] if radii is None else radii, float)
     else:
         cid = getattr(reg, "cluster_id", getattr(reg, "label", 0))
         try:
@@ -202,15 +234,47 @@ def _extract_region(reg: Any) -> Tuple[Any, Any, np.ndarray, np.ndarray, np.ndar
         except Exception:
             pass
 
-        def _pick_attr(obj, *names):
+        def _pick_attr(obj, *names, default=None, required=True):
             for n in names:
                 if hasattr(obj, n):
                     return getattr(obj, n)
-            raise AttributeError(names[0])
+            if required:
+                raise AttributeError(names[0])
+            return default
 
         center = np.asarray(_pick_attr(reg, "center", "center_", "centroid"), float)
-        directions = np.asarray(_pick_attr(reg, "directions", "directions_", "dirs"), float)
-        radii = np.asarray(_pick_attr(reg, "radii", "radii_", "radius"), float)
+        directions = _pick_attr(reg, "directions", "directions_", "dirs", required=False)
+        radii = _pick_attr(reg, "radii", "radii_", "radius", required=False)
+        infl = _pick_attr(reg, "inflection_points", "inflection_points_", "infl", required=False)
+
+        d = center.size
+        if (directions is None or radii is None) and infl is not None:
+            infl = np.asarray(infl, float)
+            vecs = infl - center[None, :]
+            lengths = np.linalg.norm(vecs, axis=1)
+            dirs_from_infl = vecs / (lengths[:, None] + 1e-12)
+            if directions is None:
+                directions = dirs_from_infl
+            if radii is None:
+                radii = lengths
+
+        if directions is None:
+            r = np.asarray([] if radii is None else radii, float)
+            if r.ndim == 1 and r.size in (d, 2 * d):
+                dirs = np.eye(d, dtype=float)
+                if r.size == d:
+                    dirs = np.vstack([dirs, -dirs])
+                    r = np.tile(r, 2)
+                else:
+                    dirs = np.vstack([dirs, -dirs])
+                directions = dirs
+                radii = r
+            else:
+                directions = np.zeros((0, d), float)
+                radii = r
+        else:
+            directions = np.asarray(directions, float)
+            radii = np.asarray([] if radii is None else radii, float)
     return cid, label, center, directions, radii
 
 
