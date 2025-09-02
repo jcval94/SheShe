@@ -24,7 +24,7 @@ plt.show()
 <p>optional model-based scorers to rank interactions and employs beam search to</p>
 <p>enumerate promising subspaces.</p>
 <h2>Example</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import SubspaceScout
 scout = SubspaceScout()
 scout.fit(X, y)
@@ -32,7 +32,7 @@ subspaces = scout.results_
 </code></pre>
 
 <h2>Usage examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import SubspaceScout
 
 scout = SubspaceScout(random_state=0)
@@ -40,7 +40,7 @@ scout.fit(X, y)          # fit
 results = scout.results_ # access discovered subspaces
 </code></pre>
 <h2>Additional examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import SubspaceScout
 
 scout = SubspaceScout(

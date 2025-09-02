@@ -23,7 +23,7 @@ plt.show()
 <p>gradient ascent refines the centres, enabling both classification and regression</p>
 <p>workflows.</p>
 <h2>Example</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import ModalBoundaryClustering
 mbc = ModalBoundaryClustering()
 mbc.fit(X, y)
@@ -31,7 +31,7 @@ labels = mbc.predict(X)
 </code></pre>
 
 <h2>Usage examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import ModalBoundaryClustering
 
 mbc = ModalBoundaryClustering(random_state=0)
@@ -48,7 +48,7 @@ mbc.fit(X, y).save("mbc.joblib")   # save
 ModalBoundaryClustering.load("mbc.joblib")
 </code></pre>
 <h2>Additional examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sklearn.datasets import load_iris
 from sheshe import ModalBoundaryClustering
 

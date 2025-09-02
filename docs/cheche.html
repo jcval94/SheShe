@@ -23,7 +23,7 @@ plt.show()
 <p>it can subsample points via <code>mapping_level</code> and plot frontiers per class or</p>
 <p>for scalar score functions.</p>
 <h2>Example</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import CheChe
 cc = CheChe()
 cc.fit(X, y)
@@ -31,7 +31,7 @@ cc.plot_pairs(X)
 </code></pre>
 
 <h2>Usage examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import CheChe
 
 che = CheChe(random_state=0)
@@ -45,7 +45,7 @@ che.fit(X, y).save("che.joblib")   # save
 CheChe.load("che.joblib")
 </code></pre>
 <h2>Additional examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sklearn.datasets import load_iris
 from sheshe import CheChe
 

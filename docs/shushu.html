@@ -23,7 +23,7 @@ plt.show()
 <p>can also operate on arbitrary user-defined score functions, returning cluster</p>
 <p>centroids for each discovered mode.</p>
 <h2>Example</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import ShuShu
 ss = ShuShu()
 ss.fit(X, y)
@@ -31,7 +31,7 @@ labels = ss.predict(X)
 </code></pre>
 
 <h2>Usage examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import ShuShu
 
 shu = ShuShu(random_state=0)
@@ -48,7 +48,7 @@ shu.fit(X, y).save("shu.joblib")   # save
 ShuShu.load("shu.joblib")
 </code></pre>
 <h2>Additional examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sklearn.datasets import load_iris
 from sheshe import ShuShu
 

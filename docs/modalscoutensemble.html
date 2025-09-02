@@ -23,7 +23,7 @@ plt.show()
 <p>score, cross-validation and feature importance, and the ensemble can delegate</p>
 <p>optimisation to <code>ShuShu</code> when <code>ensemble_method="shushu"</code>.</p>
 <h2>Example</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import ModalScoutEnsemble
 from sklearn.linear_model import LogisticRegression
 mse = ModalScoutEnsemble(base_estimator=LogisticRegression())
@@ -32,7 +32,7 @@ labels = mse.predict(X)
 </code></pre>
 
 <h2>Usage examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import ModalScoutEnsemble
 from sklearn.linear_model import LogisticRegression
 
@@ -50,7 +50,7 @@ mse.fit(X, y).save("mse.joblib")   # save
 ModalScoutEnsemble.load("mse.joblib")
 </code></pre>
 <h2>Additional examples</h2>
-<pre><code>
+<pre><code class="language-python">
 from sheshe import ModalScoutEnsemble
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
