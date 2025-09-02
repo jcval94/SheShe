@@ -1,0 +1,70 @@
+---
+layout: default
+title: CheChe
+parent: SheShe
+nav_order: 6
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>CheChe</h1>
+
+<figure class="doc-image">
+  <img src="images/cheche.png" alt="CheChe diagram">
+</figure>
+<p>Computes convex-hull frontiers for selected feature pairs and provides simple</p>
+<p>2D visualisations.</p>
+<h2>Example</h2>
+<pre><code>
+from sheshe import CheChe
+cc = CheChe()
+cc.fit(X, y)
+cc.plot_pairs(X)
+</code></pre>
+<h2>Parameters</h2>
+<ul>
+<li><code>random_state</code> (<code>int</code> or <code>None</code>, default <code>None</code>): seed for reproducibility.
+</li>
+</ul>
+<h3>Fit-time options</h3>
+<p>The <code>fit</code> method accepts additional arguments mirroring the <code>ShuShu</code> API:</p>
+<ul>
+<li><code>score_fn</code> (callable, optional): scalar score function when <code>y</code> is not
+ provided.
+</li>
+<li><code>feature_names</code> (<code>list[str]</code> or <code>None</code>): names for features.
+</li>
+<li><code>score_model</code> (estimator, optional): model used to derive class probabilities.
+</li>
+<li><code>score_fn_multi</code> (<code>callable</code>, optional): multi-class score function.
+</li>
+<li><code>score_fn_per_class</code> (<code>list[callable]</code>, optional): per-class score functions.
+</li>
+<li><code>max_pairs</code> (<code>int</code> or <code>None</code>, default <code>10</code>): maximum number of feature pairs
+ to analyse.
+</li>
+<li><code>mapping_level</code> (<code>int</code> or <code>None</code>, default <code>None</code>): down-sampling level for
+ frontier computation.
+</li>
+</ul>
+<h2>Methods</h2>
+<ul>
+<li><code>fit(X, y=None, **kwargs)</code> – estimate 2D frontiers for feature pairs.
+</li>
+<li><code>fit_predict(X, y=None, **kwargs)</code> – fit the model and immediately return
+ predictions.
+</li>
+<li><code>predict(X)</code> – assign region ids or class labels.
+</li>
+<li><code>predict_proba(X)</code> – return class probabilities in multiclass mode.
+</li>
+<li><code>predict_regions(X)</code> – DataFrame with labels and region ids.
+</li>
+<li><code>decision_function(X)</code> – negative distances to region centres.
+</li>
+<li><code>plot_pairs(X, class_index=None, feature_names=None)</code> – scatter plots with
+ frontier overlays for stored pairs.
+</li>
+<li><code>plot_classes(X, y, ...)</code> – plot frontiers for each class when in supervised
+ mode.
+</li>
+</ul>

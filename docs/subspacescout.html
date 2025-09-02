@@ -1,0 +1,82 @@
+---
+layout: default
+title: SubspaceScout
+parent: SheShe
+nav_order: 2
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>SubspaceScout</h1>
+
+<figure class="doc-image">
+  <img src="images/subspacescout.png" alt="SubspaceScout diagram">
+</figure>
+<p>Identifies informative feature subsets so that <code>ModalBoundaryClustering</code> can</p>
+<p>run only where it matters in high-dimensional spaces.</p>
+<h2>Example</h2>
+<pre><code>
+from sheshe import SubspaceScout
+scout = SubspaceScout()
+scout.fit(X, y)
+subspaces = scout.results_
+</code></pre>
+<h2>Parameters</h2>
+<ul>
+<li><code>model_method</code> (<code>None</code> or <code>"lightgbm"</code> or <code>"ebm"</code>, default <code>None</code>): model
+ used to score subspaces. <code>None</code> uses mutual information.
+</li>
+<li><code>max_order</code> (<code>int</code>, default <code>3</code>): maximum size of feature combinations to
+ explore.
+</li>
+<li><code>n_bins</code> (<code>int</code>, default <code>8</code>): number of bins for discretising features.
+</li>
+<li><code>top_m</code> (<code>int</code>, default <code>20</code>): number of features pre-selected by individual
+ mutual information.
+</li>
+<li><code>branch_per_parent</code> (<code>int</code>, default <code>5</code>): maximum extensions generated per
+ parent subspace.
+</li>
+<li><code>density_occup_min</code> (<code>float</code>, default <code>0.03</code>): minimum occupancy ratio for a
+ subspace to be valid.
+</li>
+<li><code>min_support</code> (<code>int</code>, default <code>30</code>): minimum number of samples required in a
+ subspace.
+</li>
+<li><code>sample_size</code> (<code>int</code> or <code>None</code>, default <code>4096</code>): optional subsampling size to
+ accelerate computations.
+</li>
+<li><code>task</code> (<code>"classification"</code> or <code>"regression"</code>, default <code>"classification"</code>):
+ learning task.
+</li>
+<li><code>random_state</code> (<code>int</code>, default <code>0</code>): seed for reproducibility.
+</li>
+<li><code>base_pairs_limit</code> (<code>int</code>, default <code>12</code>): maximum number of seed pairs for
+ higher-order searches.
+</li>
+<li><code>beam_width</code> (<code>int</code>, default <code>12</code>): number of candidates retained at each
+ order during beam search.
+</li>
+<li><code>extend_candidate_pool</code> (<code>int</code> or <code>None</code>, default <code>16</code>): random candidate
+ features sampled per parent when order ≥3.
+</li>
+<li><code>marginal_gain_min</code> (<code>float</code>, default <code>1e-3</code>): minimum synergy gain required
+ to accept an extension.
+</li>
+<li><code>max_eval_per_order</code> (<code>int</code> or <code>None</code>, default <code>1000</code>): cap on mutual
+ information evaluations per order.
+</li>
+<li><code>time_budget_s</code> (<code>float</code> or <code>None</code>, default <code>None</code>): global time budget in
+ seconds for <code>fit</code>.
+</li>
+<li><code>objective</code> (<code>"mi_joint"</code> or <code>"mi_synergy"</code>, default <code>"mi_joint"</code>): score
+ used to rank subspaces.
+</li>
+<li><code>min_per_order</code> (<code>int</code>, default <code>1</code>): minimum number of subspaces to keep per
+ order.
+</li>
+</ul>
+<h2>Methods</h2>
+<ul>
+<li><code>fit(X, y)</code> – discover subspaces and store them in <code>results_</code>.
+</li>
+</ul>

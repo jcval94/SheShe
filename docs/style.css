@@ -1,0 +1,33 @@
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  background-color: #fdfdfd;
+  color: #333;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+h1, h2, h3 {
+  color: #003b5c;
+}
+
+pre {
+  background: #f0f0f0;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 4px;
+}
+
+.doc-image {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.doc-image img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}

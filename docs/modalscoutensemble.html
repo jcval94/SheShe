@@ -1,0 +1,115 @@
+---
+layout: default
+title: ModalScoutEnsemble
+parent: SheShe
+nav_order: 3
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>ModalScoutEnsemble</h1>
+
+<figure class="doc-image">
+  <img src="images/modalscoutensemble.png" alt="ModalScoutEnsemble diagram">
+</figure>
+<p>Ensemble that applies <code>ModalBoundaryClustering</code> on the most promising</p>
+<p>subspaces discovered by <code>SubspaceScout</code>.</p>
+<h2>Example</h2>
+<pre><code>
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression())
+mse.fit(X, y)
+labels = mse.predict(X)
+</code></pre>
+<h2>Parameters</h2>
+<ul>
+<li><code>base_estimator</code> (<code>BaseEstimator</code>): model used to compute probabilities or
+ predictions in each subspace.
+</li>
+<li><code>task</code> (<code>str</code>, optional): "classification" or "regression". Inferred from the
+ base estimator if <code>None</code>.
+</li>
+<li><code>ensemble_method</code> (<code>str</code>, default <code>"modal_scout"</code>): either <code>"modal_scout"</code>
+ to use the internal subspace ensemble or <code>"shushu"</code> to delegate to
+ <code>ShuShu</code>.
+</li>
+<li><code>top_k</code> (<code>int</code>, default <code>8</code>): maximum number of subspaces kept.
+</li>
+<li><code>min_score</code> (<code>float</code> or <code>None</code>): minimum score required for a subspace to be
+ used.
+</li>
+<li><code>max_order</code> (<code>int</code> or <code>None</code>): maximum order of subspaces evaluated.
+</li>
+<li><code>metric</code> (<code>str</code> or <code>None</code>, default <code>"mi_synergy"</code>): criterion used to rank
+ subspaces.
+</li>
+<li><code>jaccard_threshold</code> (<code>float</code>, default <code>0.55</code>): minimum Jaccard similarity to
+ consider two subspaces redundant.
+</li>
+<li><code>alpha</code> (<code>float</code>, default <code>0.5</code>): exponent for the scout score in the final
+ weighting.
+</li>
+<li><code>beta</code> (<code>float</code>, default <code>0.5</code>): exponent for cross‑validation performance.
+</li>
+<li><code>gamma</code> (<code>float</code>, default <code>0.5</code>): exponent for global feature importance.
+</li>
+<li><code>cv</code> (<code>int</code> or <code>None</code>, default <code>3</code>): number of CV folds; <code>0</code> or <code>None</code> uses a
+ holdout split.
+</li>
+<li><code>cv_metric_cls</code> (<code>Callable</code>, default <code>balanced_accuracy_score</code>): metric for
+ classification CV.
+</li>
+<li><code>cv_metric_reg</code> (<code>Callable</code>, default <code>r2_score</code>): metric for regression CV.
+</li>
+<li><code>cv_floor</code> (<code>float</code> or <code>None</code>): discard subspaces with CV below this value.
+</li>
+<li><code>n_jobs</code> (<code>int</code>, default <code>1</code>): number of parallel jobs for CV.
+</li>
+<li><code>random_state</code> (<code>int</code> or <code>None</code>, default <code>0</code>): RNG seed.
+</li>
+<li><code>base_2d_rays</code> (<code>int</code>, default <code>8</code>): base number of rays for MBC fits in each
+ subspace.
+</li>
+<li><code>ray_cap</code> (<code>int</code>, default <code>48</code>): maximum rays allowed per subspace.
+</li>
+<li><code>time_budget_s</code> (<code>float</code> or <code>None</code>): optional global time budget for fitting.
+</li>
+<li><code>use_importances</code> (<code>bool</code>, default <code>True</code>): include global feature
+ importances in the weighting.
+</li>
+<li><code>importance_sample_size</code> (<code>int</code> or <code>None</code>, default <code>4096</code>): sample size for
+ computing global importances.
+</li>
+<li><code>scout_kwargs</code> (<code>dict</code> or <code>None</code>): parameters forwarded to <code>SubspaceScout</code>.
+</li>
+<li><code>shushu_kwargs</code> (<code>dict</code> or <code>None</code>): parameters forwarded to <code>ShuShu</code> when
+ <code>ensemble_method="shushu"</code>.
+</li>
+<li><code>mbc_kwargs</code> (<code>dict</code> or <code>None</code>): additional arguments passed to each
+ <code>ModalBoundaryClustering</code> instance.
+</li>
+<li><code>verbose</code> (<code>int</code>, default <code>0</code>): logging level.
+</li>
+<li><code>prediction_within_region</code> (<code>bool</code>, default <code>False</code>): evaluate base estimator
+ only within each region during prediction.
+</li>
+</ul>
+<h2>Methods</h2>
+<ul>
+<li><code>fit(X, y)</code> – train the ensemble on <code>X</code> and <code>y</code>.
+</li>
+<li><code>predict(X)</code> – predict labels or cluster ids.
+</li>
+<li><code>predict_proba(X)</code> – class probabilities aggregated across subspaces.
+</li>
+<li><code>decision_function(X)</code> – decision scores averaged across submodels.
+</li>
+<li><code>predict_regions(X)</code> – DataFrame with region assignments.
+</li>
+<li><code>plot_pairs(X, y=None, **kwargs)</code> – delegate to
+ <code>ModalBoundaryClustering.plot_pairs</code> for a selected submodel.
+</li>
+<li><code>plot_pair_3d(X, pair, **kwargs)</code> – 3D surface for a feature pair of a
+ submodel.
+</li>
+</ul>

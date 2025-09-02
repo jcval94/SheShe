@@ -1,0 +1,64 @@
+---
+layout: default
+title: ShuShu
+parent: SheShe
+nav_order: 5
+---
+<link rel="stylesheet" href="style.css">
+
+<h1>ShuShu</h1>
+
+<figure class="doc-image">
+  <img src="images/shushu.png" alt="ShuShu diagram">
+</figure>
+<p>Gradient-based optimiser that searches for local maxima of a scalar score or</p>
+<p>class probabilities.</p>
+<h2>Example</h2>
+<pre><code>
+from sheshe import ShuShu
+ss = ShuShu()
+ss.fit(X, y)
+labels = ss.predict(X)
+</code></pre>
+<h2>Parameters</h2>
+<ul>
+<li><code>clusterer_factory</code> (callable or <code>None</code>, default <code>None</code>): factory returning
+ the internal optimiser. When <code>None</code> a default implementation is used.
+</li>
+<li><code>random_state</code> (<code>int</code> or <code>None</code>, default <code>None</code>): seed for reproducibility.
+</li>
+<li><code>**clusterer_kwargs</code> – additional arguments forwarded to the internal
+ optimiser.
+</li>
+</ul>
+<h2>Methods</h2>
+<ul>
+<li><code>fit(X, y=None, score_fn=None, ...)</code> – fit the optimiser. When <code>y</code> is
+ provided, the score function is learned per class; otherwise <code>score_fn</code>
+ must be supplied.
+</li>
+<li><code>fit_predict(X, y=None, **kwargs)</code> – convenience wrapper calling <code>fit</code> then
+ <code>predict</code>.
+</li>
+<li><code>predict(X)</code> – return class labels or cluster ids.
+</li>
+<li><code>predict_proba(X)</code> – class probabilities (after fitting with labels).
+</li>
+<li><code>decision_function(X)</code> – raw decision scores.
+</li>
+<li><code>transform(X)</code> – membership/affinity matrix.
+</li>
+<li><code>fit_transform(X, y=None, **kwargs)</code> – combine <code>fit</code> and <code>transform</code>.
+</li>
+<li><code>plot_pairs(X, y=None, max_pairs=None)</code> – scatter plots for feature pairs.
+</li>
+<li><code>plot_classes(X, y, grid_res=200, contour_levels=None, max_paths=20,
+ show_paths=True)</code> – visualise class-wise score surfaces.
+</li>
+<li><code>plot_pair_3d(X, y=None, features=(i, j), ax=None, fig=None, grid=64)</code> – 3D
+ surface rendering of the score function.
+</li>
+<li><code>get_cluster(cluster_id, with_geometry=False)</code> – retrieve information about a
+ discovered cluster.
+</li>
+</ul>
