@@ -16,7 +16,7 @@ Los siguientes resultados muestran el mejor `Adjusted Rand Index (ARI)` y `V-mea
 | moons | 0.597 | 0.283 | 1.000 | n/a | n/a | n/a | n/a | n/a | n/a |
 | wine | 0.799 | 0.371 | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | digits | 0.998 | 0.559 | 0.002 | n/a | n/a | n/a | n/a | n/a | n/a |
-| california_housing | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| california_housing | n/a | 0.006 | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | circles | 0.000 | -0.003 | 0.993 | n/a | n/a | n/a | n/a | n/a | n/a |
 
 ### V-measure
@@ -29,7 +29,7 @@ Los siguientes resultados muestran el mejor `Adjusted Rand Index (ARI)` y `V-mea
 | moons | 0.490 | 0.338 | 1.000 | n/a | n/a | n/a | n/a | n/a | n/a |
 | wine | 0.780 | 0.429 | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | digits | 0.997 | 0.695 | 0.047 | n/a | n/a | n/a | n/a | n/a | n/a |
-| california_housing | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| california_housing | n/a | 0.016 | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | circles | 0.000 | 0.000 | 0.986 | n/a | n/a | n/a | n/a | n/a | n/a |
 
 "n/a" indica que los resultados están pendientes de cálculo con los nuevos algoritmos.
