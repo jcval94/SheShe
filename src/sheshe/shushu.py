@@ -1037,6 +1037,7 @@ class ShuShu:
         max_pairs: Optional[int] = None,
         feature_names: Optional[Sequence[str]] = None,
         show_centroids: bool = True,
+        show_histograms: bool = False,
     ):
         """Simple 2D scatter plots for feature pairs.
 
@@ -1054,9 +1055,12 @@ class ShuShu:
             or generic ``xj`` names.
         show_centroids : bool, default ``True``
             Whether to draw cluster centroids when available.
+        show_histograms : bool, default ``False``
+            Whether to display marginal histograms for each dimension.
         """
 
         import matplotlib.pyplot as plt  # pragma: no cover - optional dependency
+        from mpl_toolkits.axes_grid1 import make_axes_locatable  # pragma: no cover - optional dependency
 
         X = np.asarray(X, dtype=float)
         n, d = X.shape
@@ -1094,6 +1098,14 @@ class ShuShu:
                         cid = reg.get("cluster_id")
                         lbl = f"centro {cid}" if cid is not None else "centro"
                         ax.scatter(ctr[i], ctr[j], marker="X", s=80, color="k", label=lbl)
+            if show_histograms:
+                divider = make_axes_locatable(ax)
+                ax_hist_x = divider.append_axes("top", 1.2, pad=0.1, sharex=ax)
+                ax_hist_y = divider.append_axes("right", 1.2, pad=0.1, sharey=ax)
+                ax_hist_x.hist(X[:, i], color="lightgray", bins=20)
+                ax_hist_y.hist(X[:, j], color="lightgray", bins=20, orientation="horizontal")
+                ax_hist_x.tick_params(axis="x", labelbottom=False)
+                ax_hist_y.tick_params(axis="y", labelleft=False)
             ax.set_xlabel(feature_names[i])
             ax.set_ylabel(feature_names[j])
             ax.legend(loc="best")

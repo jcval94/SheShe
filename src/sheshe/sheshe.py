@@ -2561,6 +2561,7 @@ class ModalBoundaryClustering(BaseEstimator):
         grid_res: int = 200,
         alpha_surface: float = 0.6,
         show_centroids: bool = True,
+        show_histograms: bool = False,
     ) -> plt.Figure:
         """Draw the probability surface for a pair of features and one class.
 
@@ -2584,6 +2585,8 @@ class ModalBoundaryClustering(BaseEstimator):
             Surface transparency.
         show_centroids : bool, default=True
             Whether to display cluster centroids.
+        show_histograms : bool, default=False
+            Whether to draw marginal histograms for each dimension.
 
         Returns
         -------
@@ -2611,6 +2614,7 @@ class ModalBoundaryClustering(BaseEstimator):
         Z = self._predict_value_real(X_grid, class_idx=cls_idx).reshape(XI.shape)
 
         fig, ax = plt.subplots(figsize=(6, 5))
+        from mpl_toolkits.axes_grid1 import make_axes_locatable  # pragma: no cover - optional dependency
         ax.set_title(
             f"Prob. clase '{class_label}' vs ({feature_names[i]},{feature_names[j]})"
         )
@@ -2677,6 +2681,14 @@ class ModalBoundaryClustering(BaseEstimator):
                     s=80,
                     label=f"centro {reg.cluster_id} ({class_label})",
                 )
+        if show_histograms:
+            divider = make_axes_locatable(ax)
+            ax_hist_x = divider.append_axes("top", 1.2, pad=0.1, sharex=ax)
+            ax_hist_y = divider.append_axes("right", 1.2, pad=0.1, sharey=ax)
+            ax_hist_x.hist(xi, color="lightgray", bins=20)
+            ax_hist_y.hist(xj, color="lightgray", bins=20, orientation="horizontal")
+            ax_hist_x.tick_params(axis="x", labelbottom=False)
+            ax_hist_y.tick_params(axis="y", labelleft=False)
 
         ax.set_xlabel(feature_names[i])
         ax.set_ylabel(feature_names[j])
@@ -2696,6 +2708,7 @@ class ModalBoundaryClustering(BaseEstimator):
         alpha_surface: float = 0.6,
         max_classes: Optional[int] = None,
         show_centroids: bool = True,
+        show_histograms: bool = False,
     ) -> plt.Figure:
         """Draw predicted-value surface and decile regions for a feature pair.
 
@@ -2716,6 +2729,8 @@ class ModalBoundaryClustering(BaseEstimator):
             Surface transparency.
         show_centroids : bool, default=True
             Whether to display cluster centroids.
+        show_histograms : bool, default=False
+            Whether to draw marginal histograms for each dimension.
 
         Returns
         -------
@@ -2758,6 +2773,7 @@ class ModalBoundaryClustering(BaseEstimator):
         n_dec = 10 if max_classes is None else min(10, max_classes)
 
         fig, ax = plt.subplots(figsize=(6, 5))
+        from mpl_toolkits.axes_grid1 import make_axes_locatable  # pragma: no cover - optional dependency
         ax.set_title(
             f"Deciles de y_pred vs ({feature_names[i]},{feature_names[j]})"
         )
@@ -2795,6 +2811,14 @@ class ModalBoundaryClustering(BaseEstimator):
                     s=80,
                     label=f"centro {reg.cluster_id}",
                 )
+        if show_histograms:
+            divider = make_axes_locatable(ax)
+            ax_hist_x = divider.append_axes("top", 1.2, pad=0.1, sharex=ax)
+            ax_hist_y = divider.append_axes("right", 1.2, pad=0.1, sharey=ax)
+            ax_hist_x.hist(xi, color="lightgray", bins=20)
+            ax_hist_y.hist(xj, color="lightgray", bins=20, orientation="horizontal")
+            ax_hist_x.tick_params(axis="x", labelbottom=False)
+            ax_hist_y.tick_params(axis="y", labelleft=False)
 
         ax.set_xlabel(feature_names[i])
         ax.set_ylabel(feature_names[j])
@@ -2811,6 +2835,7 @@ class ModalBoundaryClustering(BaseEstimator):
         block_size: Optional[int] = None,
         max_classes: Optional[int] = None,
         show_centroids: bool = True,
+        show_histograms: bool = False,
     ):
         """Visualize 2D surfaces for feature pairs.
 
@@ -2842,6 +2867,8 @@ class ModalBoundaryClustering(BaseEstimator):
             If ``None`` all are shown.
         show_centroids : bool, default=True
             Whether to display cluster centroids.
+        show_histograms : bool, default=False
+            Whether to draw marginal histograms for each dimension.
 
         Returns
         -------
@@ -2909,6 +2936,7 @@ class ModalBoundaryClustering(BaseEstimator):
                         class_colors,
                         feature_names,
                         show_centroids=show_centroids,
+                        show_histograms=show_histograms,
                     )
                     if block_size:
                         block_figs.append(fig)
@@ -2927,6 +2955,7 @@ class ModalBoundaryClustering(BaseEstimator):
                     y_vals,
                     max_classes=max_classes,
                     show_centroids=show_centroids,
+                    show_histograms=show_histograms,
                 )
                 if block_size:
                     block_figs.append(fig)

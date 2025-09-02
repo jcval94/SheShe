@@ -584,6 +584,7 @@ class CheChe:
         *,
         class_index: Optional[int] = None,
         feature_names: Optional[Sequence[str]] = None,
+        show_histograms: bool = False,
     ):
         """Plot the frontiers discovered by this instance on ``X``.
 
@@ -598,6 +599,8 @@ class CheChe:
         feature_names:
             Optional names for the features. If ``None``, ``self.feature_names_``
             is used.
+        show_histograms:
+            If ``True``, draw marginal histograms for each dimension.
 
         Returns
         -------
@@ -607,6 +610,7 @@ class CheChe:
         """
 
         import matplotlib.pyplot as plt  # local import to keep optional dependency
+        from mpl_toolkits.axes_grid1 import make_axes_locatable  # pragma: no cover - optional dependency
 
         if feature_names is None:
             feature_names = self.feature_names_
@@ -643,6 +647,14 @@ class CheChe:
             if feature_names is not None and len(feature_names) > max(i, j):
                 ax.set_xlabel(feature_names[i])
                 ax.set_ylabel(feature_names[j])
+            if show_histograms:
+                divider = make_axes_locatable(ax)
+                ax_hist_x = divider.append_axes("top", 1.2, pad=0.1, sharex=ax)
+                ax_hist_y = divider.append_axes("right", 1.2, pad=0.1, sharey=ax)
+                ax_hist_x.hist(pts[:, 0], color="lightgray", bins=20)
+                ax_hist_y.hist(pts[:, 1], color="lightgray", bins=20, orientation="horizontal")
+                ax_hist_x.tick_params(axis="x", labelbottom=False)
+                ax_hist_y.tick_params(axis="y", labelleft=False)
             ax.legend()
 
         fig.tight_layout()

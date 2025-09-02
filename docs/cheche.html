@@ -15,7 +15,7 @@ from sheshe import CheChe
 
 X, y = load_iris(return_X_y=True)
 che = CheChe().fit(X, y)
-che.plot_pairs(X, y, max_pairs=1)
+che.plot_pairs(X, y, max_pairs=1, show_histograms=True)
 plt.show()
 </code></pre>
 <p>Computes convex-hull frontiers for selected feature pairs and provides simple</p>
@@ -27,7 +27,7 @@ plt.show()
 from sheshe import CheChe
 cc = CheChe()
 cc.fit(X, y)
-cc.plot_pairs(X)
+cc.plot_pairs(X, show_histograms=True)
 </code></pre>
 
 <h2>Usage examples</h2>
@@ -56,7 +56,7 @@ ch = CheChe().fit(
     feature_names=["sepal length", "sepal width", "petal length", "petal width"],
     mapping_level=2,  # use every other sample
 )
-ch.plot_pairs(X, class_index=0)
+ch.plot_pairs(X, class_index=0, show_histograms=True)
 </code></pre>
 <pre><code class="language-python">
 from sklearn.linear_model import LogisticRegression
@@ -108,8 +108,8 @@ CheChe().fit(X, score_fn=score_fn)
 </li>
 <li><code>decision_function(X)</code> – negative distances to region centres.
 </li>
-<li><code>plot_pairs(X, class_index=None, feature_names=None)</code> – scatter plots with
- frontier overlays for stored pairs.
+<li><code>plot_pairs(X, class_index=None, feature_names=None, show_histograms=False)</code> – scatter plots with
+ frontier overlays for stored pairs and optional marginal histograms.
 </li>
 <li><code>plot_classes(X, y, ...)</code> – plot frontiers for each class when in supervised
  mode.
