@@ -93,3 +93,15 @@
 .lang-switch a:hover {
   background: var(--accent-color);
 }
+.lang-switch select {
+  background: var(--primary-color);
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  border: none;
+  font-size: 0.9rem;
+}
+.lang-switch select:hover {
+  background: var(--accent-color);
+  cursor: pointer;
+}
