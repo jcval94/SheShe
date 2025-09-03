@@ -1,0 +1,30 @@
+---
+layout: default
+title: "Consejos de rendimiento"
+description: "Heurísticas y ajustes para una exploración más rápida"
+nav_order: 9
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="performance_tips.html">EN</a></div>
+
+<h1>Consejos de rendimiento</h1>
+
+<h2>Heurísticas</h2>
+<p>SheShe aplica reglas simples para mantener los tiempos de ejecución manejables. La principal es <code>auto_rays_by_dim</code>, que limita <code>base_2d_rays</code> a medida que crece la dimensionalidad:</p>
+<ul>
+  <li>2–24 características → usa el valor completo de <code>base_2d_rays</code> (32 por defecto).</li>
+  <li>25–64 características → limita <code>base_2d_rays</code> a 16.</li>
+  <li>65+ características → limita <code>base_2d_rays</code> a 12.</li>
+</ul>
+<p>Desactiva este comportamiento con <code>auto_rays_by_dim=False</code> para mantener el número original de rayos.</p>
+
+<h2>Conjuntos de datos de alta dimensión</h2>
+<p>Los espacios de características grandes requieren cuidado adicional. Considera los siguientes ajustes al trabajar con decenas o cientos de dimensiones:</p>
+<ul>
+  <li><strong>Reduce rayos</strong>: establece <code>base_2d_rays</code> en 16 o 12 cuando <code>auto_rays_by_dim</code> esté desactivado o se necesite un límite más bajo.</li>
+  <li><strong>Recorta pasos de exploración</strong>: baja <code>scan_steps</code> de 24 a 12 para reducir a la mitad las evaluaciones a lo largo de cada rayo.</li>
+  <li><strong>Limita la exploración</strong>: disminuye <code>n_max_seeds</code> y <code>max_subspaces</code> para restringir el número de puntos iniciales y subespacios escaneados.</li>
+  <li><strong>Preselecciona subespacios</strong>: ejecuta <a href="subspacescout_es.html">SubspaceScout</a> para enfocarte en pares de características prometedores antes de lanzar búsquedas más pesadas.</li>
+</ul>
+<p>Consulta el <a href="../README_ES.md#consejos-de-rendimiento">README</a> para contexto adicional sobre cómo interactúan estos parámetros.</p>
+

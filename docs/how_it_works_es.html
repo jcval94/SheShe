@@ -1,0 +1,30 @@
+---
+layout: default
+title: "Cómo funciona"
+parent: SheShe
+nav_order: 0
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="how_it_works.html">EN</a></div>
+
+<h1>Cómo funciona SheShe</h1>
+
+<p>SheShe transforma un modelo probabilístico en un explorador de su propio paisaje de decisión. Busca <strong>máximos locales</strong> en la probabilidad por clase o el valor predicho y puede delinear regiones alrededor de los modos descubiertos.</p>
+
+<h2>Fundamento matemático</h2>
+<p>La optimización sigue actualizaciones de ascenso por gradiente <code>x_{k+1} = x_k + α∇f(x_k)</code> hasta que la norma del gradiente cae por debajo de un pequeño <code>ε</code>.</p>
+<p>Los barridos de frontera disparan rayos desde cada pico y localizan puntos de inflexión donde <code>d²f/dr² = 0</code> con un cambio de concavidad, o se alcanza una caída percentil, delimitando regiones alrededor de cada modo. Ver <a href="shushu_es.html">ShuShu</a> y <a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a> para más detalles.</p>
+
+<h2>Componentes</h2>
+
+<h3><a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a></h3>
+<p>Este enfoque de clustering explora superficies de puntuación en busca de modos separados y dibuja fronteras supervisadas alrededor de cada uno. Realiza su propia optimización y no depende de ShuShu ni CheChe.</p>
+
+<h3><a href="shushu_es.html">ShuShu</a></h3>
+<p>ShuShu es un optimizador ligero de ascenso por gradiente que puede sondear cualquier función de puntuación. Localiza máximos locales de forma independiente y puede combinarse con otras herramientas según sea necesario.</p>
+
+<h3><a href="cheche_es.html">CheChe</a></h3>
+<p>CheChe proyecta trayectorias de optimización en dos dimensiones y dibuja fronteras de casco convexo para pares de características seleccionados. Opera por separado de ModalBoundaryClustering y ShuShu para ofrecer análisis visual.</p>
+
+<p>Estos componentes independientes permiten a SheShe revelar la estructura de modelos complejos siguiendo sus picos y mapeando fronteras de la forma que mejor se adapte a la tarea.</p>
+

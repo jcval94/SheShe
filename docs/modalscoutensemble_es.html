@@ -1,0 +1,115 @@
+---
+layout: default
+title: ModalScoutEnsemble
+parent: SheShe
+nav_order: 3
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="modalscoutensemble.html">EN</a></div>
+
+<h1>ModalScoutEnsemble</h1>
+
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalScoutEnsemble
+
+X, y = load_iris(return_X_y=True)
+mse = ModalScoutEnsemble().fit(X, y)
+mse.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+plt.show()
+</code></pre>
+<p>Ensamble que aplica <code>ModalBoundaryClustering</code> en los subespacios más prometedores descubiertos por <code>SubspaceScout</code>. Cada submodelo se pondera por puntuación del scout, validación cruzada e importancia de características, y el ensamble puede delegar la optimización a <code>ShuShu</code> cuando <code>ensemble_method="shushu"</code>.</p>
+
+<h2>Ejemplo</h2>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression())
+mse.fit(X, y)
+labels = mse.predict(X)
+</code></pre>
+
+<h2>Ejemplos de uso</h2>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0)
+mse.fit(X, y)                      # fit
+mse.fit_predict(X, y)              # fit_predict
+mse.fit_transform(X, y)            # fit_transform
+mse.fit(X, y).transform(X)         # transform
+mse.fit(X, y).predict(X)           # predict
+mse.fit(X, y).predict_proba(X)     # predict_proba
+mse.fit(X, y).decision_function(X) # decision_function
+mse.fit(X, y).predict_regions(X)   # predict_regions
+mse.fit(X, y).score(X, y)          # score
+mse.fit(X, y).save("mse.joblib")   # save
+ModalScoutEnsemble.load("mse.joblib")
+</code></pre>
+
+<h2>Ejemplos adicionales</h2>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+mse = ModalScoutEnsemble(
+    base_estimator=LogisticRegression(max_iter=200),
+    task="classification",
+    random_state=0,
+    scout_kwargs={"max_order": 2, "top_m": 4, "sample_size": None},
+    cv=2,
+    # ensemble_method="shushu" usaría el optimizador ShuShu
+)
+mse.fit(X, y)
+print(mse.predict(X[:5]))
+print(mse.predict_proba(X[:5]))
+</code></pre>
+
+<h2>Parámetros</h2>
+<ul>
+<li><code>base_estimator</code> (<code>BaseEstimator</code>): modelo usado para calcular probabilidades o predicciones en cada subespacio.</li>
+<li><code>task</code> (<code>str</code>, opcional): "classification" o "regression". Se infiere del estimador base si es <code>None</code>.</li>
+<li><code>ensemble_method</code> (<code>str</code>, por defecto <code>"modal_scout"</code>): <code>"modal_scout"</code> para usar el ensamble interno de subespacios o <code>"shushu"</code> para delegar en <code>ShuShu</code>.</li>
+<li><code>top_k</code> (<code>int</code>, por defecto <code>8</code>): número máximo de subespacios conservados.</li>
+<li><code>min_score</code> (<code>float</code> o <code>None</code>): puntuación mínima requerida para que un subespacio sea usado.</li>
+<li><code>max_order</code> (<code>int</code> o <code>None</code>): orden máximo de subespacios evaluados.</li>
+<li><code>metric</code> (<code>str</code> o <code>None</code>, por defecto <code>"mi_synergy"</code>): criterio usado para ordenar subespacios.</li>
+<li><code>jaccard_threshold</code> (<code>float</code>, por defecto <code>0.55</code>): similitud de Jaccard mínima para considerar dos subespacios redundantes.</li>
+<li><code>alpha</code> (<code>float</code>, por defecto <code>0.5</code>): exponente para la puntuación del scout en el peso final.</li>
+<li><code>beta</code> (<code>float</code>, por defecto <code>0.5</code>): exponente para el desempeño de validación cruzada.</li>
+<li><code>gamma</code> (<code>float</code>, por defecto <code>0.5</code>): exponente para la importancia global de características.</li>
+<li><code>cv</code> (<code>int</code> o <code>None</code>, por defecto <code>3</code>): número de folds de CV; <code>0</code> o <code>None</code> usa una división holdout.</li>
+<li><code>cv_metric_cls</code> (<code>Callable</code>, por defecto <code>balanced_accuracy_score</code>): métrica para CV de clasificación.</li>
+<li><code>cv_metric_reg</code> (<code>Callable</code>, por defecto <code>r2_score</code>): métrica para CV de regresión.</li>
+<li><code>cv_floor</code> (<code>float</code> o <code>None</code>): descarta subespacios con CV por debajo de este valor.</li>
+<li><code>n_jobs</code> (<code>int</code>, por defecto <code>1</code>): número de trabajos paralelos para CV.</li>
+<li><code>random_state</code> (<code>int</code> o <code>None</code>, por defecto <code>0</code>): semilla RNG.</li>
+<li><code>base_2d_rays</code> (<code>int</code>, por defecto <code>8</code>): número base de rayos para ajustes MBC en cada subespacio.</li>
+<li><code>ray_cap</code> (<code>int</code>, por defecto <code>48</code>): rayos máximos permitidos por subespacio.</li>
+<li><code>time_budget_s</code> (<code>float</code> o <code>None</code>): presupuesto de tiempo global opcional para el ajuste.</li>
+<li><code>use_importances</code> (<code>bool</code>, por defecto <code>True</code>): incluir importancias de características globales en el peso.</li>
+<li><code>importance_sample_size</code> (<code>int</code> o <code>None</code>, por defecto <code>4096</code>): tamaño de muestra para calcular importancias globales.</li>
+<li><code>scout_kwargs</code> (<code>dict</code> o <code>None</code>): parámetros enviados a <code>SubspaceScout</code>.</li>
+<li><code>shushu_kwargs</code> (<code>dict</code> o <code>None</code>): parámetros enviados a <code>ShuShu</code> cuando <code>ensemble_method="shushu"</code>.</li>
+<li><code>mbc_kwargs</code> (<code>dict</code> o <code>None</code>): argumentos adicionales pasados a cada instancia de <code>ModalBoundaryClustering</code>.</li>
+<li><code>verbose</code> (<code>int</code>, por defecto <code>0</code>): nivel de registro.</li>
+<li><code>prediction_within_region</code> (<code>bool</code>, por defecto <code>False</code>): evalúa el estimador base solo dentro de cada región durante la predicción.</li>
+</ul>
+
+<h2>Métodos</h2>
+<ul>
+<li><code>fit(X, y)</code> – entrena el ensamble en <code>X</code> e <code>y</code>.</li>
+<li><code>predict(X)</code> – predice etiquetas o ids de cluster.</li>
+<li><code>predict_proba(X)</code> – probabilidades de clase agregadas a través de subespacios.</li>
+<li><code>decision_function(X)</code> – puntuaciones de decisión promediadas entre submodelos.</li>
+<li><code>predict_regions(X)</code> – DataFrame con asignaciones de región.</li>
+<li><code>plot_pairs(X, y=None, show_histograms=False, **kwargs)</code> – delega en <code>ModalBoundaryClustering.plot_pairs</code> para un submodelo seleccionado, incluyendo histogramas marginales opcionales.</li>
+<li><code>plot_pair_3d(X, pair, **kwargs)</code> – superficie 3D para un par de características de un submodelo.</li>
+</ul>
+

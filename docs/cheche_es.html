@@ -1,0 +1,104 @@
+---
+layout: default
+title: CheChe
+parent: SheShe
+nav_order: 6
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="cheche.html">EN</a></div>
+
+<h1>CheChe</h1>
+
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import CheChe
+
+X, y = load_iris(return_X_y=True)
+che = CheChe().fit(X, y)
+che.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+plt.show()
+</code></pre>
+<p>Calcula fronteras de casco convexo para pares de características seleccionados y ofrece visualizaciones 2D simples.</p>
+<p>Útil para explorar fronteras de decisión o formas de clusters, puede submuestrear puntos mediante <code>mapping_level</code> y trazar fronteras por clase o para funciones de puntuación escalares.</p>
+
+<h2>Formulación matemática</h2>
+<p>Para el par de características <code>(i,j)</code>, CheChe proyecta muestras con <code>P_{ij}(x) = (x_i, x_j)</code>. QuickHull construye el casco convexo <code>H</code> de estas proyecciones.</p>
+<p>La función de decisión devuelve la distancia negativa desde el punto proyectado al centroide del casco: <code>-‖P_{ij}(x) - c_H‖</code>.</p>
+
+<h2>Ejemplo</h2>
+<pre><code class="language-python">
+from sheshe import CheChe
+cc = CheChe()
+cc.fit(X, y)
+cc.plot_pairs(X, show_histograms=True)
+</code></pre>
+
+<h2>Ejemplos de uso</h2>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe(random_state=0)
+che.fit(X, y)                      # fit
+che.fit_predict(X, y)              # fit_predict
+che.fit(X, y).predict(X)           # predict
+che.fit(X, y).predict_proba(X)     # predict_proba
+che.fit(X, y).predict_regions(X)   # predict_regions
+che.fit(X, y).decision_function(X) # decision_function
+che.fit(X, y).save("che.joblib")   # save
+CheChe.load("che.joblib")
+</code></pre>
+
+<h2>Ejemplos adicionales</h2>
+<pre><code class="language-python">
+from sklearn.datasets import load_iris
+from sheshe import CheChe
+
+X, y = load_iris(return_X_y=True)
+ch = CheChe().fit(
+    X,
+    y,
+    feature_names=["sepal length", "sepal width", "petal length", "petal width"],
+    mapping_level=2,  # usa una de cada dos muestras
+)
+ch.plot_pairs(X, class_index=0, show_histograms=True)
+</code></pre>
+<pre><code class="language-python">
+from sklearn.linear_model import LogisticRegression
+
+model = LogisticRegression(max_iter=200).fit(X, y)
+CheChe().fit(X, y, score_model=model)
+
+score_fn = lambda Z: model.predict_proba(Z)[:, 0]
+CheChe().fit(X, score_fn=score_fn)
+</code></pre>
+
+<h2>Parámetros</h2>
+<ul>
+<li><code>random_state</code> (<code>int</code> o <code>None</code>, por defecto <code>None</code>): semilla para reproducibilidad.</li>
+</ul>
+
+<h3>Opciones de entrenamiento</h3>
+<p>El método <code>fit</code> acepta argumentos adicionales similares a la API de <code>ShuShu</code>:</p>
+<ul>
+<li><code>score_fn</code> (callable, opcional): función de puntuación escalar cuando no se proporciona <code>y</code>.</li>
+<li><code>feature_names</code> (<code>list[str]</code> o <code>None</code>): nombres de las características.</li>
+<li><code>score_model</code> (estimador, opcional): modelo usado para derivar probabilidades de clase.</li>
+<li><code>score_fn_multi</code> (<code>callable</code>, opcional): función de puntuación multiclase.</li>
+<li><code>score_fn_per_class</code> (<code>list[callable]</code>, opcional): funciones de puntuación por clase.</li>
+<li><code>max_pairs</code> (<code>int</code> o <code>None</code>, por defecto <code>10</code>): número máximo de pares de características a analizar.</li>
+<li><code>mapping_level</code> (<code>int</code> o <code>None</code>, por defecto <code>None</code>): nivel de submuestreo para la computación de fronteras.</li>
+</ul>
+
+<h2>Métodos</h2>
+<ul>
+<li><code>fit(X, y=None, **kwargs)</code> – estima fronteras 2D para pares de características.</li>
+<li><code>fit_predict(X, y=None, **kwargs)</code> – entrena el modelo y retorna predicciones inmediatamente.</li>
+<li><code>predict(X)</code> – asigna identificadores de región o etiquetas de clase.</li>
+<li><code>predict_proba(X)</code> – devuelve probabilidades de clase en modo multiclase.</li>
+<li><code>predict_regions(X)</code> – DataFrame con etiquetas e IDs de región.</li>
+<li><code>decision_function(X)</code> – distancias negativas a los centros de región.</li>
+<li><code>plot_pairs(X, class_index=None, feature_names=None, show_histograms=False)</code> – gráficos de dispersión con fronteras superpuestas para pares almacenados y opcionales histogramas marginales.</li>
+<li><code>plot_classes(X, y, ...)</code> – grafica fronteras para cada clase en modo supervisado.</li>
+</ul>
+

@@ -72,3 +72,24 @@
   overflow-y: auto;
   margin-bottom: 1.5rem;
 }
+
+/* Language switch button */
+.lang-switch {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+}
+
+.lang-switch a {
+  background: var(--primary-color);
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.lang-switch a:hover {
+  background: var(--accent-color);
+}

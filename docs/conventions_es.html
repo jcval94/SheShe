@@ -1,0 +1,106 @@
+---
+layout: default
+title: "Convenciones de documentación"
+description: "Estilo y reglas de migración para la documentación de SheShe"
+nav_order: 99
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="conventions.html">EN</a></div>
+
+<h1>Convenciones de documentación</h1>
+
+<h2>Front matter</h2>
+<p>Cada página HTML debe comenzar con front matter YAML. Usa la siguiente plantilla y ajusta los valores según sea necesario:</p>
+
+<pre><code class="language-python">---
+layout: default
+title: "Título de la página"
+description: "Resumen corto de la página"
+nav_order: 10
+---</code></pre>
+
+<h2>Encabezados</h2>
+<ul>
+  <li>Usa un único <code>&lt;h1&gt;</code> que coincida con el título de la página.</li>
+  <li>Estructura el contenido con <code>&lt;h2&gt;</code> para secciones y <code>&lt;h3&gt;</code> para subsecciones.</li>
+  <li>No saltes niveles de encabezado.</li>
+</ul>
+
+<h2>Referenciando el README</h2>
+<ul>
+  <li>Evita duplicar explicaciones largas que ya existen en <code>README.md</code>.</li>
+  <li>Cuando el contenido original permanezca en el README, enlaza usando rutas relativas, por ejemplo <a href="../README.md#installation">Instalación</a>.</li>
+  <li>Pueden incluirse resúmenes cuando sean útiles, pero mantiene el README como la fuente canónica para instrucciones completas.</li>
+</ul>
+
+<h2>Enlaces</h2>
+<ul>
+  <li>Usa enlaces relativos con extensiones explícitas, por ejemplo <a href="./quick_api.html">Quick API</a>.</li>
+  <li>Prefiere <code>./</code> para el mismo directorio y <code>../</code> para directorios padre.</li>
+  <li>Verifica enlaces antes de confirmar usando un comprobador como <code>lychee</code>: <code>lychee docs/**/*.html</code>.</li>
+</ul>
+
+<h2>Lista de migración</h2>
+
+<h3>Destacados</h3>
+<ul>
+  <li>[ ] Crear <code>docs/highlights.html</code>.</li>
+  <li>[ ] Añadir front matter y un único H1.</li>
+  <li>[ ] Resumir beneficios clave en viñetas y enlazar a las páginas de predictores y Quick API.</li>
+</ul>
+
+<h3>Instalación</h3>
+<ul>
+  <li>[x] Crear <a href="./installation.html">installation.html</a>.</li>
+  <li>[x] Detallar instrucciones completas de instalación incluyendo aceleración opcional <code>numba</code>.</li>
+  <li>[x] Referenciar requisitos desde el README para evitar divergencias.</li>
+</ul>
+
+<h3>Reproducibilidad</h3>
+<ul>
+  <li>[ ] Crear <code>docs/reproducibility.html</code>.</li>
+  <li>[ ] Documentar sistema operativo, hardware, versión de Python y pasos para recrear el entorno.</li>
+</ul>
+
+<h3>API rápida</h3>
+<ul>
+  <li>[ ] Crear <code>docs/quick_api.html</code>.</li>
+  <li>[ ] Listar objetos públicos con breves descripciones.</li>
+</ul>
+
+<h3>Tabla de métodos</h3>
+<ul>
+  <li>[ ] Crear <code>docs/method_matrix.html</code>.</li>
+  <li>[ ] Traducir tabla de métodos implementados para cada objeto.</li>
+</ul>
+
+<h3>Experimentos y benchmarks</h3>
+<ul>
+  <li>[x] Crear <a href="./experiments_benchmarks.html">experiments_benchmarks.html</a>.</li>
+  <li>[x] Resumir scripts disponibles y enlazar resultados en <code>benchmark/</code>.</li>
+</ul>
+
+<h3>Parámetros clave</h3>
+<ul>
+  <li>[ ] Crear <code>docs/key_parameters.html</code>.</li>
+  <li>[ ] Describir hiperparámetros ajustables y sus efectos.</li>
+</ul>
+
+<h3>Consejos de rendimiento</h3>
+<ul>
+  <li>[ ] Crear <code>docs/performance_tips.html</code>.</li>
+  <li>[ ] Proporcionar orientación para acelerar cálculos y escalar a altas dimensiones.</li>
+</ul>
+
+<h3>Limitaciones</h3>
+<ul>
+  <li>[x] Crear <code>docs/limitations.html</code>.</li>
+  <li>[x] Aclarar restricciones algorítmicas y prácticas.</li>
+</ul>
+
+<h3>Imágenes</h3>
+<ul>
+  <li>[ ] Crear <code>docs/images.html</code>.</li>
+  <li>[ ] Explicar la omisión de activos binarios y referenciar repositorios externos si es necesario.</li>
+</ul>
+

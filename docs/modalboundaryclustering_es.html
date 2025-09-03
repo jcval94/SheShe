@@ -5,7 +5,7 @@ parent: SheShe
 nav_order: 1
 ---
 <link rel="stylesheet" href="style.css">
-<div class="lang-switch"><a href="modalboundaryclustering_es.html">ES</a></div>
+<div class="lang-switch"><a href="modalboundaryclustering.html">EN</a></div>
 
 <h1>ModalBoundaryClustering</h1>
 
@@ -19,14 +19,13 @@ sh = ModalBoundaryClustering().fit(X, y)
 sh.plot_pair_3d(X, (0, 1), class_label=sh.classes_[0])
 plt.show()
 </code></pre>
-<p>Learns regions of high probability or predicted value by climbing local maxima of a</p>
-<p>base estimator. Radial scans trace boundary surfaces around each mode and</p>
-<p>gradient ascent refines the centres, enabling both classification and regression</p>
-<p>workflows.</p>
+<p>Aprende regiones de alta probabilidad o valor predicho escalando los máximos locales de un estimador base.</p>
+<p>Exploraciones radiales trazan superficies de frontera alrededor de cada modo y</p>
+<p>el ascenso por gradiente refina los centros, habilitando flujos tanto de clasificación como de regresión.</p>
 <h2>Mathematical formulation</h2>
-<p>Centres are refined with gradient ascent updates <code>x_{k+1} = x_k + α∇f(x_k)</code> until <code>‖∇f(x_k)‖ &lt; grad_tol</code>.</p>
-<p>From each centre, radial scans sample scores <code>f(x_k + r u)</code> along directions <code>u</code>. Scans stop when <code>∂f/∂r = 0</code>, indicating a stationary point; an inflection point additionally requires <code>d²f/dr² = 0</code> with a sign change, or when the score falls past a percentile or drop fraction of the peak.</p>
-<p>These radii approximate a probability surface from which boundary polygons are built.</p>
+<p>Los centros se refinan con actualizaciones de ascenso por gradiente <code>x_{k+1} = x_k + α∇f(x_k)</code> hasta que <code>‖∇f(x_k)‖ &lt; grad_tol</code>.</p>
+<p>Desde cada centro, exploraciones radiales muestrean puntuaciones <code>f(x_k + r u)</code> a lo largo de direcciones <code>u</code>. Las exploraciones se detienen cuando <code>∂f/∂r = 0</code>, señalando un punto estacionario; un punto de inflexión además requiere <code>d²f/dr² = 0</code> con cambio de signo, o cuando la puntuación cae más allá de un percentil o fracción del pico.</p>
+<p>Estos radios aproximan una superficie de probabilidad de la cual se construyen polígonos de frontera.</p>
 <h2>Example</h2>
 <pre><code class="language-python">
 from sheshe import ModalBoundaryClustering
@@ -35,7 +34,7 @@ mbc.fit(X, y)
 labels = mbc.predict(X)
 </code></pre>
 
-<h2>Usage examples</h2>
+<h2>Ejemplos de uso</h2>
 <pre><code class="language-python">
 from sheshe import ModalBoundaryClustering
 
@@ -52,7 +51,7 @@ mbc.fit(X, y).score(X, y)          # score
 mbc.fit(X, y).save("mbc.joblib")   # save
 ModalBoundaryClustering.load("mbc.joblib")
 </code></pre>
-<h2>Additional examples</h2>
+<h2>Ejemplos adicionales</h2>
 <pre><code class="language-python">
 from sklearn.datasets import load_iris
 from sheshe import ModalBoundaryClustering

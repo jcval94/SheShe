@@ -1,0 +1,30 @@
+---
+layout: default
+title: "Limitaciones"
+description: "Restricciones conocidas y estrategias de mitigación para SheShe"
+nav_order: 8
+---
+
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="limitations.html">EN</a></div>
+
+<h1>Limitaciones</h1>
+
+<p>SheShe proporciona herramientas para análisis modal, pero se aplican varias limitaciones:</p>
+
+<h2>Dependencia de la representación de la superficie</h2>
+<p>Los algoritmos suponen una superficie suave y bien muestreada. Mallas imperfectas o puntos escasos degradan las estimaciones de frontera.</p>
+<p><strong>Mitigación:</strong> preprocesa las mallas para eliminar ruido, interpola regiones faltantes y valida frente a benchmarks conocidos.</p>
+
+<h2>Aproximaciones en alta dimensión</h2>
+<p>En dimensiones muy altas SheShe se basa en aproximaciones que pueden omitir estructuras sutiles y aumentar el tiempo de cómputo.</p>
+<p><strong>Mitigación:</strong> aplica reducción de dimensionalidad o enfócate en subespacios informativos con <a href="./subspacescout_es.html">SubspaceScout</a>.</p>
+
+<h2>Sensibilidad al ruido y muestreo</h2>
+<p>Datos ruidosos o escasamente muestreados pueden producir fronteras inestables.</p>
+<p><strong>Mitigación:</strong> limpia las entradas y agrega múltiples ejecuciones mediante <a href="./modalscoutensemble_es.html">ModalScoutEnsemble</a>.</p>
+
+<h2>Ajuste de parámetros</h2>
+<p>El desempeño depende de elegir anchos de banda y umbrales de clustering adecuados.</p>
+<p><strong>Mitigación:</strong> explora configuraciones mediante la <a href="./quick_api_es.html">API rápida</a> y validación cruzada.</p>
+
