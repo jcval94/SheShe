@@ -1,0 +1,62 @@
+---
+layout: default
+title: "Parámetros clave"
+description: "Hiperparámetros importantes y sus efectos"
+nav_order: 7
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="key_parameters.html">EN</a></div>
+
+<h1>Parámetros clave</h1>
+
+<p>Principales hiperparámetros que influyen en la búsqueda y el clustering.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Parámetro</th>
+      <th>Efecto</th>
+      <th>Referencia</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>base_2d_rays</code></td>
+      <td>Controla la resolución angular en 2D (32 por defecto). 3D escala a ~34; dimensiones superiores usan subespacios.</td>
+      <td><a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a></td>
+    </tr>
+    <tr>
+      <td><code>direction</code></td>
+      <td>Selecciona la dirección de escaneo para localizar el punto de inflexión: <code>center_out</code> o <code>outside_in</code>.</td>
+      <td><a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a></td>
+    </tr>
+    <tr>
+      <td><code>scan_radius_factor</code>, <code>scan_steps</code></td>
+      <td>Definen tamaño y resolución del escaneo radial alrededor de los puntos semilla.</td>
+      <td><a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a></td>
+    </tr>
+    <tr>
+      <td><code>optim_method</code></td>
+      <td>Elige entre <code>gradient_ascent</code> (por defecto) o <code>trust_region_newton</code> para la maximización local.</td>
+      <td><a href="shushu_es.html">ShuShu</a></td>
+    </tr>
+    <tr>
+      <td><code>grad_*</code></td>
+      <td>Hiperparámetros para ascenso por gradiente (tasa, iteraciones, tolerancias); usados cuando <code>optim_method="gradient_ascent"</code>.</td>
+      <td><a href="shushu_es.html">ShuShu</a></td>
+    </tr>
+    <tr>
+      <td><code>max_subspaces</code></td>
+      <td>Número máximo de subespacios considerados cuando la dimensionalidad &gt; 3.</td>
+      <td><a href="subspacescout_es.html">SubspaceScout</a></td>
+    </tr>
+    <tr>
+      <td><code>density_alpha</code>, <code>density_k</code></td>
+      <td>Penalización opcional de densidad usando HNSW k‑NN para mantener los centros dentro de la nube de datos; desactiva con <code>density_alpha=0</code>.</td>
+      <td><a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Los valores por defecto favorecen la velocidad; consulta <a href="highlights_es.html">Destacados</a> para consejos de rendimiento y <a href="limitations_es.html">Limitaciones</a> para restricciones conocidas.</p>
+

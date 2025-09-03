@@ -1,0 +1,96 @@
+---
+layout: default
+title: ShuShu
+parent: SheShe
+nav_order: 5
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="shushu.html">EN</a></div>
+
+<h1>ShuShu</h1>
+
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ShuShu
+
+X, y = load_iris(return_X_y=True)
+sh = ShuShu().fit(X, y)
+sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+plt.show()
+</code></pre>
+<p>Optimizador basado en gradiente que busca máximos locales de una puntuación escalar o probabilidades de clase. Ejecuta una optimización por clase cuando se proporcionan etiquetas y también puede operar sobre funciones de puntuación definidas por el usuario, devolviendo centroides de cada modo descubierto.</p>
+
+<h2>Formulación matemática</h2>
+<p>ShuShu realiza actualizaciones de ascenso por gradiente <code>x_{t+1} = x_t + η∇f(x_t)</code> hasta que <code>‖∇f(x_t)‖ &lt; tol</code> o se alcanza un número máximo de iteraciones.</p>
+<p>Cuando no hay gradientes analíticos, los estima mediante SPSA: <code>∂f/∂x_i ≈ (f(x + cΔ) - f(x - cΔ))/(2cΔ_i)</code> con perturbaciones de Rademacher <code>Δ_i ∈ {−1,1}</code>.</p>
+
+<h2>Ejemplo</h2>
+<pre><code class="language-python">
+from sheshe import ShuShu
+ss = ShuShu()
+ss.fit(X, y)
+labels = ss.predict(X)
+</code></pre>
+
+<h2>Ejemplos de uso</h2>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0)
+shu.fit(X, y)                      # fit
+shu.fit_predict(X, y)              # fit_predict
+shu.fit_transform(X, y)            # fit_transform
+shu.fit(X, y).transform(X)         # transform
+shu.fit(X, y).predict(X)           # predict
+shu.fit(X, y).predict_proba(X)     # predict_proba
+shu.fit(X, y).decision_function(X) # decision_function
+shu.fit(X, y).predict_regions(X)   # predict_regions
+shu.fit(X, y).score(X, y)          # score
+shu.fit(X, y).save("shu.joblib")   # save
+ShuShu.load("shu.joblib")
+</code></pre>
+
+<h2>Ejemplos adicionales</h2>
+<pre><code class="language-python">
+from sklearn.datasets import load_iris
+from sheshe import ShuShu
+
+X, y = load_iris(return_X_y=True)
+sh = ShuShu(random_state=0).fit(X, y)
+print(sh.summary_tables()[0][["class_label", "n_clusters"]])
+
+import numpy as np
+def paraboloid(Z):
+    return -np.linalg.norm(Z - 1.0, axis=1)
+
+sc = ShuShu(random_state=0).fit(np.random.rand(100, 2), score_fn=paraboloid)
+print(sc.centroids_)
+
+from sklearn.linear_model import LogisticRegression
+model = LogisticRegression(max_iter=200).fit(X, y)
+ShuShu(random_state=0).fit(X, y, score_model=model)
+</code></pre>
+
+<h2>Parámetros</h2>
+<ul>
+<li><code>clusterer_factory</code> (callable o <code>None</code>, por defecto <code>None</code>): fábrica que devuelve el optimizador interno. Cuando es <code>None</code> se usa una implementación por defecto.</li>
+<li><code>random_state</code> (<code>int</code> o <code>None</code>, por defecto <code>None</code>): semilla para reproducibilidad.</li>
+<li><code>**clusterer_kwargs</code> – argumentos adicionales enviados al optimizador interno.</li>
+</ul>
+
+<h2>Métodos</h2>
+<ul>
+<li><code>fit(X, y=None, score_fn=None, ...)</code> – entrena el optimizador. Cuando se proporciona <code>y</code>, la función de puntuación se aprende por clase; de lo contrario debe proporcionarse <code>score_fn</code>.</li>
+<li><code>fit_predict(X, y=None, **kwargs)</code> – envoltorio de conveniencia que llama a <code>fit</code> y luego <code>predict</code>.</li>
+<li><code>predict(X)</code> – devuelve etiquetas de clase o ids de cluster.</li>
+<li><code>predict_proba(X)</code> – probabilidades de clase (tras entrenar con etiquetas).</li>
+<li><code>decision_function(X)</code> – puntuaciones de decisión en bruto.</li>
+<li><code>transform(X)</code> – matriz de pertenencia/afinidad.</li>
+<li><code>fit_transform(X, y=None, **kwargs)</code> – combina <code>fit</code> y <code>transform</code>.</li>
+<li><code>plot_pairs(X, y=None, max_pairs=None, show_histograms=False)</code> – gráficos de dispersión para pares de características con histogramas marginales opcionales.</li>
+<li><code>plot_classes(X, y, grid_res=200, contour_levels=None, max_paths=20, show_paths=True)</code> – visualiza superficies de puntuación por clase.</li>
+<li><code>plot_pair_3d(X, y=None, features=(i, j), ax=None, fig=None, grid=64)</code> – renderizado 3D de la función de puntuación.</li>
+<li><code>get_cluster(cluster_id, with_geometry=False)</code> – recupera información sobre un cluster descubierto.</li>
+</ul>
+

@@ -1,0 +1,95 @@
+---
+layout: default
+title: SubspaceScout
+parent: SheShe
+nav_order: 2
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="subspacescout.html">EN</a></div>
+
+<h1>SubspaceScout</h1>
+
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import SubspaceScout, ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+scout = SubspaceScout().fit(X, y)
+pair = scout.results_[0]["features"]
+ModalBoundaryClustering().fit(X, y).plot_pairs(X, y, pairs=[pair], show_histograms=True)
+plt.show()
+</code></pre>
+<p>Identifica subconjuntos de características informativos para que <code>ModalBoundaryClustering</code> se ejecute solo donde importa en espacios de alta dimensión. Usa información mutua u opcionalmente calificadores basados en modelos para clasificar interacciones y emplea búsqueda en haz para enumerar subespacios prometedores.</p>
+
+<h2>Formulación matemática</h2>
+<p>La información mutua entre un subconjunto <code>X</code> y el objetivo <code>Y</code> es <code>I(X;Y)=∑_{x,y} p(x,y) log(p(x,y)/(p(x)p(y)))</code>.</p>
+<p>El objetivo de sinergia para un conjunto <code>S</code> es <code>Synergy(S) = I(S;Y) - ∑_{i∈S} I(X_i;Y)</code>, capturando información más allá de las características individuales.</p>
+<p>La búsqueda en haz crece subespacios orden por orden y retiene aquellos con mayores puntuaciones.</p>
+
+<h2>Ejemplo</h2>
+<pre><code class="language-python">
+from sheshe import SubspaceScout
+scout = SubspaceScout()
+scout.fit(X, y)
+subspaces = scout.results_
+</code></pre>
+
+<h2>Ejemplos de uso</h2>
+<pre><code class="language-python">
+from sheshe import SubspaceScout
+
+scout = SubspaceScout(random_state=0)
+scout.fit(X, y)          # fit
+results = scout.results_ # access discovered subspaces
+</code></pre>
+
+<h2>Ejemplos adicionales</h2>
+<pre><code class="language-python">
+from sheshe import SubspaceScout
+
+scout = SubspaceScout(
+    # model_method='lightgbm',  # por defecto usa información mutua
+    max_order=4,
+    top_m=50,
+    base_pairs_limit=12,
+    beam_width=10,
+    extend_candidate_pool=16,
+    branch_per_parent=4,
+    marginal_gain_min=1e-3,
+    max_eval_per_order=150,
+    sample_size=4096,
+    time_budget_s=None,
+    task='classification',
+    random_state=0,
+)
+subspaces = scout.fit(X, y)
+</code></pre>
+
+<h2>Parámetros</h2>
+<ul>
+<li><code>model_method</code> (<code>None</code> o <code>"lightgbm"</code> o <code>"ebm"</code>, por defecto <code>None</code>): modelo usado para puntuar subespacios. <code>None</code> usa información mutua.</li>
+<li><code>max_order</code> (<code>int</code>, por defecto <code>3</code>): tamaño máximo de combinaciones de características a explorar.</li>
+<li><code>n_bins</code> (<code>int</code>, por defecto <code>8</code>): número de bins para discretizar características.</li>
+<li><code>top_m</code> (<code>int</code>, por defecto <code>20</code>): número de características preseleccionadas por información mutua individual.</li>
+<li><code>branch_per_parent</code> (<code>int</code>, por defecto <code>5</code>): máximo de extensiones generadas por subespacio padre.</li>
+<li><code>density_occup_min</code> (<code>float</code>, por defecto <code>0.03</code>): ocupación mínima para que un subespacio sea válido.</li>
+<li><code>min_support</code> (<code>int</code>, por defecto <code>30</code>): número mínimo de muestras requerido en un subespacio.</li>
+<li><code>sample_size</code> (<code>int</code> o <code>None</code>, por defecto <code>4096</code>): tamaño de muestra opcional para acelerar cálculos.</li>
+<li><code>task</code> (<code>"classification"</code> o <code>"regression"</code>, por defecto <code>"classification"</code>): tipo de tarea.</li>
+<li><code>random_state</code> (<code>int</code>, por defecto <code>0</code>): semilla para reproducibilidad.</li>
+<li><code>base_pairs_limit</code> (<code>int</code>, por defecto <code>12</code>): número máximo de pares semilla para búsquedas de orden superior.</li>
+<li><code>beam_width</code> (<code>int</code>, por defecto <code>12</code>): número de candidatos retenidos en cada orden durante la búsqueda en haz.</li>
+<li><code>extend_candidate_pool</code> (<code>int</code> o <code>None</code>, por defecto <code>16</code>): características candidatas aleatorias por padre cuando el orden ≥3.</li>
+<li><code>marginal_gain_min</code> (<code>float</code>, por defecto <code>1e-3</code>): ganancia mínima de sinergia para aceptar una extensión.</li>
+<li><code>max_eval_per_order</code> (<code>int</code> o <code>None</code>, por defecto <code>1000</code>): límite de evaluaciones de información mutua por orden.</li>
+<li><code>time_budget_s</code> (<code>float</code> o <code>None</code>, por defecto <code>None</code>): presupuesto de tiempo global en segundos para <code>fit</code>.</li>
+<li><code>objective</code> (<code>"mi_joint"</code> o <code>"mi_synergy"</code>, por defecto <code>"mi_joint"</code>): puntuación usada para ordenar subespacios.</li>
+<li><code>min_per_order</code> (<code>int</code>, por defecto <code>1</code>): número mínimo de subespacios a conservar por orden.</li>
+</ul>
+
+<h2>Métodos</h2>
+<ul>
+<li><code>fit(X, y)</code> – descubre subespacios y los almacena en <code>results_</code>.</li>
+</ul>
+

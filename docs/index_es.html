@@ -1,0 +1,72 @@
+---
+layout: default
+title: SheShe
+nav_order: 1
+has_children: true
+---
+
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="index.html">EN</a></div>
+
+<h1>SheShe</h1>
+
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering
+
+X, y = load_iris(return_X_y=True)
+sh = ModalBoundaryClustering().fit(X, y)
+sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+plt.show()
+</code></pre>
+
+<p>Segmentación Inteligente de Bordes de Alta Dimensión y Explorador de Hiperfronteras</p>
+
+<p>SheShe convierte cualquier modelo probabilístico en un explorador de su propia superficie de decisión. Sigue máximos locales de probabilidad por clase o valor predicho para descubrir regiones nítidas y legibles que respetan la frontera supervisada del problema.</p>
+
+<p>Aprende cómo SheShe explora los máximos locales y cómo sus herramientas operan de forma independiente en <a href="how_it_works_es.html">Cómo funciona</a>.</p>
+
+<h2>Primeros pasos</h2>
+
+<p>Instala la librería y ejecuta las pruebas básicas:</p>
+
+<pre><code class="language-python">pip install sheshe
+PYTHONPATH=src pytest tests/test_basic.py::test_import_and_fit -q
+</code></pre>
+<p>Consulta <a href="./installation_es.html">Instalación</a> para instrucciones completas.</p>
+
+<h2>Consejos de rendimiento</h2>
+<p><a href="performance_tips_es.html">Consejos de rendimiento</a> describe heurísticas y ajustes de parámetros para conjuntos de datos grandes.</p>
+
+<h2>Predictores</h2>
+
+<p>El proyecto expone varios predictores y utilidades. Cada sección a continuación describe uno con más detalle:</p>
+
+<ul>
+  <li><a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a></li>
+  <li><a href="subspacescout_es.html">SubspaceScout</a></li>
+  <li><a href="modalscoutensemble_es.html">ModalScoutEnsemble</a></li>
+  <li><a href="regioninterpreter_es.html">RegionInterpreter</a></li>
+  <li><a href="shushu_es.html">ShuShu</a></li>
+  <li><a href="cheche_es.html">CheChe</a></li>
+  <li><a href="visualization_3d_es.html">Visualización 3D</a></li>
+</ul>
+
+<h2>Experimentos y benchmarks</h2>
+<p>Las comparaciones de rendimiento y resultados de perfilado están disponibles en <a href="experiments_benchmarks_es.html">Experimentos y benchmarks</a>.</p>
+
+<h2>Acerca de</h2>
+
+<p>SheShe es desarrollado por José Carlos Del Valle. Conecta en <a href="https://www.linkedin.com/in/jose-carlos-del-valle/">LinkedIn</a> o explora su <a href="https://jcval94.github.io/Portfolio/">portafolio</a>.</p>
+
+<h2>Contribuir</h2>
+
+<p>Las mejoras son bienvenidas. Haz un fork del repositorio, instala las dependencias de desarrollo y ejecuta las pruebas:</p>
+
+<pre><code class="language-python">pip install -e ".[dev]"
+PYTHONPATH=src pytest -q
+</code></pre>
+
+<p>Liberado bajo la licencia MIT.</p>
+

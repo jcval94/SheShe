@@ -1,0 +1,78 @@
+---
+layout: default
+title: "API rápida"
+description: "Objetos públicos expuestos por el paquete SheShe"
+nav_order: 5
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="quick_api.html">EN</a></div>
+
+<h1>API rápida</h1>
+
+<p>Los siguientes objetos están disponibles para importar:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Submódulo</th>
+      <th>Objeto</th>
+      <th>Sentencia de importación</th>
+      <th>Descripción</th>
+      <th>Docs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>cheche</code></td>
+      <td><code>CheChe</code></td>
+      <td><code>from sheshe import CheChe</code></td>
+      <td>Calcula fronteras 2D en pares de características seleccionados.</td>
+      <td><a href="cheche_es.html">cheche_es.html</a></td>
+    </tr>
+    <tr>
+      <td><code>sheshe</code></td>
+      <td><code>ClusterRegion</code></td>
+      <td><code>from sheshe import ClusterRegion</code></td>
+      <td>Dataclass que describe una región descubierta.</td>
+      <td>&mdash;</td>
+    </tr>
+    <tr>
+      <td><code>sheshe</code></td>
+      <td><code>ModalBoundaryClustering</code></td>
+      <td><code>from sheshe import ModalBoundaryClustering</code></td>
+      <td>Clustering supervisado guiado por probabilidades o predicciones del modelo.</td>
+      <td><a href="modalboundaryclustering_es.html">modalboundaryclustering_es.html</a></td>
+    </tr>
+    <tr>
+      <td><code>modal_scout_ensemble</code></td>
+      <td><code>ModalScoutEnsemble</code></td>
+      <td><code>from sheshe import ModalScoutEnsemble</code></td>
+      <td>Explora subespacios con conjuntos de scouts.</td>
+      <td><a href="modalscoutensemble_es.html">modalscoutensemble_es.html</a></td>
+    </tr>
+    <tr>
+      <td><code>region_interpretability</code></td>
+      <td><code>RegionInterpreter</code></td>
+      <td><code>from sheshe import RegionInterpreter</code></td>
+      <td>Convierte objetos <code>ClusterRegion</code> en reglas legibles.</td>
+      <td><a href="regioninterpreter_es.html">regioninterpreter_es.html</a></td>
+    </tr>
+    <tr>
+      <td><code>shushu</code></td>
+      <td><code>ShuShu</code></td>
+      <td><code>from sheshe import ShuShu</code></td>
+      <td>Búsqueda basada en gradiente de máximos locales.</td>
+      <td><a href="shushu_es.html">shushu_es.html</a></td>
+    </tr>
+    <tr>
+      <td><code>subspace_scout</code></td>
+      <td><code>SubspaceScout</code></td>
+      <td><code>from sheshe import SubspaceScout</code></td>
+      <td>Explora subespacios para iniciar el descubrimiento de regiones.</td>
+      <td><a href="subspacescout_es.html">subspacescout_es.html</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Ejemplos de uso detallados permanecen en el <a href="../README_ES.md#quick-api">README</a>.</p>
+

@@ -1,0 +1,63 @@
+---
+layout: default
+title: "Reproducibilidad"
+description: "Pasos para recrear el entorno de SheShe"
+nav_order: 4
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="reproducibility.html">EN</a></div>
+
+<h1>Reproducibilidad</h1>
+
+<h2>Sistema de referencia</h2>
+<ul>
+  <li><strong>SO:</strong> Ubuntu 24.04.2 LTS</li>
+  <li><strong>CPU:</strong> Intel(R) Xeon(R) Platinum 8171M CPU @ 2.60GHz</li>
+  <li><strong>GPU:</strong> Ninguna</li>
+  <li><strong>Python:</strong> 3.12.10</li>
+ </ul>
+
+<h2>Configuración del entorno</h2>
+<ol>
+  <li>Crear y activar un entorno virtual:
+<pre><code class="language-python">python -m venv .venv
+source .venv/bin/activate</code></pre>
+  </li>
+  <li>Instalar dependencias de desarrollo y ejecutar pruebas para verificar:
+<pre><code class="language-python">pip install -e ".[dev]"
+PYTHONPATH=src pytest -q</code></pre>
+  </li>
+</ol>
+
+<h2>Semillas aleatorias</h2>
+<p>Todos los estimadores de SheShe aceptan un argumento <code>random_state</code> para asegurar resultados deterministas:</p>
+<pre><code class="language-python">from sheshe import ModalBoundaryClustering
+clustering = ModalBoundaryClustering(random_state=0)</code></pre>
+<p>Fija el mismo <code>random_state</code> en ejecuciones distintas para reproducir experimentos.</p>
+
+<h2>Exportar información del sistema</h2>
+<p>Captura versiones exactas de paquetes y detalles de la plataforma para referencia futura:</p>
+<pre><code class="language-python">python -m pip freeze > packages.txt
+python - <<'PY'
+import json, platform, sys
+info = {
+    "platform": platform.platform(),
+    "python": sys.version,
+}
+print(json.dumps(info, indent=2))
+PY
+</code></pre>
+
+<h2>Cómo reportar diferencias</h2>
+<p>Si los resultados difieren de los benchmarks publicados:</p>
+<ul>
+  <li>Comparte el <code>packages.txt</code> generado y el JSON de plataforma.</li>
+  <li>Describe el conjunto de datos y parámetros usados, incluyendo valores de <code>random_state</code>.</li>
+  <li>Abre un issue con registros y pasos de reproducción.</li>
+</ul>
+
+<h2>TODO</h2>
+<ul>
+  <li>Especificar capacidad de RAM recomendada.</li>
+</ul>
+

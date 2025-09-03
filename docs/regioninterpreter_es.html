@@ -1,0 +1,77 @@
+---
+layout: default
+title: RegionInterpreter
+parent: SheShe
+nav_order: 4
+---
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="regioninterpreter.html">EN</a></div>
+
+<h1>RegionInterpreter</h1>
+
+<pre><code>
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering, RegionInterpreter
+
+iris = load_iris()
+X, y = iris.data, iris.target
+sh = ModalBoundaryClustering().fit(X, y)
+cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
+sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+plt.show()
+</code></pre>
+<p>Convierte objetos <code>ClusterRegion</code> en conjuntos de reglas compactos y legibles. Resume cada región con cajas alineadas a los ejes, destaca proyecciones informativas y ofrece utilidades como <code>pretty_print</code> para reportes. Backends opcionales de LLM pueden transformar los resúmenes en descripciones en lenguaje natural.</p>
+
+<h2>Formulación matemática</h2>
+<p>Para cada característica <code>j</code>, una regla alineada al eje usa cuantiles <code>[Q_q(x_j), Q_{1-q}(x_j)]</code>, capturando aproximadamente <code>1-2q</code> de los datos.</p>
+<p>Los radios limitados se marcan usando el z-score <code>z=(r-μ)/σ</code> cuando <code>|z| &gt; cap_threshold</code>.</p>
+<p><strong>Ejemplo:</strong> con <code>q_box=0.05</code> y valores 1‑10, la regla es <code>[1.45, 9.55]</code>. Un radio 3 con media 2 y <code>σ=0.3</code> da <code>z≈3.3</code>.</p>
+
+<h2>Ejemplo</h2>
+<pre><code class="language-python">
+from sheshe import RegionInterpreter
+ri = RegionInterpreter(feature_names=["sepal", "petal"])
+summary = ri.summarize(region)
+</code></pre>
+
+<h2>Ejemplos de uso</h2>
+<pre><code class="language-python">
+from sheshe import RegionInterpreter
+
+ri = RegionInterpreter(feature_names=["sepal", "petal"])
+ri.summarize(region)       # resumir una región
+ri.summarize([region])     # resumir una lista de regiones
+</code></pre>
+
+<h2>Ejemplos adicionales</h2>
+<pre><code class="language-python">
+from sklearn.datasets import load_iris
+from sheshe import ModalBoundaryClustering, RegionInterpreter
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+sh = ModalBoundaryClustering().fit(X, y)
+cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
+RegionInterpreter.pretty_print(cards[:1])
+</code></pre>
+
+<h2>Parámetros</h2>
+<ul>
+<li><code>feature_names</code> (<code>list[str]</code> o <code>None</code>, por defecto <code>None</code>): nombres para cada característica usada en las reglas generadas.</li>
+<li><code>q_box</code> (<code>float</code>, por defecto <code>0.05</code>): cuantil usado para calcular cajas robustas alineadas a los ejes.</li>
+<li><code>k_pairs</code> (<code>int</code>, por defecto <code>2</code>): número de proyecciones 2D informativas a incluir.</li>
+<li><code>decimals</code> (<code>int</code>, por defecto <code>2</code>): precisión decimal en las reglas emitidas.</li>
+<li><code>cap_threshold</code> (<code>float</code>, por defecto <code>6.393</code>): umbral z-score para marcar radios limitados.</li>
+<li><code>near_const_tol</code> (<code>float</code>, por defecto <code>0.12</code>): tolerancia para reportar dimensiones casi constantes.</li>
+<li><code>inverse_transform</code> (callable, opcional): función aplicada a los puntos antes de la extracción de reglas (por ejemplo, desescalado).</li>
+<li><code>feature_bounds</code> (<code>Sequence[Tuple[float, float]]</code> o <code>None</code>): límites estrictos para cada característica para recortar cajas.</li>
+<li><code>include_center_in_box</code> (<code>bool</code>, por defecto <code>True</code>): incluye el centro de la región al calcular cajas alineadas.</li>
+</ul>
+
+<h2>Métodos</h2>
+<ul>
+<li><code>summarize(regions)</code> – devuelve una lista de diccionarios con encabezados, reglas alineadas a ejes y proyecciones de pares para las regiones proporcionadas.</li>
+</ul>
+

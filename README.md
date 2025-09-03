@@ -1,4 +1,5 @@
 # SheShe
+<div align="right"><a href="README_ES.md">ES</a></div>
 **Smart High-dimensional Edge Segmentation & Hyperboundary Explorer**
 
 SheShe turns probabilistic models into guided explorers of their decision surfaces, revealing human‑readable regions by following local maxima of class probability or predicted value.

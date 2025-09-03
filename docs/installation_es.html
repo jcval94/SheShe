@@ -1,0 +1,29 @@
+---
+layout: default
+title: "Instalación"
+description: "Requisitos e instrucciones de configuración para SheShe"
+nav_order: 3
+---
+
+<link rel="stylesheet" href="style.css">
+<div class="lang-switch"><a href="installation.html">EN</a></div>
+
+<h1>Instalación</h1>
+
+<h2>Requisitos</h2>
+<p>SheShe requiere <strong>Python &gt;=3.9</strong>. Es mejor trabajar dentro de un entorno virtual. Las dependencias base incluyen <code>numpy</code>, <code>pandas</code>, <code>scikit-learn&gt;=1.1</code> y <code>matplotlib</code>. Consulta el <a href="../README_ES.md#instalacion">README</a> para referencia.</p>
+
+<h2>Instalar desde PyPI</h2>
+<p>Instala la última versión desde PyPI:</p>
+<pre><code>pip install sheshe
+</code></pre>
+<p>La aceleración opcional está disponible vía <a href="https://numba.pydata.org/">numba</a>:</p>
+<pre><code>pip install "sheshe[numba]"
+</code></pre>
+
+<h2>Entorno de desarrollo</h2>
+<p>Para contribuir a SheShe, instala en modo editable con dependencias de pruebas y ejecuta la suite:</p>
+<pre><code>pip install -e ".[dev]"
+PYTHONPATH=src pytest -q
+</code></pre>
+

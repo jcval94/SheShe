@@ -1,26 +1,26 @@
 ---
 layout: default
-title: "Method matrix"
-description: "Supported methods across SheShe predictors"
+title: "Matriz de métodos"
+description: "Métodos soportados en los predictores de SheShe"
 nav_order: 6
 ---
 
 <link rel="stylesheet" href="style.css">
-<div class="lang-switch"><a href="method_matrix_es.html">ES</a></div>
+<div class="lang-switch"><a href="method_matrix.html">EN</a></div>
 
-<h1>Method matrix</h1>
+<h1>Matriz de métodos</h1>
 
-<p>This table summarizes which API methods are implemented by each predictor.</p>
+<p>Esta tabla resume qué métodos de la API están implementados por cada predictor.</p>
 
 <table>
   <thead>
     <tr>
-      <th>Method</th>
-      <th><a href="modalboundaryclustering.html">ModalBoundaryClustering</a></th>
-      <th><a href="shushu.html">ShuShu</a></th>
-      <th><a href="cheche.html">CheChe</a></th>
-      <th><a href="modalscoutensemble.html">ModalScoutEnsemble</a></th>
-      <th>Brief description</th>
+      <th>Método</th>
+      <th><a href="modalboundaryclustering_es.html">ModalBoundaryClustering</a></th>
+      <th><a href="shushu_es.html">ShuShu</a></th>
+      <th><a href="cheche_es.html">CheChe</a></th>
+      <th><a href="modalscoutensemble_es.html">ModalScoutEnsemble</a></th>
+      <th>Descripción breve</th>
     </tr>
   </thead>
   <tbody>
@@ -30,7 +30,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Fit the model to the dataset.</td>
+      <td>Ajusta el modelo al conjunto de datos.</td>
     </tr>
     <tr>
       <td><code>fit_predict</code></td>
@@ -38,7 +38,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Train and return assigned labels or regions.</td>
+      <td>Entrena y devuelve las etiquetas o regiones asignadas.</td>
     </tr>
     <tr>
       <td><code>fit_transform</code></td>
@@ -46,7 +46,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Fit and transform data into an internal representation.</td>
+      <td>Ajusta y transforma los datos en una representación interna.</td>
     </tr>
     <tr>
       <td><code>transform</code></td>
@@ -54,7 +54,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Transform new samples according to the trained model.</td>
+      <td>Transforma nuevas muestras según el modelo entrenado.</td>
     </tr>
     <tr>
       <td><code>predict</code></td>
@@ -62,7 +62,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Predict labels or values for new samples.</td>
+      <td>Predice etiquetas o valores para nuevas muestras.</td>
     </tr>
     <tr>
       <td><code>predict_proba</code></td>
@@ -70,7 +70,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Estimate prediction probabilities or confidence.</td>
+      <td>Estima probabilidades de predicción o confianza.</td>
     </tr>
     <tr>
       <td><code>decision_function</code></td>
@@ -78,7 +78,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Return score or distance to the decision boundary.</td>
+      <td>Devuelve puntuación o distancia a la frontera de decisión.</td>
     </tr>
     <tr>
       <td><code>predict_regions</code></td>
@@ -86,7 +86,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Indicate the region or cluster each sample belongs to. Similar to <code>get_cluster</code> in some predictors.</td>
+      <td>Indica la región o cluster al que pertenece cada muestra. Similar a <code>get_cluster</code> en algunos predictores.</td>
     </tr>
     <tr>
       <td><code>score</code></td>
@@ -94,7 +94,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Compute a performance metric on test data.</td>
+      <td>Calcula una métrica de desempeño en datos de prueba.</td>
     </tr>
     <tr>
       <td><code>save</code></td>
@@ -102,7 +102,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Save the trained model to disk.</td>
+      <td>Guarda el modelo entrenado en disco.</td>
     </tr>
     <tr>
       <td><code>load</code></td>
@@ -110,7 +110,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Load a previously saved model.</td>
+      <td>Carga un modelo previamente guardado.</td>
     </tr>
     <tr>
       <td><code>plot_pairs</code></td>
@@ -118,7 +118,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Plot feature pairs with regions or clusters.</td>
+      <td>Grafica pares de características con regiones o clusters.</td>
     </tr>
     <tr>
       <td><code>plot_pair_3d</code></td>
@@ -126,7 +126,7 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Plot two features and the response in 3D.</td>
+      <td>Grafica dos características y la respuesta en 3D.</td>
     </tr>
     <tr>
       <td><code>interpretability_summary</code></td>
@@ -134,10 +134,10 @@ nav_order: 6
       <td>✓</td>
       <td>✓</td>
       <td>✓</td>
-      <td>Interpretability summary of regions or the model.</td>
+      <td>Resumen de interpretabilidad de las regiones o del modelo.</td>
     </tr>
   </tbody>
 </table>
 
-<p>See the <a href="../README.md#method-matrix">README</a> for more context.</p>
+<p>Consulta el <a href="../README_ES.md#matriz-de-metodos">README</a> para más contexto.</p>
 
