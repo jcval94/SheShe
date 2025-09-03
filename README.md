@@ -19,6 +19,20 @@ Requires Python ≥3.9. Install from [PyPI](https://pypi.org/project/sheshe/):
 pip install sheshe
 ```
 
+## Quickstart
+
+```python
+from sheshe import ModalBoundaryClustering
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+
+iris = load_iris()
+X, y = iris.data, iris.target
+
+sh = ModalBoundaryClustering(RandomForestClassifier(), task="classification").fit(X, y)
+print(sh.predict(X[:5]))
+```
+
 ## Documentation
 See the [documentation](https://jcval94.github.io/SheShe/) for installation, API reference and guides.
 
