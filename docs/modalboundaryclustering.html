@@ -24,7 +24,7 @@ plt.show()
 <p>workflows.</p>
 <h2>Mathematical formulation</h2>
 <p>Centres are refined with gradient ascent updates <code>x_{k+1} = x_k + α∇f(x_k)</code> until <code>‖∇f(x_k)‖ &lt; grad_tol</code>.</p>
-<p>From each centre, radial scans sample scores <code>f(x_k + r u)</code> along directions <code>u</code>. Scans stop when <code>∂f/∂r = 0</code> (an inflection point) or when the score falls past a percentile or drop fraction of the peak.</p>
+<p>From each centre, radial scans sample scores <code>f(x_k + r u)</code> along directions <code>u</code>. Scans stop when <code>∂f/∂r = 0</code>, indicating a stationary point; an inflection point additionally requires <code>d²f/dr² = 0</code> with a sign change, or when the score falls past a percentile or drop fraction of the peak.</p>
 <p>These radii approximate a probability surface from which boundary polygons are built.</p>
 <h2>Example</h2>
 <pre><code class="language-python">
