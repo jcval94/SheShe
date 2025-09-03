@@ -22,6 +22,22 @@ pip install sheshe
 ## Documentation
 See the [documentation](https://jcval94.github.io/SheShe/) for installation, API reference and guides.
 
+## Contributing
+Set up a virtual environment and install the development dependencies:
+
+```bash
+pip install -r requirements-dev.txt
+pip install -e .
+```
+
+Run the tests to ensure everything works:
+
+```bash
+pytest
+```
+
+No linter is currently configured; feel free to run `black .` locally before submitting changes.
+
 ## Author
 SheShe is authored by José Carlos Del Valle – [LinkedIn](https://www.linkedin.com/in/jose-carlos-del-valle/) | [Portfolio](https://jcval94.github.io/Portfolio/)
 
