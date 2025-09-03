@@ -7,7 +7,7 @@ readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="sheshe",
-    version="0.1.9",
+    version="0.1.10",
     description="SheShe: Smart High-dimensional Edge Segmentation & Hyperboundary Explorer",
     long_description=readme,
     long_description_content_type="text/markdown",
