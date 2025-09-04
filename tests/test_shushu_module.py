@@ -42,6 +42,9 @@ def test_shushu_multiclass_basic():
     sh.fit(X, y, feature_names=iris.feature_names)
     per_class_df, per_centroid_df = sh.summary_tables()
     sh.plot_classes(X, y, grid_res=20, max_paths=2, show_paths=False)
+    titles = [plt.figure(n).axes[0].get_title() for n in plt.get_fignums()]
+    for cid in sh.per_class_.keys():
+        assert any(str(cid) in t for t in titles)
     plt.close("all")
     assert per_class_df.shape[0] == len(np.unique(y))
     assert set(per_class_df.columns).issuperset({"class_label", "n_clusters"})

@@ -1267,7 +1267,9 @@ class ShuShu:
 
             ax.set_xlabel(name1)
             ax.set_ylabel(name2)
-            ax.set_title(f"Prob. clase '{label}' vs ({name1},{name2})")
+            ax.set_title(
+                f"Cluster {ci}: Prob. clase '{label}' vs ({name1},{name2})"
+            )
             fig.tight_layout()
 
     def plot_pair_3d(
