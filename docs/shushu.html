@@ -17,7 +17,7 @@ from sheshe import ShuShu
 
 X, y = load_iris(return_X_y=True)
 sh = ShuShu().fit(X, y)
-sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+sh.plot_classes(X, y)
 plt.show()
 </code></pre>
 <p>Gradient-based optimiser that searches for local maxima of a scalar score or</p>

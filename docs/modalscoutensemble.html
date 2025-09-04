@@ -17,7 +17,7 @@ from sheshe import ModalScoutEnsemble
 
 X, y = load_iris(return_X_y=True)
 mse = ModalScoutEnsemble().fit(X, y)
-mse.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+mse.plot_classes(X, y)
 plt.show()
 </code></pre>
 <p>Ensemble that applies <code>ModalBoundaryClustering</code> on the most promising</p>

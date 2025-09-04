@@ -17,7 +17,7 @@ from sheshe import ModalBoundaryClustering
 
 X, y = load_iris(return_X_y=True)
 sh = ModalBoundaryClustering().fit(X, y)
-sh.plot_pair_3d(X, (0, 1), class_label=sh.classes_[0])
+sh.plot_classes(X, y)
 plt.show()
 </code></pre>
 <p>Learns regions of high probability or predicted value by climbing local maxima of a</p>

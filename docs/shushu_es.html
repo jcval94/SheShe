@@ -17,7 +17,7 @@ from sheshe import ShuShu
 
 X, y = load_iris(return_X_y=True)
 sh = ShuShu().fit(X, y)
-sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+sh.plot_classes(X, y)
 plt.show()
 </code></pre>
 <p>Optimizador basado en gradiente que busca máximos locales de una puntuación escalar o probabilidades de clase. Ejecuta una optimización por clase cuando se proporcionan etiquetas y también puede operar sobre funciones de puntuación definidas por el usuario, devolviendo centroides de cada modo descubierto.</p>
