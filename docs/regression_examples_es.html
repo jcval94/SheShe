@@ -1,0 +1,86 @@
+---
+layout: default
+title: "Ejemplos de regresión"
+nav_order: 97
+---
+
+<link rel="stylesheet" href="style.css">
+<script src="lang.js"></script>
+<div class="lang-switch"><a href="regression_examples.html">EN</a></div>
+<h1>Ejemplos de regresión</h1>
+<p>Los fragmentos muestran cómo ajustar cada predictor con un <code>score_model</code> de regresión.</p>
+<h2>ModalBoundaryClustering</h2>
+<pre><code class="language-python">from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+from sheshe import ModalBoundaryClustering
+
+X, y = make_regression(n_samples=200, n_features=3, noise=0.1, random_state=0)
+reg = LinearRegression().fit(X, y)
+mbc = ModalBoundaryClustering(task="regression")
+mbc.fit(X, y, score_model=reg)
+</code></pre>
+<h2>ShuShu</h2>
+<pre><code class="language-python">from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+from sheshe import ShuShu
+
+X, y = make_regression(n_samples=200, n_features=3, noise=0.1, random_state=0)
+reg = LinearRegression().fit(X, y)
+sh = ShuShu()
+sh.fit(X, y, score_model=reg)
+</code></pre>
+<h2>CheChe</h2>
+<pre><code class="language-python">from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+from sheshe import CheChe
+
+X, y = make_regression(n_samples=200, n_features=3, noise=0.1, random_state=0)
+reg = LinearRegression().fit(X, y)
+cc = CheChe()
+cc.fit(X, y, score_model=reg, max_pairs=3)
+</code></pre>
+<h2>ModalScoutEnsemble</h2>
+<pre><code class="language-python">from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+from sheshe import ModalScoutEnsemble
+
+X, y = make_regression(n_samples=200, n_features=3, noise=0.1, random_state=0)
+base = LinearRegression().fit(X, y)
+mse = ModalScoutEnsemble(base_estimator=LinearRegression(), task="regression")
+mse.fit(X, y, score_model=base)
+</code></pre>
+<h2>Tiempos de ajuste</h2>
+<p>Al ejecutar <code>experiments/regression_fit_times.py</code> se genera <code>benchmark/regression_fit_times.csv</code> con los siguientes resultados:</p>
+<div class="scroll-table">
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>predictor</th>
+      <th>fit_time_s</th>
+      <th>status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ModalBoundaryClustering</td>
+      <td>0.174340</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>ShuShu</td>
+      <td></td>
+      <td>ValueError</td>
+    </tr>
+    <tr>
+      <td>CheChe</td>
+      <td>0.006064</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>ModalScoutEnsemble</td>
+      <td>0.387224</td>
+      <td>ok</td>
+    </tr>
+  </tbody>
+</table>
+</div>
