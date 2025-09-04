@@ -45,17 +45,26 @@ ri = RegionInterpreter(feature_names=["sepal", "petal"])
 ri.summarize(region)       # summarize a single region
 ri.summarize([region])     # summarize a list of regions
 </code></pre>
-<h2>Additional examples</h2>
+<h2>Interpretability example</h2>
 <pre><code class="language-python">
 from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
 from sheshe import ModalBoundaryClustering, RegionInterpreter
 
 iris = load_iris()
 X, y = iris.data, iris.target
 
-sh = ModalBoundaryClustering().fit(X, y)
+sh = ModalBoundaryClustering(
+    base_estimator=RandomForestClassifier(random_state=0),
+    task="classification",
+).fit(X, y)
+
+# Tabular summary of the regions
+print(sh.interpretability_summary(iris.feature_names).head())
+
+# Human-readable rules per region
 cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
-RegionInterpreter.pretty_print(cards[:1])
+RegionInterpreter.pretty_print(cards)
 </code></pre>
 <h2>Parameters</h2>
 <ul>
