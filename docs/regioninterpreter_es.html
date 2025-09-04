@@ -45,17 +45,26 @@ ri.summarize(region)       # resumir una región
 ri.summarize([region])     # resumir una lista de regiones
 </code></pre>
 
-<h2>Ejemplos adicionales</h2>
+<h2>Ejemplo de interpretabilidad</h2>
 <pre><code class="language-python">
 from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
 from sheshe import ModalBoundaryClustering, RegionInterpreter
 
 iris = load_iris()
 X, y = iris.data, iris.target
 
-sh = ModalBoundaryClustering().fit(X, y)
+sh = ModalBoundaryClustering(
+    base_estimator=RandomForestClassifier(random_state=0),
+    task="classification",
+).fit(X, y)
+
+# Resumen tabular de las regiones
+print(sh.interpretability_summary(iris.feature_names).head())
+
+# Reglas legibles por región
 cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
-RegionInterpreter.pretty_print(cards[:1])
+RegionInterpreter.pretty_print(cards)
 </code></pre>
 
 <h2>Parámetros</h2>
