@@ -615,16 +615,30 @@ class ShuShu:
             self.model_ = model
         else:
             model = score_model
-            if not hasattr(model, "predict_proba"):
-                raise ValueError("score_model debe tener predict_proba.")
+            if not hasattr(model, "predict_proba") and not hasattr(model, "decision_function"):
+                raise ValueError("score_model debe tener predict_proba o decision_function.")
             if not hasattr(model, "classes_"):
                 model.fit(X, y)
             self.model_ = model
 
         classes = np.array(model.classes_)
 
-        def make_c(ci: int):
-            return lambda Z: np.asarray(model.predict_proba(Z))[:, ci]
+        if hasattr(model, "predict_proba"):
+            def make_c(ci: int):
+                return lambda Z: np.asarray(model.predict_proba(Z))[:, ci]
+        else:
+            def make_c(ci: int):
+                def score_fn(Z):
+                    scores = np.asarray(model.decision_function(Z))
+                    if scores.ndim == 1:
+                        prob1 = 1.0 / (1.0 + np.exp(-scores))
+                        probs = np.column_stack([1 - prob1, prob1])
+                    else:
+                        exp_scores = np.exp(scores - scores.max(axis=1, keepdims=True))
+                        probs = exp_scores / exp_scores.sum(axis=1, keepdims=True)
+                    return probs[:, ci]
+
+                return score_fn
 
         return [make_c(i) for i in range(len(classes))], classes
 
@@ -728,9 +742,18 @@ class ShuShu:
         if self.mode_ != "multiclass" or self.model_ is None:
             raise RuntimeError("predict_proba only available after fitting with labels")
         X = np.asarray(X, dtype=float)
-        if not hasattr(self.model_, "predict_proba"):
-            raise RuntimeError("Underlying model lacks predict_proba")
-        return np.asarray(self.model_.predict_proba(X))
+        if hasattr(self.model_, "predict_proba"):
+            return np.asarray(self.model_.predict_proba(X))
+        if hasattr(self.model_, "decision_function"):
+            scores = np.asarray(self.model_.decision_function(X))
+            if scores.ndim == 1:
+                prob1 = 1.0 / (1.0 + np.exp(-scores))
+                return np.column_stack([1 - prob1, prob1])
+            if scores.shape[1] == len(self.classes_):
+                exp_scores = np.exp(scores - scores.max(axis=1, keepdims=True))
+                return exp_scores / exp_scores.sum(axis=1, keepdims=True)
+            raise RuntimeError("decision_function shape incompatible with classes")
+        raise RuntimeError("Underlying model lacks predict_proba and decision_function")
 
     def predict(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.int_]:
         """Predict labels or cluster ids for ``X``.

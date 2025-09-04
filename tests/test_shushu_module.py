@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
-from sklearn.datasets import load_iris
+from sklearn.datasets import load_iris, make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 
 from sheshe import ShuShu
@@ -83,4 +84,16 @@ def test_get_cluster_and_score():
     assert acc == pytest.approx(accuracy_score(y, sh.predict(X)))
     f1 = sh.score(X, y, metric="f1_macro")
     assert f1 == pytest.approx(f1_score(y, sh.predict(X), average="macro"))
+
+
+def test_score_model_without_predict_proba():
+    X, y = make_classification(n_samples=40, n_features=5, random_state=0)
+    svc = SVC(kernel="linear")
+    sh = _small_clusterer(random_state=0)
+    sh.fit(X, y, score_model=svc)
+    proba = sh.predict_proba(X[:5])
+    svc.fit(X, y)
+    scores = svc.decision_function(X[:5])
+    expected = np.column_stack([1 - 1.0 / (1.0 + np.exp(-scores)), 1.0 / (1.0 + np.exp(-scores))])
+    assert np.allclose(proba, expected)
 
