@@ -1,0 +1,5 @@
+predictor,fit_time_s,status
+ModalBoundaryClustering,0.12451899999999227,ok
+ShuShu,,ValueError
+CheChe,0.005849838999978374,ok
+ModalScoutEnsemble,0.29596378499999787,ok
