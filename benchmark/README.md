@@ -1,8 +1,8 @@
 # Resultados de benchmarks
 
-Este directorio contiene los resultados de pruebas de rendimiento y calidad para `SheShe` comparado con otros algoritmos clásicos.
+**📚 Documentación:** https://jcval94.github.io/SheShe/
 
-Para documentación completa de SheShe, visita [jcval94.github.io/SheShe](https://jcval94.github.io/SheShe/).
+Este directorio contiene los resultados de pruebas de rendimiento y calidad para `SheShe` comparado con otros algoritmos clásicos.
 
 ## Calidad de clustering
 
