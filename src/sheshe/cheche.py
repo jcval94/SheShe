@@ -438,8 +438,15 @@ class CheChe:
         return df
 
     def transform(self, X: npt.NDArray[np.float_] | pd.DataFrame) -> npt.NDArray[np.float_]:
-        """Feature transformation is not available for CheChe."""
-        raise NotImplementedError("CheChe does not implement transform")
+        """Return negative distances to region centers for ``X``.
+
+        This mirrors the behaviour of :meth:`decision_function` and provides a
+        simple embedding where each feature corresponds to how close a sample is
+        to a discovered region.  The output array has shape ``(n_samples,
+        n_regions)``.
+        """
+
+        return self.decision_function(X)
 
     def fit_transform(
         self,
@@ -447,14 +454,14 @@ class CheChe:
         y: Optional[npt.NDArray] = None,
         **fit_kwargs: Any,
     ) -> npt.NDArray[np.float_]:
-        """Fit to data, then transform it.
+        """Fit the model to ``X`` and ``y`` then return the transformed data.
 
-        Notes
-        -----
-        ``CheChe`` lacks a transformation step and this method always raises
-        ``NotImplementedError``.
+        This method is equivalent to calling :meth:`fit` followed by
+        :meth:`transform`.
         """
-        raise NotImplementedError("CheChe does not implement fit_transform")
+
+        self.fit(X, y, **fit_kwargs)
+        return self.transform(X)
 
     def score(
         self,

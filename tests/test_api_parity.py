@@ -82,20 +82,22 @@ def test_common_prediction_api(name, ctor, plot_kwargs, pass_y, monkeypatch):
     plt.close("all")
 
 
-@pytest.mark.parametrize("name,ctor", [("mbc", _make_mbc), ("shushu", _make_shushu)])
+@pytest.mark.parametrize(
+    "name,ctor", [("mbc", _make_mbc), ("shushu", _make_shushu), ("cheche", _make_cheche)]
+)
 def test_transform_shapes(name, ctor):
     X, y = load_iris(return_X_y=True)
     model = ctor()
     model.fit(X, y)
     T = model.transform(X)
     assert T.shape[0] == X.shape[0]
-    if name == "mbc":
+    if name in {"mbc", "cheche"}:
         assert T.shape[1] == len(model.regions_)
     else:
         assert T.shape[1] == len(model.classes_)
 
 
-@pytest.mark.parametrize("ctor", [_make_cheche, _make_mse])
+@pytest.mark.parametrize("ctor", [_make_mse])
 def test_transform_not_implemented(ctor):
     X, y = load_iris(return_X_y=True)
     model = ctor()

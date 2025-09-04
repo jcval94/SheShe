@@ -29,8 +29,8 @@ def test_cheche_save_load_score(tmp_path):
     df = ch.predict_regions(X[:2])
     assert set(df.columns) == {"label", "region_id"}
     assert isinstance(ch.score(X[:2], y[:2]), float)
-    with pytest.raises(NotImplementedError):
-        ch.transform(X[:2])
+    T = ch.transform(X[:2])
+    assert T.shape == (2, len(ch.regions_))
     path = tmp_path / "ch.joblib"
     ch.save(path)
     loaded = CheChe.load(path)
