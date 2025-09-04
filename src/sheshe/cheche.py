@@ -669,16 +669,24 @@ class CheChe:
         contour_levels: Optional[Union[np.ndarray, List[float]]] = None,
         max_paths: int = 20,
         show_paths: bool = True,
+        heatmap: bool = False,
     ) -> None:
         """Plot stored frontiers for each class.
 
         This method mirrors the signature of :meth:`ShuShu.plot_classes` for
-        API compatibility but ignores ``grid_res``, ``contour_levels``,
-        ``max_paths`` and ``show_paths`` as ``CheChe`` does not compute score
-        surfaces nor optimization paths.  For every class discovered during
-        fitting, a separate figure is generated for each stored feature pair
-        where the frontier polygon is overlaid on the scatter plot of all data
-        points.
+        API compatibility but ignores ``contour_levels``, ``max_paths`` and
+        ``show_paths`` as ``CheChe`` does not compute score surfaces nor
+        optimization paths.  If ``heatmap`` is ``True`` the argument ``grid_res``
+        controls the resolution of the 2D histogram used for the heatmap.  For
+        every class discovered during fitting, a separate figure is generated
+        for each stored feature pair where the frontier polygon is overlaid on
+        the scatter plot of all data points.
+
+        Parameters
+        ----------
+        heatmap:
+            When ``True``, overlay a 2D histogram representing the density of
+            the current class.
         """
 
         import matplotlib.pyplot as plt  # optional dependency kept local
@@ -715,6 +723,30 @@ class CheChe:
             fr: Dict[Tuple[int, int], np.ndarray] = info["frontiers"]
             for (i, j), boundary in fr.items():
                 fig, ax = plt.subplots()
+
+                x_vals = X[:, i]
+                y_vals = X[:, j]
+                xmin, xmax = x_vals.min(), x_vals.max()
+                ymin, ymax = y_vals.min(), y_vals.max()
+
+                if heatmap:
+                    mask_cls = y == label
+                    H, xedges, yedges = np.histogram2d(
+                        x_vals[mask_cls],
+                        y_vals[mask_cls],
+                        bins=grid_res,
+                        range=[[xmin, xmax], [ymin, ymax]],
+                    )
+                    if np.max(H) > 0:
+                        H = H / np.max(H)
+                    ax.imshow(
+                        H.T,
+                        extent=(xmin, xmax, ymin, ymax),
+                        origin="lower",
+                        alpha=0.6,
+                        cmap="viridis",
+                    )
+
                 for cls in uniq:
                     mask = y == cls
                     ax.scatter(
@@ -740,7 +772,7 @@ class CheChe:
                 ax.set_xlabel(feature_names[i])
                 ax.set_ylabel(feature_names[j])
                 ax.set_title(
-                    f"Prob. clase '{label}' vs ({feature_names[i]},{feature_names[j]})"
+                    f"Cluster {ci}: Prob. clase '{label}' vs ({feature_names[i]},{feature_names[j]})"
                 )
                 ax.legend()
                 fig.tight_layout()
