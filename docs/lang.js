@@ -41,4 +41,24 @@ document.addEventListener('DOMContentLoaded', function() {
     container.appendChild(createSelector());
   }
   filterNav(currentLang);
+
+  // Add copy buttons to code blocks
+  document.querySelectorAll('pre > code').forEach(codeBlock => {
+    const button = document.createElement('button');
+    button.className = 'copy-button';
+    button.type = 'button';
+    button.textContent = 'Copy';
+    const pre = codeBlock.parentNode;
+    pre.style.position = 'relative';
+    pre.appendChild(button);
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(codeBlock.innerText);
+        button.textContent = 'Copied!';
+        setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+      } catch (err) {
+        button.textContent = 'Error';
+      }
+    });
+  });
 });
