@@ -16,8 +16,8 @@ from sklearn.datasets import load_iris
 from sheshe import CheChe
 
 X, y = load_iris(return_X_y=True)
-che = CheChe().fit(X, y)
-che.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+che = CheChe().fit(X, y, max_pairs=1)
+che.plot_classes(X, y)
 plt.show()
 </code></pre>
 <p>Calcula fronteras de casco convexo para pares de características seleccionados y ofrece visualizaciones 2D simples.</p>
@@ -32,7 +32,7 @@ plt.show()
 from sheshe import CheChe
 cc = CheChe()
 cc.fit(X, y)
-cc.plot_pairs(X, show_histograms=True)
+cc.plot_classes(X, y)
 </code></pre>
 
 <h2>Ejemplos de uso</h2>
@@ -62,7 +62,7 @@ ch = CheChe().fit(
     feature_names=["sepal length", "sepal width", "petal length", "petal width"],
     mapping_level=2,  # usa una de cada dos muestras
 )
-ch.plot_pairs(X, class_index=0, show_histograms=True)
+ch.plot_classes(X, y)
 </code></pre>
 <pre><code class="language-python">
 from sklearn.linear_model import LogisticRegression

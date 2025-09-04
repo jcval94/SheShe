@@ -17,7 +17,7 @@ from sheshe import ModalScoutEnsemble
 
 X, y = load_iris(return_X_y=True)
 mse = ModalScoutEnsemble().fit(X, y)
-mse.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+mse.plot_classes(X, y)
 plt.show()
 </code></pre>
 <p>Ensamble que aplica <code>ModalBoundaryClustering</code> en los subespacios más prometedores descubiertos por <code>SubspaceScout</code>. Cada submodelo se pondera por puntuación del scout, validación cruzada e importancia de características, y el ensamble puede delegar la optimización a <code>ShuShu</code> cuando <code>ensemble_method="shushu"</code>.</p>

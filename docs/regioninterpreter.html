@@ -19,7 +19,7 @@ iris = load_iris()
 X, y = iris.data, iris.target
 sh = ModalBoundaryClustering().fit(X, y)
 cards = RegionInterpreter(feature_names=iris.feature_names).summarize(sh.regions_)
-sh.plot_pairs(X, y, max_pairs=1, show_histograms=True)
+sh.plot_classes(X, y)
 plt.show()
 </code></pre>
 <p>Converts <code>ClusterRegion</code> objects into compact human‑readable rule sets.</p>
