@@ -4,6 +4,8 @@
 
 SheShe turns probabilistic models into guided explorers of their decision surfaces, revealing human‑readable regions by following local maxima of class probability or predicted value.
 
+![SheShe classification example](images/sheshe_class_1.png)
+
 ## Features
 - Supervised clustering for classification and regression
 - Rule extraction and subspace exploration
