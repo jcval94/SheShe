@@ -24,6 +24,7 @@ plt.show()
 <p>2D visualisations. Useful for exploring decision boundaries or cluster shapes,</p>
 <p>it can subsample points via <code>mapping_level</code> and plot frontiers per class or</p>
 <p>for scalar score functions.</p>
+<p>Frontiers can also follow a score function contour when <code>score_frontier</code> is provided.</p>
 <h2>Mathematical formulation</h2>
 <p>For feature pair <code>(i,j)</code>, CheChe projects samples with <code>P_{ij}(x) = (x_i, x_j)</code>. QuickHull constructs the convex hull <code>H</code> of these projections.</p>
 <p>The decision function outputs the negative distance from the projected point to the hull centroid: <code>-‖P_{ij}(x) - c_H‖</code>.</p>
@@ -71,6 +72,9 @@ CheChe().fit(X, y, score_model=model)
 
 score_fn = lambda Z: model.predict_proba(Z)[:, 0]
 CheChe().fit(X, score_fn=score_fn)
+
+che = CheChe().fit(X, score_fn=score_fn, score_frontier=0.8, grid_res=40)
+che.plot_pairs(X)
 </code></pre>
 <h2>Parameters</h2>
 <ul>
@@ -97,6 +101,8 @@ CheChe().fit(X, score_fn=score_fn)
 <li><code>mapping_level</code> (<code>int</code> or <code>None</code>, default <code>None</code>): down-sampling level for
  frontier computation.
 </li>
+<li><code>score_frontier</code> (<code>float</code>, optional): contour level for score-based frontiers when a <code>score_fn</code> is supplied.</li>
+<li><code>grid_res</code> (<code>int</code>, default <code>200</code>): evaluation grid resolution used for score-based frontiers.</li>
 </ul>
 <h2>Methods</h2>
 <ul>

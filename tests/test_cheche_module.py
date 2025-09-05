@@ -138,3 +138,20 @@ def test_cheche_save_load(tmp_path):
     loaded = CheChe.load(path)
     assert np.array_equal(ch.predict(X[:10]), loaded.predict(X[:10]))
     assert np.allclose(ch.predict_proba(X[:10]), loaded.predict_proba(X[:10]))
+
+
+def test_score_frontier_generates_contour():
+    rng = np.random.default_rng(0)
+    X = rng.random((200, 2))
+
+    def score_fn(Z: np.ndarray) -> np.ndarray:
+        return 1.0 - ((Z[:, 0] - 0.5) ** 2 + (Z[:, 1] - 0.5) ** 2)
+
+    ch = CheChe().fit(
+        X, score_fn=score_fn, score_frontier=0.8, grid_res=40, max_pairs=1
+    )
+    boundary = ch.get_frontier((0, 1))
+    center = boundary.mean(axis=0)
+    assert np.allclose(center, [0.5, 0.5], atol=0.1)
+    radii = np.linalg.norm(boundary - center, axis=1)
+    assert np.isclose(radii.mean(), np.sqrt(0.2), atol=0.1)
