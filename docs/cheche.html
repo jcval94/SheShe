@@ -42,13 +42,47 @@ from sheshe import CheChe
 
 che = CheChe(random_state=0)
 che.fit(X, y)                      # fit
+</code></pre>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe(random_state=0)
 che.fit_predict(X, y)              # fit_predict
-che.fit(X, y).predict(X)           # predict
-che.fit(X, y).predict_proba(X)     # predict_proba
-che.fit(X, y).predict_regions(X)   # predict_regions
-che.fit(X, y).decision_function(X) # decision_function
-che.fit(X, y).save("che.joblib")   # save
-CheChe.load("che.joblib")
+</code></pre>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe(random_state=0).fit(X, y)
+che.predict(X)                     # predict
+</code></pre>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe(random_state=0).fit(X, y)
+che.predict_proba(X)               # predict_proba
+</code></pre>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe(random_state=0).fit(X, y)
+che.predict_regions(X)             # predict_regions
+</code></pre>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe(random_state=0).fit(X, y)
+che.decision_function(X)           # decision_function
+</code></pre>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe(random_state=0).fit(X, y)
+che.save("che.joblib")             # save
+</code></pre>
+<pre><code class="language-python">
+from sheshe import CheChe
+
+che = CheChe.load("che.joblib")
 </code></pre>
 <h2>Additional examples</h2>
 <pre><code class="language-python">

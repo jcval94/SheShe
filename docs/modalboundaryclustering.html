@@ -42,16 +42,65 @@ from sheshe import ModalBoundaryClustering
 
 mbc = ModalBoundaryClustering(random_state=0)
 mbc.fit(X, y)                      # fit
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0)
 mbc.fit_predict(X, y)              # fit_predict
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0)
 mbc.fit_transform(X, y)            # fit_transform
-mbc.fit(X, y).transform(X)         # transform
-mbc.fit(X, y).predict(X)           # predict
-mbc.fit(X, y).predict_proba(X)     # predict_proba
-mbc.fit(X, y).decision_function(X) # decision_function
-mbc.fit(X, y).predict_regions(X)   # predict_regions
-mbc.fit(X, y).score(X, y)          # score
-mbc.fit(X, y).save("mbc.joblib")   # save
-ModalBoundaryClustering.load("mbc.joblib")
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+mbc.transform(X)                   # transform
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+mbc.predict(X)                     # predict
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+mbc.predict_proba(X)               # predict_proba
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+mbc.decision_function(X)           # decision_function
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+mbc.predict_regions(X)             # predict_regions
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+mbc.score(X, y)                    # score
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering(random_state=0).fit(X, y)
+mbc.save("mbc.joblib")             # save
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalBoundaryClustering
+
+mbc = ModalBoundaryClustering.load("mbc.joblib")
 </code></pre>
 <h2>Additional examples</h2>
 <pre><code class="language-python">
