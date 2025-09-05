@@ -765,8 +765,12 @@ class CheChe:
         This method mirrors the signature of :meth:`ShuShu.plot_classes` for
         API compatibility but ignores ``contour_levels``, ``max_paths`` and
         ``show_paths`` as ``CheChe`` does not compute score surfaces nor
-        optimization paths.  If ``heatmap`` is ``True`` the argument ``grid_res``
-        controls the resolution of the 2D histogram used for the heatmap.  For
+        optimization paths.  When ``heatmap`` is ``True`` the argument
+        ``grid_res`` controls the resolution of the evaluation grid of a kernel
+        density estimate used as background, producing a smoother density map
+        than the previous histogram approach.  The densities are normalized to
+        ``[0, 1]`` and drawn with ``contourf`` along with a colorbar so that the
+        visuals resemble those produced by :meth:`ShuShu.plot_classes`.  For
         every class discovered during fitting, a separate figure is generated
         for each stored feature pair where the frontier polygon is overlaid on
         the scatter plot of all data points.
@@ -774,8 +778,8 @@ class CheChe:
         Parameters
         ----------
         heatmap:
-            When ``True``, overlay a 2D histogram representing the density of
-            the current class.
+            When ``True``, overlay a smoothed density estimate of the current
+            class.
         """
 
         import matplotlib.pyplot as plt  # optional dependency kept local
@@ -820,21 +824,41 @@ class CheChe:
 
                 if heatmap:
                     mask_cls = y == label
-                    H, xedges, yedges = np.histogram2d(
-                        x_vals[mask_cls],
-                        y_vals[mask_cls],
-                        bins=grid_res,
-                        range=[[xmin, xmax], [ymin, ymax]],
-                    )
-                    if np.max(H) > 0:
-                        H = H / np.max(H)
-                    ax.imshow(
-                        H.T,
-                        extent=(xmin, xmax, ymin, ymax),
-                        origin="lower",
-                        alpha=0.6,
-                        cmap="viridis",
-                    )
+                    pts_cls = np.column_stack((x_vals[mask_cls], y_vals[mask_cls]))
+                    if pts_cls.shape[0] >= 2:
+                        from sklearn.neighbors import KernelDensity
+
+                        pad_x = 0.05 * (xmax - xmin + 1e-12)
+                        pad_y = 0.05 * (ymax - ymin + 1e-12)
+                        x_grid = np.linspace(xmin - pad_x, xmax + pad_x, grid_res)
+                        y_grid = np.linspace(ymin - pad_y, ymax + pad_y, grid_res)
+                        XX, YY = np.meshgrid(x_grid, y_grid)
+                        grid = np.column_stack((XX.ravel(), YY.ravel()))
+
+                        span = max(xmax - xmin, ymax - ymin)
+                        bandwidth = max(1e-3, 0.05 * span)
+                        kde = KernelDensity(bandwidth=bandwidth)
+                        kde.fit(pts_cls)
+                        ZZ = np.exp(kde.score_samples(grid)).reshape(
+                            grid_res, grid_res
+                        )
+                        ZZ = ZZ - ZZ.min()
+                        max_val = ZZ.max()
+                        if max_val > 0:
+                            ZZ = ZZ / max_val
+                        if contour_levels is None:
+                            levels = np.linspace(0.0, 1.0, 12)
+                        else:
+                            levels = np.asarray(contour_levels, dtype=float)
+                        cf = ax.contourf(
+                            XX,
+                            YY,
+                            ZZ,
+                            levels=levels,
+                            cmap="viridis",
+                        )
+                        cb = fig.colorbar(cf, ax=ax)
+                        cb.set_label(f"Densidad {label}")
 
                 for cls in uniq:
                     mask = y == cls
