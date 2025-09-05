@@ -123,27 +123,45 @@ class CheChe:
         return res
 
     # ------------------------------------------------------------------
-    def _compute_score_frontiers(
+    def _compute_model_frontiers(
         self,
         X: np.ndarray,
         pairs: Iterable[Tuple[int, int]],
-        score_fn: Callable[[np.ndarray], np.ndarray],
+        score_model,
         threshold: float,
         grid_res: int,
-    ) -> Dict[Tuple[int, int], np.ndarray]:
-        """Return score based frontiers for the provided feature ``pairs``.
+    ) -> Dict[int, Dict[Tuple[int, int], np.ndarray]]:
+        """Return model-based frontiers for the provided feature ``pairs``.
 
-        For each 2D pair a grid is generated, ``score_fn`` is evaluated and the
-        contour corresponding to ``threshold`` is extracted.  When the contour
-        cannot be computed, the method falls back to the rectangular boundary
-        of the points.
+        The ``score_model`` is evaluated on a grid for each 2D pair.  For every
+        output dimension of the model the contour corresponding to ``threshold``
+        is extracted.  When the contour cannot be computed, or it is degenerate
+        (e.g. a straight line), the method falls back to the rectangular
+        boundary defined by the points.
         """
 
         import matplotlib.pyplot as plt  # pragma: no cover - optional dependency
 
+        def _eval(Z: np.ndarray) -> np.ndarray:
+            if hasattr(score_model, "predict_proba"):
+                return np.asarray(score_model.predict_proba(Z))
+            if hasattr(score_model, "decision_function"):
+                scores = np.asarray(score_model.decision_function(Z))
+                if scores.ndim == 1:
+                    prob1 = 1.0 / (1.0 + np.exp(-scores))
+                    return np.column_stack([1 - prob1, prob1])
+                exp_scores = np.exp(scores - scores.max(axis=1, keepdims=True))
+                return exp_scores / exp_scores.sum(axis=1, keepdims=True)
+            preds = np.asarray(score_model.predict(Z))
+            if preds.ndim == 1:
+                preds = preds[:, None]
+            return preds
+
         X = np.asarray(X, dtype=float)
         med = np.median(X, axis=0)
-        res: Dict[Tuple[int, int], np.ndarray] = {}
+        sample = _eval(X[:1])
+        n_out = sample.shape[1]
+        res: Dict[int, Dict[Tuple[int, int], np.ndarray]] = {i: {} for i in range(n_out)}
         for i, j in pairs:
             pts = X[:, [i, j]]
             x_min, y_min = pts.min(axis=0)
@@ -156,29 +174,43 @@ class CheChe:
             base = np.tile(med, (grid_res * grid_res, 1))
             base[:, i] = XX.ravel()
             base[:, j] = YY.ravel()
-            ZZ = np.asarray(score_fn(base)).reshape(grid_res, grid_res)
+            ZZ_all = _eval(base).reshape(grid_res, grid_res, n_out)
 
-            cs = plt.contour(XX, YY, ZZ, levels=[threshold])
-            paths = []
-            for p in cs.get_paths():
-                v = p.vertices
-                if v.shape[0] >= 3:
-                    paths.append(v)
-            plt.close()
-            if paths:
-                boundary = paths[0]
-            else:
-                mins = pts.min(axis=0)
-                maxs = pts.max(axis=0)
-                boundary = np.array(
-                    [
-                        [mins[0], mins[1]],
-                        [mins[0], maxs[1]],
-                        [maxs[0], maxs[1]],
-                        [maxs[0], mins[1]],
-                    ]
-                )
-            res[(i, j)] = boundary
+            for ci in range(n_out):
+                ZZ = ZZ_all[:, :, ci]
+                cs = plt.contour(XX, YY, ZZ, levels=[threshold])
+                paths = []
+                for p in cs.get_paths():
+                    v = p.vertices
+                    if v.shape[0] >= 2:
+                        paths.append(v)
+                plt.close()
+                if paths:
+                    boundary = paths[0]
+                    if boundary.shape[0] < 3:
+                        mins = pts.min(axis=0)
+                        maxs = pts.max(axis=0)
+                        rect = np.array(
+                            [
+                                [mins[0], mins[1]],
+                                [mins[0], maxs[1]],
+                                [maxs[0], maxs[1]],
+                                [maxs[0], mins[1]],
+                            ]
+                        )
+                        boundary = np.vstack([boundary, rect])
+                else:
+                    mins = pts.min(axis=0)
+                    maxs = pts.max(axis=0)
+                    boundary = np.array(
+                        [
+                            [mins[0], mins[1]],
+                            [mins[0], maxs[1]],
+                            [maxs[0], maxs[1]],
+                            [maxs[0], mins[1]],
+                        ]
+                    )
+                res[ci][(i, j)] = boundary
         return res
 
     # ------------------------------------------------------------------
@@ -244,8 +276,9 @@ class CheChe:
             every other point, ``3`` every third point, and so on.
         score_frontier:
             Optional threshold for score-based frontiers. When provided and
-            ``score_fn`` is also supplied, frontiers are derived from the
-            contour of ``score_fn`` instead of the convex hull of the data.
+            ``score_model`` is supplied, frontiers are derived from the
+            contour of the model's score surface instead of the convex hull of
+            the data.
         grid_res:
             Resolution of the evaluation grid when ``score_frontier`` is used.
         """
@@ -266,19 +299,44 @@ class CheChe:
         self.pairs_ = self._select_pairs(X, max_pairs)
 
         if y is None:
-            self.mode_ = "scalar"
             X_used = self._subsample(X)
-            if score_frontier is not None and self.score_fn_ is not None:
-                self.frontiers_ = self._compute_score_frontiers(
-                    X_used, self.pairs_, self.score_fn_, score_frontier, grid_res
+            if score_frontier is not None:
+                if self.model_ is None:
+                    raise ValueError("score_frontier requires score_model")
+                fr_all = self._compute_model_frontiers(
+                    X_used, self.pairs_, self.model_, score_frontier, grid_res
                 )
+                if len(fr_all) == 1:
+                    self.mode_ = "scalar"
+                    self.frontiers_ = fr_all[0]
+                    for cid, (dims, boundary) in enumerate(self.frontiers_.items()):
+                        self.regions_.append(
+                            self._frontier_to_region(dims, boundary, cid)
+                        )
+                else:
+                    self.mode_ = "multiclass"
+                    classes = getattr(self.model_, "classes_", np.arange(len(fr_all)))
+                    self.classes_ = np.asarray(classes)
+                    regions: List[Dict] = []
+                    per_class: Dict[int, Dict] = {}
+                    for ci, cls in enumerate(self.classes_):
+                        fr = fr_all[ci]
+                        per_class[ci] = {"label": cls, "frontiers": fr}
+                        for dims, boundary in fr.items():
+                            regions.append(
+                                self._frontier_to_region(dims, boundary, len(regions), label=cls)
+                            )
+                    self.per_class_ = per_class
+                    self.regions_ = regions
+                return self
             else:
+                self.mode_ = "scalar"
                 self.frontiers_ = self._compute_frontiers(X_used, self.pairs_)
-            for cid, (dims, boundary) in enumerate(self.frontiers_.items()):
-                self.regions_.append(
-                    self._frontier_to_region(dims, boundary, cid)
-                )
-            return self
+                for cid, (dims, boundary) in enumerate(self.frontiers_.items()):
+                    self.regions_.append(
+                        self._frontier_to_region(dims, boundary, cid)
+                    )
+                return self
 
         # Determine whether we are in classification or regression mode
         y = np.asarray(y)
@@ -297,10 +355,13 @@ class CheChe:
             for ci, cls in enumerate(classes):
                 subset = X[y == cls]
                 subset = self._subsample(subset)
-                if score_frontier is not None and self.score_fn_ is not None:
-                    fr = self._compute_score_frontiers(
-                        subset, self.pairs_, self.score_fn_, score_frontier, grid_res
+                if score_frontier is not None:
+                    if self.model_ is None:
+                        raise ValueError("score_frontier requires score_model")
+                    fr_all = self._compute_model_frontiers(
+                        subset, self.pairs_, self.model_, score_frontier, grid_res
                     )
+                    fr = fr_all[ci] if ci in fr_all else {}
                 else:
                     fr = self._compute_frontiers(subset, self.pairs_)
                 per_class[ci] = {"label": cls, "frontiers": fr}
@@ -327,12 +388,7 @@ class CheChe:
                 continue
             subset = X[mask]
             subset = self._subsample(subset)
-            if score_frontier is not None and self.score_fn_ is not None:
-                fr = self._compute_score_frontiers(
-                    subset, self.pairs_, self.score_fn_, score_frontier, grid_res
-                )
-            else:
-                fr = self._compute_frontiers(subset, self.pairs_)
+            fr = self._compute_frontiers(subset, self.pairs_)
             label = (deciles[k], deciles[k + 1])
             per_class[k] = {"label": label, "frontiers": fr}
             for dims, boundary in fr.items():

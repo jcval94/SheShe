@@ -144,11 +144,13 @@ def test_score_frontier_generates_contour():
     rng = np.random.default_rng(0)
     X = rng.random((200, 2))
 
-    def score_fn(Z: np.ndarray) -> np.ndarray:
-        return 1.0 - ((Z[:, 0] - 0.5) ** 2 + (Z[:, 1] - 0.5) ** 2)
+    class ScoreModel:
+        def predict(self, Z: np.ndarray) -> np.ndarray:
+            return 1.0 - ((Z[:, 0] - 0.5) ** 2 + (Z[:, 1] - 0.5) ** 2)
 
+    model = ScoreModel()
     ch = CheChe().fit(
-        X, score_fn=score_fn, score_frontier=0.8, grid_res=40, max_pairs=1
+        X, score_model=model, score_frontier=0.8, grid_res=40, max_pairs=1
     )
     boundary = ch.get_frontier((0, 1))
     center = boundary.mean(axis=0)
