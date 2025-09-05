@@ -41,16 +41,65 @@ from sheshe import ShuShu
 
 shu = ShuShu(random_state=0)
 shu.fit(X, y)                      # fit
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0)
 shu.fit_predict(X, y)              # fit_predict
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0)
 shu.fit_transform(X, y)            # fit_transform
-shu.fit(X, y).transform(X)         # transform
-shu.fit(X, y).predict(X)           # predict
-shu.fit(X, y).predict_proba(X)     # predict_proba
-shu.fit(X, y).decision_function(X) # decision_function
-shu.fit(X, y).predict_regions(X)   # predict_regions
-shu.fit(X, y).score(X, y)          # score
-shu.fit(X, y).save("shu.joblib")   # save
-ShuShu.load("shu.joblib")
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0).fit(X, y)
+shu.transform(X)                   # transform
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0).fit(X, y)
+shu.predict(X)                     # predict
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0).fit(X, y)
+shu.predict_proba(X)               # predict_proba
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0).fit(X, y)
+shu.decision_function(X)           # decision_function
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0).fit(X, y)
+shu.predict_regions(X)             # predict_regions
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0).fit(X, y)
+shu.score(X, y)                    # score
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu(random_state=0).fit(X, y)
+shu.save("shu.joblib")             # save
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ShuShu
+
+shu = ShuShu.load("shu.joblib")
 </code></pre>
 <h2>Additional examples</h2>
 <pre><code class="language-python">

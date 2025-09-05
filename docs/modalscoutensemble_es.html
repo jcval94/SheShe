@@ -38,16 +38,75 @@ from sklearn.linear_model import LogisticRegression
 
 mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0)
 mse.fit(X, y)                      # fit
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0)
 mse.fit_predict(X, y)              # fit_predict
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0)
 mse.fit_transform(X, y)            # fit_transform
-mse.fit(X, y).transform(X)         # transform
-mse.fit(X, y).predict(X)           # predict
-mse.fit(X, y).predict_proba(X)     # predict_proba
-mse.fit(X, y).decision_function(X) # decision_function
-mse.fit(X, y).predict_regions(X)   # predict_regions
-mse.fit(X, y).score(X, y)          # score
-mse.fit(X, y).save("mse.joblib")   # save
-ModalScoutEnsemble.load("mse.joblib")
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0).fit(X, y)
+mse.transform(X)                   # transform
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0).fit(X, y)
+mse.predict(X)                     # predict
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0).fit(X, y)
+mse.predict_proba(X)               # predict_proba
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0).fit(X, y)
+mse.decision_function(X)           # decision_function
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0).fit(X, y)
+mse.predict_regions(X)             # predict_regions
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0).fit(X, y)
+mse.score(X, y)                    # score
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble(base_estimator=LogisticRegression(), random_state=0).fit(X, y)
+mse.save("mse.joblib")             # save
+</code></pre>
+<pre><code class="language-python">
+from sheshe import ModalScoutEnsemble
+from sklearn.linear_model import LogisticRegression
+
+mse = ModalScoutEnsemble.load("mse.joblib")
 </code></pre>
 
 <h2>Ejemplos adicionales</h2>

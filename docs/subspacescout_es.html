@@ -42,6 +42,11 @@ from sheshe import SubspaceScout
 
 scout = SubspaceScout(random_state=0)
 scout.fit(X, y)          # fit
+</code></pre>
+<pre><code class="language-python">
+from sheshe import SubspaceScout
+
+scout = SubspaceScout(random_state=0).fit(X, y)
 results = scout.results_ # access discovered subspaces
 </code></pre>
 
