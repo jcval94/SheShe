@@ -22,6 +22,7 @@ plt.show()
 </code></pre>
 <p>Calcula fronteras de casco convexo para pares de características seleccionados y ofrece visualizaciones 2D simples.</p>
 <p>Útil para explorar fronteras de decisión o formas de clusters, puede submuestrear puntos mediante <code>mapping_level</code> y trazar fronteras por clase o para funciones de puntuación escalares.</p>
+<p>Las fronteras también pueden seguir el contorno de una función de puntuación especificando <code>score_frontier</code>.</p>
 
 <h2>Formulación matemática</h2>
 <p>Para el par de características <code>(i,j)</code>, CheChe proyecta muestras con <code>P_{ij}(x) = (x_i, x_j)</code>. QuickHull construye el casco convexo <code>H</code> de estas proyecciones.</p>
@@ -72,6 +73,9 @@ CheChe().fit(X, y, score_model=model)
 
 score_fn = lambda Z: model.predict_proba(Z)[:, 0]
 CheChe().fit(X, score_fn=score_fn)
+
+che = CheChe().fit(X, score_fn=score_fn, score_frontier=0.8, grid_res=40)
+che.plot_pairs(X)
 </code></pre>
 
 <h2>Parámetros</h2>
@@ -89,6 +93,8 @@ CheChe().fit(X, score_fn=score_fn)
 <li><code>score_fn_per_class</code> (<code>list[callable]</code>, opcional): funciones de puntuación por clase.</li>
 <li><code>max_pairs</code> (<code>int</code> o <code>None</code>, por defecto <code>10</code>): número máximo de pares de características a analizar.</li>
 <li><code>mapping_level</code> (<code>int</code> o <code>None</code>, por defecto <code>None</code>): nivel de submuestreo para la computación de fronteras.</li>
+<li><code>score_frontier</code> (<code>float</code>, opcional): nivel del contorno para fronteras basadas en la función de puntuación.</li>
+<li><code>grid_res</code> (<code>int</code>, por defecto <code>200</code>): resolución de la malla de evaluación para fronteras basadas en puntuación.</li>
 </ul>
 
 <h2>Métodos</h2>
