@@ -291,9 +291,28 @@ class ScoreDensityModel(BaseDensityModel):
     def __init__(self, cfg: ScoreModelAdapterConfig):
         self.cfg = cfg
         self._n_features: Optional[int] = None
+        self.X_train_: Optional[np.ndarray] = None
+        self.Z_train_: Optional[np.ndarray] = None
+        self.mu_: Optional[np.ndarray] = None
+        self.W_: Optional[np.ndarray] = None
+        self.W_inv_T_: Optional[np.ndarray] = None
+        extra = cfg.extra or {}
+        self.whiten = bool(extra.get("whiten", False))
+        self.random_state = int(extra.get("random_state", 0))
 
     def fit(self, X: np.ndarray) -> "ScoreDensityModel":
-        self._n_features = np.asarray(X).shape[1]
+        X = np.asarray(X, float)
+        self._n_features = X.shape[1]
+        self.X_train_ = X
+        if self.whiten:
+            self.mu_, self.W_ = _whitener_fit(X)
+            self.W_inv_T_ = np.linalg.inv(self.W_.T)
+            self.Z_train_ = _apply_whiten(X, self.mu_, self.W_)
+        else:
+            d = X.shape[1]
+            self.mu_, self.W_ = np.zeros(d), np.eye(d)
+            self.W_inv_T_ = np.eye(d)
+            self.Z_train_ = X
         return self
 
     def _scores_all(self, X: np.ndarray) -> np.ndarray:
@@ -348,7 +367,20 @@ class ScoreDensityModel(BaseDensityModel):
         return S[:, 0]
 
     def sample(self, n: int, rng: Optional[np.random.RandomState] = None) -> np.ndarray:
-        raise NotImplementedError("ScoreDensityModel no implementa sample(); no requerido para HDR/Conformal.")
+        if self.Z_train_ is None:
+            raise RuntimeError("ScoreDensityModel debe ajustarse antes de muestrear")
+        if rng is None:
+            rng = np.random.RandomState(self.random_state)
+        Z = self.Z_train_
+        n_tr, d = Z.shape
+        idx = rng.randint(0, n_tr, size=n)
+        base = Z[idx]
+        scale = Z.std(axis=0, ddof=1)
+        bw = _scott(n_tr, d)
+        noise = rng.normal(scale=scale * bw, size=(n, d))
+        Zs = base + noise
+        Xs = Zs @ self.W_inv_T_ + self.mu_
+        return Xs
 
 
 # ---------------------------------------------------------------------
