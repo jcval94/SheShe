@@ -3044,6 +3044,9 @@ class ModalBoundaryClustering(BaseEstimator):
             X_full[:, j] = XJ[r, :]
             Z[r, :] = self._predict_value_real(X_full, class_idx=class_idx)
 
+        # predictions for the original samples to overlay as a scatter plot
+        z_points = self._predict_value_real(X_arr, class_idx=class_idx)
+
         if engine == "plotly":
             try:
                 import plotly.graph_objects as go
@@ -3060,7 +3063,14 @@ class ModalBoundaryClustering(BaseEstimator):
                         z=Z,
                         colorscale="Viridis",
                         opacity=alpha_surface,
-                    )
+                    ),
+                    go.Scatter3d(
+                        x=xi,
+                        y=xj,
+                        z=z_points,
+                        mode="markers",
+                        marker=dict(size=3, color="black"),
+                    ),
                 ]
             )
             fig.update_layout(
@@ -3079,6 +3089,7 @@ class ModalBoundaryClustering(BaseEstimator):
         fig = plt.figure(figsize=(6, 5))
         ax = fig.add_subplot(111, projection="3d")
         ax.plot_surface(XI, XJ, Z, cmap="viridis", alpha=alpha_surface)
+        ax.scatter(xi, xj, z_points, c="k", s=15)
         ax.set_xlabel(feature_names[i])
         ax.set_ylabel(feature_names[j])
         ax.set_zlabel(zlabel)
