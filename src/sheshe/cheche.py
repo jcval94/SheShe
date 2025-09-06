@@ -20,6 +20,7 @@ import numpy.typing as npt
 import pandas as pd
 from pathlib import Path
 import joblib
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import accuracy_score
 
 try:  # pragma: no cover - optional dependency
@@ -34,8 +35,9 @@ class CheChe:
 
     __artifact_version__ = "1.0"
 
-    def __init__(self, random_state: Optional[int] = None) -> None:
+    def __init__(self, random_state: Optional[int] = None, importance_cutoff: float = 0.85) -> None:
         self.random_state = random_state
+        self.importance_cutoff = importance_cutoff
         # Public attributes mimicking ``ShuShu`` for a familiar API ---------
         self.feature_names_: Optional[List[str]] = None
         self.clusterer_: Optional[object] = None  # ``CheChe`` has no clusterer
@@ -52,6 +54,7 @@ class CheChe:
         self.frontiers_: Dict[Tuple[int, int], np.ndarray] = {}
         self.pairs_: List[Tuple[int, int]] = []
         self.mapping_level_: Optional[int] = None
+        self.selected_features_: Optional[List[int]] = None
 
     # ------------------------------------------------------------------
     def _frontier_to_region(
@@ -214,6 +217,26 @@ class CheChe:
         return res
 
     # ------------------------------------------------------------------
+    def _select_features(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Reduce features based on RandomForest importance.
+
+        Returns the filtered ``X`` and the indices of the retained
+        features ordered ascending. The selection keeps the smallest
+        subset whose cumulative importance reaches ``importance_cutoff``.
+        """
+
+        rf = RandomForestRegressor(random_state=self.random_state)
+        rf.fit(X, np.asarray(y).ravel())
+        importances = rf.feature_importances_
+        order = np.argsort(importances)[::-1]
+        cum = np.cumsum(importances[order])
+        k = np.searchsorted(cum, self.importance_cutoff) + 1
+        keep = np.sort(order[:k])
+        return X[:, keep], keep
+
+    # ------------------------------------------------------------------
     def _select_pairs(
         self, X: np.ndarray, max_pairs: Optional[int]
     ) -> List[Tuple[int, int]]:
@@ -295,6 +318,14 @@ class CheChe:
         self.classes_ = None
         self.regions_ = []
         self.deciles_ = None
+
+        n_dims = X.shape[1]
+        if y is not None and (n_dims * (n_dims - 1) // 2) > 16:
+            X, keep = self._select_features(X, y)
+            self.feature_names_ = [self.feature_names_[i] for i in keep]
+            self.selected_features_ = list(keep)
+        else:
+            self.selected_features_ = None
 
         self.pairs_ = self._select_pairs(X, max_pairs)
 
@@ -452,6 +483,8 @@ class CheChe:
         else:
             index = None
             X_arr = np.asarray(X, dtype=float)
+        if self.selected_features_ is not None:
+            X_arr = X_arr[:, self.selected_features_]
         n = X_arr.shape[0]
         labels = np.full(n, -1, dtype=object)
         cluster_ids = np.full(n, -1, dtype=int)
@@ -482,6 +515,8 @@ class CheChe:
             raise RuntimeError("Model not fitted")
 
         X = np.asarray(X, dtype=float)
+        if self.selected_features_ is not None:
+            X = X[:, self.selected_features_]
         n = X.shape[0]
         m = len(self.regions_)
         if m == 0:
@@ -530,6 +565,9 @@ class CheChe:
                 feat_names = self.feature_names_
             else:
                 feat_names = [f"x{j}" for j in range(X_arr.shape[1])]
+        if self.selected_features_ is not None:
+            X_arr = X_arr[:, self.selected_features_]
+            feat_names = [feat_names[i] for i in self.selected_features_]
 
         y_arr = np.asarray(y) if y is not None else None
 
