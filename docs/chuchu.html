@@ -1,0 +1,52 @@
+---
+layout: default
+title: Chuchu
+parent: SheShe
+nav_order: 11
+---
+<link rel="stylesheet" href="style.css">
+<script src="lang.js"></script>
+<div class="lang-switch"><a href="chuchu_es.html">ES</a></div>
+<h1>Chuchu</h1>
+<p>Conformal regions for classification and regression.</p>
+<h2>Classification</h2>
+<pre><code class="language-python">
+from sheshe import ChuchuClassifier, ChuchuConfig
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+
+X, y = load_iris(return_X_y=True)
+
+# default KDE-based regions
+clf = ChuchuClassifier(ChuchuConfig()).fit(X, y)
+fig, _ = clf.plot_classes(X, y)
+
+# logistic regression scores
+lr = LogisticRegression(max_iter=200).fit(X, y)
+clf_lr = ChuchuClassifier(ChuchuConfig(density={"name": "score", "model": lr})).fit(X, y)
+clf_lr.plot_classes(X, y)
+
+# random forest scores
+rf = RandomForestClassifier(n_estimators=50, random_state=0).fit(X, y)
+clf_rf = ChuchuClassifier(ChuchuConfig(density={"name": "score", "model": rf})).fit(X, y)
+clf_rf.plot_classes(X, y)
+</code></pre>
+
+<h2>Regression</h2>
+<pre><code class="language-python">
+from sheshe import ChuchuRegressor, ChuchuConfig
+from sklearn.datasets import load_diabetes
+from sklearn.ensemble import RandomForestRegressor
+
+X, y = load_diabetes(return_X_y=True)
+
+# default KDE-based region
+reg = ChuchuRegressor(ChuchuConfig()).fit(X, y)
+reg.plot_classes(X, y)
+
+# random forest scores
+rf = RandomForestRegressor(n_estimators=50, random_state=0).fit(X, y)
+reg_rf = ChuchuRegressor(ChuchuConfig(density={"name": "score", "model": rf})).fit(X, y)
+reg_rf.plot_classes(X, y)
+</code></pre>
