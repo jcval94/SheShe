@@ -1348,6 +1348,9 @@ class ShuShu:
         base[:, d2] = XX2.ravel()
         ZZ = score_fn(base).reshape(grid_res, grid_res)
 
+        # score/predictions for original samples for scatter overlay
+        Z_points = score_fn(X)
+
         if engine == "plotly":
             try:
                 import plotly.graph_objects as go
@@ -1355,7 +1358,14 @@ class ShuShu:
                 raise ImportError("plotly is required when engine='plotly'") from exc
             fig = go.Figure(
                 data=[
-                    go.Surface(x=XX1, y=XX2, z=ZZ, colorscale="Viridis", opacity=alpha_surface)
+                    go.Surface(x=XX1, y=XX2, z=ZZ, colorscale="Viridis", opacity=alpha_surface),
+                    go.Scatter3d(
+                        x=X[:, d1],
+                        y=X[:, d2],
+                        z=Z_points,
+                        mode="markers",
+                        marker=dict(size=3, color="black"),
+                    ),
                 ]
             )
             fig.update_layout(
@@ -1370,6 +1380,7 @@ class ShuShu:
         fig = plt.figure(figsize=(6, 5))
         ax = fig.add_subplot(111, projection="3d")
         ax.plot_surface(XX1, XX2, ZZ, cmap="viridis", alpha=alpha_surface)
+        ax.scatter(X[:, d1], X[:, d2], Z_points, c="k", s=15)
         ax.set_xlabel(name1)
         ax.set_ylabel(name2)
         ax.set_zlabel(zlabel)
