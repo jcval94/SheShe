@@ -103,6 +103,17 @@ class BaseDensityModel:
     def sample(self, n: int, rng: Optional[np.random.RandomState] = None) -> np.ndarray:
         raise NotImplementedError
 
+    # ------------------------------------------------------------------
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        """Return configuration parameters for this estimator."""
+        return {name: getattr(self, name) for name in self.__dict__ if not name.endswith("_")}
+
+    def set_params(self, **params) -> "BaseDensityModel":
+        """Set the estimator's parameters and return ``self``."""
+        for name, value in params.items():
+            setattr(self, name, value)
+        return self
+
 
 class KDEDensityModel(BaseDensityModel):
     def __init__(self, bandwidth_factor: float = 1.0, whiten: bool = True):
@@ -280,6 +291,15 @@ class ScoreModelAdapterConfig:
     proba_is_calibrated: bool = True     # info opcional
     extra: Dict[str, Any] = None         # libre
 
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    def set_params(self, **params) -> "ScoreModelAdapterConfig":
+        for name, value in params.items():
+            if name in self.__dataclass_fields__:
+                setattr(self, name, value)
+        return self
+
 
 class ScoreDensityModel(BaseDensityModel):
     """
@@ -291,6 +311,24 @@ class ScoreDensityModel(BaseDensityModel):
     def __init__(self, cfg: ScoreModelAdapterConfig):
         self.cfg = cfg
         self._n_features: Optional[int] = None
+
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        params = super().get_params(deep=deep)
+        if deep and hasattr(self.cfg, "get_params"):
+            for k, v in self.cfg.get_params(deep=deep).items():
+                params[f"cfg__{k}"] = v
+        return params
+
+    def set_params(self, **params) -> "ScoreDensityModel":
+        cfg_prefix = "cfg__"
+        cfg_params = {k[len(cfg_prefix):]: v for k, v in params.items() if k.startswith(cfg_prefix)}
+        if cfg_params and hasattr(self.cfg, "set_params"):
+            self.cfg.set_params(**cfg_params)
+        if "cfg" in params:
+            self.cfg = params["cfg"]
+        remaining = {k: v for k, v in params.items() if not k.startswith(cfg_prefix) and k != "cfg"}
+        super().set_params(**remaining)
+        return self
 
     def fit(self, X: np.ndarray) -> "ScoreDensityModel":
         self._n_features = np.asarray(X).shape[1]
@@ -362,6 +400,15 @@ class RegionSpec:
     coverage_target: float  # masa/coverage objetivo
     model: BaseDensityModel  # modelo de score/densidad
     meta: Dict[str, Any]     # extras (p. ej., spec de densidad)
+
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    def set_params(self, **params) -> "RegionSpec":
+        for name, value in params.items():
+            if name in self.__dataclass_fields__:
+                setattr(self, name, value)
+        return self
 
 
 def _conformal_threshold(scores_calib: np.ndarray, mass: float) -> float:
@@ -528,6 +575,15 @@ class ChuchuConfig:
     # Para regresión:
     min_coverage_reg: float = 0.60  # evita soluciones triviales en optimización
 
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+    def set_params(self, **params) -> "ChuchuConfig":
+        for name, value in params.items():
+            if name in self.__dataclass_fields__:
+                setattr(self, name, value)
+        return self
+
 
 class ChuchuClassifier:
     """
@@ -541,6 +597,24 @@ class ChuchuClassifier:
         self.config = config
         self.regions_: Dict[Any, RegionSpec] = {}
         self.priors_: Dict[Any, float] = {}
+
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        params = {"config": self.config}
+        if deep and hasattr(self.config, "get_params"):
+            params.update(self.config.get_params(deep=deep))
+        return params
+
+    def set_params(self, **params) -> "ChuchuClassifier":
+        cfg_params = {k: v for k, v in params.items() if k != "config"}
+        if "config" in params:
+            self.config = params["config"]
+        if cfg_params:
+            if hasattr(self.config, "set_params"):
+                self.config.set_params(**cfg_params)
+            else:
+                for name, value in cfg_params.items():
+                    setattr(self.config, name, value)
+        return self
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> "ChuchuClassifier":
         cfg = self.config
@@ -825,6 +899,24 @@ class ChuchuRegressor:
         self.scaler_: Optional[StandardScaler] = None
         self.Xtr_: Optional[np.ndarray] = None
         self.ytr_: Optional[np.ndarray] = None
+
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        params = {"config": self.config}
+        if deep and hasattr(self.config, "get_params"):
+            params.update(self.config.get_params(deep=deep))
+        return params
+
+    def set_params(self, **params) -> "ChuchuRegressor":
+        cfg_params = {k: v for k, v in params.items() if k != "config"}
+        if "config" in params:
+            self.config = params["config"]
+        if cfg_params:
+            if hasattr(self.config, "set_params"):
+                self.config.set_params(**cfg_params)
+            else:
+                for name, value in cfg_params.items():
+                    setattr(self.config, name, value)
+        return self
 
     def _nw_predict(self, Xq: np.ndarray, density: BaseDensityModel) -> np.ndarray:
         """
