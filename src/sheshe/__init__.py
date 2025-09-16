@@ -5,7 +5,7 @@ from .region_interpretability import RegionInterpreter
 from .meta_optimization import random_search
 from .shushu import ShuShu
 from .cheche import CheChe
-from .chuchu import ChuchuClassifier, ChuchuRegressor, ChuchuConfig
+from .chuchu import Chuchu, ChuchuConfig, ChangePointConfig, DeltaRecord
 
 # ``OpenAIRegionInterpreter`` relies on the optional ``openai`` dependency.  In
 # environments where that dependency (or the module itself) is missing we still
@@ -27,9 +27,10 @@ __all__ = [
     "OpenAIRegionInterpreter",
     "ShuShu",
     "CheChe",
-    "ChuchuClassifier",
-    "ChuchuRegressor",
+    "Chuchu",
     "ChuchuConfig",
+    "ChangePointConfig",
+    "DeltaRecord",
 ]
 
 __version__ = "0.1.3"
