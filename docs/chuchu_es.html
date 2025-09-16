@@ -8,45 +8,84 @@ nav_order: 11
 <script src="lang.js"></script>
 <div class="lang-switch"><a href="chuchu.html">EN</a></div>
 <h1>Chuchu</h1>
-<p>Regiones conformales para clasificación y regresión.</p>
-<h2>Clasificación</h2>
+<p>Pipeline para explorar las fronteras de modelos multiclase y visualizar sus superficies implícitas.</p>
+<p>Este ejemplo reproduce las tres visualizaciones compartidas por el equipo. Ejecuta el bloque completo para revisar advertencias y generar las figuras interactivas.</p>
 <pre><code class="language-python">
-from sheshe import ChuchuClassifier, ChuchuConfig
+import logging
 from sklearn.datasets import load_iris
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
-X, y = load_iris(return_X_y=True)
+from sheshe import Chuchu, ChuchuConfig, ChangePointConfig
+from sheshe.chuchu import (
+    compute_frontier_planes_weighted,
+    normalize_pair_order,
+    plot_frontiers_implicit_interactive,
+)
 
-# regiones KDE por defecto
-clf = ChuchuClassifier(ChuchuConfig()).fit(X, y)
-fig, _ = clf.plot_classes(X, y)
+iris = load_iris()
+X = iris.data.astype(float)
+y = iris.target.astype(int)
+feature_names = iris.feature_names
+model = RandomForestClassifier(n_estimators=150, random_state=0).fit(X, y)
 
-# scores de logistic regression
-lr = LogisticRegression(max_iter=200).fit(X, y)
-clf_lr = ChuchuClassifier(ChuchuConfig(density={"name": "score", "model": lr})).fit(X, y)
-clf_lr.plot_classes(X, y)
+cfg = ChuchuConfig(
+    log_level=logging.WARNING,
+    pair_quota=20,
+    max_pairs_total=120,
+    secant_iters=2,
+    final_bisect=8,
+    alpha_change=0.65,
+    distance_metric="l3",
+    min_pair_margin_end=0.02,
+    min_logit_gain=0.2,
+    random_state=42,
+)
+chuchu = Chuchu(cfg).fit(X, model)
+records = chuchu.records_
 
-# scores de random forest
-rf = RandomForestClassifier(n_estimators=50, random_state=0).fit(X, y)
-clf_rf = ChuchuClassifier(ChuchuConfig(density={"name": "score", "model": rf})).fit(X, y)
-clf_rf.plot_classes(X, y)
+planes = compute_frontier_planes_weighted(records, prefer_cp=True)
+fig1 = plot_frontiers_implicit_interactive(
+    records,
+    X,
+    y,
+    planes=planes,
+    dims=(0, 1, 2),
+    plane_mode="slice",
+    slice_filter_tol=0.12,
+    extend=1.15,
+    clamp_extend_to_X=True,
+    feature_names=feature_names,
+)
+
+planes_softmax = compute_frontier_planes_weighted(records, prefer_cp=True, weight_map="softmax")
+fig2 = plot_frontiers_implicit_interactive(
+    records,
+    X,
+    y,
+    planes=planes_softmax,
+    dims=(0, 1, 3),
+    plane_mode="fit_dims",
+    slice_filter_tol=2.9,
+    extend=1.65,
+    clamp_extend_to_X=True,
+    feature_names=feature_names,
+)
+
+cp_cfg = ChangePointConfig(enabled=True, mode="treefast", per_record_max_points=32)
+records_cp = Chuchu(cfg, cp_cfg).fit(X, model).records_
+records_norm = normalize_pair_order(records_cp, make_copy=True)
+planes_cp = compute_frontier_planes_weighted(records_norm, prefer_cp=True, weight_map="softmax")
+fig3 = plot_frontiers_implicit_interactive(
+    records_norm,
+    X,
+    y,
+    planes=planes_cp,
+    dims=(0, 1, 3),
+    plane_mode="fit_dims",
+    slice_filter_tol=2.9,
+    extend=1.65,
+    clamp_extend_to_X=True,
+    feature_names=feature_names,
+)
 </code></pre>
-
-<h2>Regresión</h2>
-<pre><code class="language-python">
-from sheshe import ChuchuRegressor, ChuchuConfig
-from sklearn.datasets import load_diabetes
-from sklearn.ensemble import RandomForestRegressor
-
-X, y = load_diabetes(return_X_y=True)
-
-# región KDE por defecto
-reg = ChuchuRegressor(ChuchuConfig()).fit(X, y)
-reg.plot_classes(X, y)
-
-# scores de random forest
-rf = RandomForestRegressor(n_estimators=50, random_state=0).fit(X, y)
-reg_rf = ChuchuRegressor(ChuchuConfig(density={"name": "score", "model": rf})).fit(X, y)
-reg_rf.plot_classes(X, y)
-</code></pre>
+<p>Cada figura es un objeto de Plotly con soporte para zoom, rotación y selección de capas.</p>
