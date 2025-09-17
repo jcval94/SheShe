@@ -12,10 +12,16 @@ from __future__ import annotations
 import copy
 import logging
 import time
+import warnings
 from dataclasses import dataclass, asdict, field
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
+import joblib
 import numpy as np
+import pandas as pd
+from sklearn.base import clone
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 # =============================================================================
 # Logging utilities
@@ -109,6 +115,58 @@ class ScoreAdaptor:
                 scores = np.c_[1.0 - scores, scores.reshape(-1, 1)]
             return scores
         raise ValueError("Modo desconocido.")
+
+
+def macro_f1_ignore_rejects(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    *,
+    reject_label: int = -1,
+) -> float:
+    """Compute the macro F1 score ignoring rejected samples.
+
+    Parameters
+    ----------
+    y_true, y_pred:
+        Arrays containing the ground-truth labels and the predictions.
+    reject_label:
+        Label used to mark rejected predictions. Samples with this
+        prediction are ignored when computing the score.
+
+    Returns
+    -------
+    float
+        Macro-averaged F1 score over the non-rejected classes. When all
+        samples are rejected the score defaults to ``0.0``.
+    """
+
+    y_true_arr = np.asarray(y_true)
+    y_pred_arr = np.asarray(y_pred)
+    mask = y_pred_arr != reject_label
+    if not np.any(mask):
+        return 0.0
+
+    labels = np.unique(y_true_arr[mask])
+    if labels.size == 0:
+        return 0.0
+
+    f1_scores: List[float] = []
+    for cls in labels:
+        tp = np.sum((y_true_arr == cls) & (y_pred_arr == cls))
+        fp = np.sum((y_true_arr != cls) & (y_pred_arr == cls))
+        fn = np.sum((y_true_arr == cls) & (y_pred_arr != cls))
+        if tp == 0 and (fp > 0 or fn > 0):
+            f1_scores.append(0.0)
+            continue
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        if precision + recall == 0.0:
+            f1_scores.append(0.0)
+        else:
+            f1_scores.append(2.0 * precision * recall / (precision + recall))
+    if not f1_scores:
+        return 0.0
+    return float(np.mean(f1_scores))
 
 
 # =============================================================================
@@ -2095,6 +2153,393 @@ def plot_frontiers_implicit_interactive(
     return fig
 
 
+class _ChuchuBase:
+    """Utility base class implementing shared helpers for the wrappers."""
+
+    __artifact_version__ = "1.0"
+
+    def __init__(
+        self,
+        config: Optional[ChuchuConfig] = None,
+        *,
+        base_estimator: Optional[Any] = None,
+        cp_config: Optional[ChangePointConfig] = None,
+        random_state: Optional[int] = None,
+    ) -> None:
+        self.config = config if config is not None else ChuchuConfig()
+        self.base_estimator = base_estimator
+        self.cp_config = cp_config
+        self.random_state = self.config.random_state if random_state is None else random_state
+        self.feature_names_: Optional[List[str]] = None
+        self.estimator_: Optional[Any] = None
+        self.chuchu_: Optional[Chuchu] = None
+        self.records_: List[DeltaRecord] = []
+
+    # ------------------------------------------------------------------
+    def _setup_fit(self, X: Any) -> np.ndarray:
+        if isinstance(X, pd.DataFrame):
+            self.feature_names_ = list(X.columns)
+            return X.to_numpy(dtype=float)
+        X_arr = np.asarray(X, dtype=float)
+        self.feature_names_ = [f"x{j}" for j in range(X_arr.shape[1])]
+        return X_arr
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _as_array(X: Any) -> np.ndarray:
+        if isinstance(X, pd.DataFrame):
+            return X.to_numpy(dtype=float)
+        return np.asarray(X, dtype=float)
+
+    # ------------------------------------------------------------------
+    def _make_estimator(self, default_factory):
+        if self.base_estimator is not None:
+            return clone(self.base_estimator)
+        return default_factory()
+
+    # ------------------------------------------------------------------
+    def _compute_chuchu_records(self, X: np.ndarray) -> None:
+        if self.estimator_ is None:
+            return
+        try:
+            explorer = Chuchu(self.config, self.cp_config)
+            explorer.fit(X, self.estimator_)
+        except Exception as exc:  # pragma: no cover - safety net for optional deps
+            warnings.warn(
+                f"Fallo al ejecutar Chuchu; se continúa sin registros. Detalle: {exc}",
+                RuntimeWarning,
+            )
+            self.chuchu_ = None
+            self.records_ = []
+        else:
+            self.chuchu_ = explorer
+            self.records_ = list(explorer.records_)
+
+    # ------------------------------------------------------------------
+    def _check_fitted(self) -> None:
+        if self.estimator_ is None:
+            raise RuntimeError("Modelo no ha sido ajustado")
+
+    # ------------------------------------------------------------------
+    def save(self, filepath: str | Path) -> None:
+        payload = {"__artifact_version__": self.__artifact_version__, "model": self}
+        joblib.dump(payload, filepath)
+
+    # ------------------------------------------------------------------
+    @classmethod
+    def load(cls, filepath: str | Path):
+        payload = joblib.load(filepath)
+        ver = payload.get("__artifact_version__")
+        if ver != cls.__artifact_version__:
+            raise ValueError(
+                f"Artifact version mismatch: expected {cls.__artifact_version__}, got {ver}"
+            )
+        model = payload.get("model")
+        if not isinstance(model, cls):
+            raise TypeError("Loaded object is not a valid Chuchu wrapper")
+        return model
+
+
+class ChuchuClassifier(_ChuchuBase):
+    """Lightweight classifier wrapper exposing a scikit-learn style API."""
+
+    def __init__(
+        self,
+        config: Optional[ChuchuConfig] = None,
+        *,
+        base_estimator: Optional[Any] = None,
+        cp_config: Optional[ChangePointConfig] = None,
+        random_state: Optional[int] = None,
+        reject_threshold: Optional[float] = None,
+    ) -> None:
+        super().__init__(
+            config,
+            base_estimator=base_estimator,
+            cp_config=cp_config,
+            random_state=random_state,
+        )
+        self.reject_threshold = reject_threshold
+        self.classes_: Optional[np.ndarray] = None
+        self._label_to_region: Dict[Any, int] = {}
+        self._adaptor: Optional[ScoreAdaptor] = None
+
+    # ------------------------------------------------------------------
+    def fit(self, X: Any, y: Any) -> "ChuchuClassifier":
+        X_arr = self._setup_fit(X)
+        y_arr = np.asarray(y)
+        default_factory = lambda: RandomForestClassifier(
+            n_estimators=150, random_state=self.random_state
+        )
+        estimator = self._make_estimator(default_factory)
+        estimator.fit(X_arr, y_arr)
+        self.estimator_ = estimator
+        classes = getattr(estimator, "classes_", None)
+        if classes is None:
+            classes = np.unique(y_arr)
+        self.classes_ = np.asarray(classes)
+        self._label_to_region = {cls: idx for idx, cls in enumerate(self.classes_)}
+        self._adaptor = ScoreAdaptor(estimator, mode=self.config.mode)
+        self._compute_chuchu_records(X_arr)
+        return self
+
+    # ------------------------------------------------------------------
+    def fit_predict(self, X: Any, y: Any) -> np.ndarray:
+        return self.fit(X, y).predict(X)
+
+    # ------------------------------------------------------------------
+    def predict(self, X: Any) -> np.ndarray:
+        self._check_fitted()
+        X_arr = self._as_array(X)
+        proba = self.decision_function(X_arr)
+        if proba.size == 0:
+            return np.full(X_arr.shape[0], -1, dtype=int)
+        idx = np.argmax(proba, axis=1)
+        scores = proba[np.arange(proba.shape[0]), idx]
+        labels = self.classes_[idx]
+        if self.reject_threshold is not None:
+            labels = labels.astype(object)
+            reject_mask = scores < float(self.reject_threshold)
+            labels[reject_mask] = -1
+            return np.asarray(labels, dtype=int)
+        return labels.astype(int)
+
+    # ------------------------------------------------------------------
+    def predict_proba(self, X: Any) -> Dict[Any, np.ndarray]:
+        self._check_fitted()
+        if self._adaptor is None:
+            raise RuntimeError("Probability adaptor is not available")
+        scores = self._adaptor.scores(self._as_array(X))
+        return {cls: scores[:, idx] for idx, cls in enumerate(self.classes_)}
+
+    # ------------------------------------------------------------------
+    def decision_function(self, X: Any) -> np.ndarray:
+        self._check_fitted()
+        if self._adaptor is None:
+            raise RuntimeError("Probability adaptor is not available")
+        return self._adaptor.scores(self._as_array(X))
+
+    # ------------------------------------------------------------------
+    def transform(self, X: Any) -> np.ndarray:
+        return self.decision_function(X)
+
+    # ------------------------------------------------------------------
+    def fit_transform(self, X: Any, y: Any) -> np.ndarray:
+        self.fit(X, y)
+        return self.transform(X)
+
+    # ------------------------------------------------------------------
+    def membership(self, X: Any) -> Dict[Any, np.ndarray]:
+        labels = self.predict(X)
+        out: Dict[Any, np.ndarray] = {}
+        for cls in self.classes_:
+            out[int(cls)] = labels == int(cls)
+        reject_mask = labels == -1
+        if np.any(reject_mask):
+            out[-1] = reject_mask
+        return out
+
+    # ------------------------------------------------------------------
+    def predict_regions(self, X: Any) -> pd.DataFrame:
+        self._check_fitted()
+        if isinstance(X, pd.DataFrame):
+            index = X.index
+        else:
+            index = None
+        labels = self.predict(X)
+        region_ids = np.full(labels.shape[0], -1, dtype=int)
+        for idx, lab in enumerate(labels):
+            if lab == -1:
+                continue
+            region_ids[idx] = self._label_to_region.get(int(lab), -1)
+        return pd.DataFrame({"label": labels, "region_id": region_ids}, index=index)
+
+    # ------------------------------------------------------------------
+    def region_mask(self, X: Any) -> np.ndarray:
+        df = self.predict_regions(X)
+        return df["region_id"].to_numpy() >= 0
+
+    # ------------------------------------------------------------------
+    def score(self, X: Any, y: Any) -> float:
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return macro_f1_ignore_rejects(y_true, y_pred)
+
+    # ------------------------------------------------------------------
+    def plot_pairs(
+        self,
+        X: Any,
+        max_pairs: Optional[int] = None,
+        feature_names: Optional[List[str]] = None,
+    ):
+        self._check_fitted()
+        X_arr = self._as_array(X)
+        if X_arr.shape[1] < 2:
+            raise ValueError("Se requieren al menos dos características para plot_pairs")
+        if feature_names is None:
+            feature_names = self.feature_names_ if self.feature_names_ is not None else ["x0", "x1"]
+        import matplotlib.pyplot as plt  # pragma: no cover - visual helper
+
+        fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+        labels = self.predict(X_arr)
+        ax.scatter(X_arr[:, 0], X_arr[:, 1], c=labels, cmap="tab10", s=32, edgecolors="none")
+        ax.set_xlabel(feature_names[0])
+        ax.set_ylabel(feature_names[1])
+        ax.set_title("ChuchuClassifier - pares de características")
+        return fig, [ax]
+
+    # ------------------------------------------------------------------
+    def plot_classes(
+        self,
+        X: Any,
+        y: Any,
+        grid_res: int = 200,
+        contour_levels: Optional[Union[np.ndarray, List[float]]] = None,
+        max_paths: int = 20,
+        show_paths: bool = True,
+    ):
+        self._check_fitted()
+        X_arr = self._as_array(X)
+        if X_arr.shape[1] < 2:
+            raise ValueError("Se requieren al menos dos características para plot_classes")
+        import matplotlib.pyplot as plt  # pragma: no cover - visual helper
+
+        fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+        y_arr = np.asarray(y)
+        sc = ax.scatter(X_arr[:, 0], X_arr[:, 1], c=y_arr, cmap="tab10", s=32, edgecolors="none")
+        ax.set_xlabel(self.feature_names_[0] if self.feature_names_ else "x0")
+        ax.set_ylabel(self.feature_names_[1] if self.feature_names_ else "x1")
+        ax.set_title("ChuchuClassifier - distribución de clases")
+        fig.colorbar(sc, ax=ax, label="Clase")
+        return fig, [ax]
+
+    # ------------------------------------------------------------------
+    def plot_pair_3d(self, X: Any, dims: Tuple[int, int]):  # pragma: no cover - simple guard
+        raise NotImplementedError("ChuchuClassifier no implementa plot_pair_3d")
+
+
+class ChuchuRegressor(_ChuchuBase):
+    """Regression counterpart of :class:`ChuchuClassifier`."""
+
+    def __init__(
+        self,
+        config: Optional[ChuchuConfig] = None,
+        *,
+        base_estimator: Optional[Any] = None,
+        cp_config: Optional[ChangePointConfig] = None,
+        random_state: Optional[int] = None,
+    ) -> None:
+        super().__init__(
+            config,
+            base_estimator=base_estimator,
+            cp_config=cp_config,
+            random_state=random_state,
+        )
+
+    # ------------------------------------------------------------------
+    def fit(self, X: Any, y: Any) -> "ChuchuRegressor":
+        X_arr = self._setup_fit(X)
+        y_arr = np.asarray(y)
+        default_factory = lambda: RandomForestRegressor(random_state=self.random_state)
+        estimator = self._make_estimator(default_factory)
+        estimator.fit(X_arr, y_arr)
+        self.estimator_ = estimator
+        # ``Chuchu`` currently focuses on classification; skip record extraction
+        self.chuchu_ = None
+        self.records_ = []
+        return self
+
+    # ------------------------------------------------------------------
+    def fit_predict(self, X: Any, y: Any) -> np.ndarray:
+        return self.fit(X, y).predict(X)
+
+    # ------------------------------------------------------------------
+    def predict(self, X: Any) -> np.ndarray:
+        self._check_fitted()
+        X_arr = self._as_array(X)
+        return np.asarray(self.estimator_.predict(X_arr), dtype=float)
+
+    # ------------------------------------------------------------------
+    def decision_function(self, X: Any) -> np.ndarray:
+        return self.predict(X)
+
+    # ------------------------------------------------------------------
+    def transform(self, X: Any) -> np.ndarray:
+        return self.decision_function(X)
+
+    # ------------------------------------------------------------------
+    def fit_transform(self, X: Any, y: Any) -> np.ndarray:
+        self.fit(X, y)
+        return self.transform(X)
+
+    # ------------------------------------------------------------------
+    def predict_regions(self, X: Any) -> pd.DataFrame:
+        preds = self.predict(X)
+        if isinstance(X, pd.DataFrame):
+            index = X.index
+        else:
+            index = None
+        region_ids = np.zeros_like(preds, dtype=int)
+        return pd.DataFrame({"label": preds, "region_id": region_ids}, index=index)
+
+    # ------------------------------------------------------------------
+    def region_mask(self, X: Any) -> np.ndarray:
+        df = self.predict_regions(X)
+        return df["region_id"].to_numpy() >= 0
+
+    # ------------------------------------------------------------------
+    def plot_pairs(
+        self,
+        X: Any,
+        max_pairs: Optional[int] = None,
+        feature_names: Optional[List[str]] = None,
+    ):
+        self._check_fitted()
+        X_arr = self._as_array(X)
+        if X_arr.shape[1] < 2:
+            raise ValueError("Se requieren al menos dos características para plot_pairs")
+        preds = self.predict(X_arr)
+        if feature_names is None:
+            feature_names = self.feature_names_ if self.feature_names_ is not None else ["x0", "x1"]
+        import matplotlib.pyplot as plt  # pragma: no cover - visual helper
+
+        fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+        sc = ax.scatter(X_arr[:, 0], X_arr[:, 1], c=preds, cmap="viridis", s=32, edgecolors="none")
+        ax.set_xlabel(feature_names[0])
+        ax.set_ylabel(feature_names[1])
+        ax.set_title("ChuchuRegressor - pares de características")
+        fig.colorbar(sc, ax=ax, label="Predicción")
+        return fig, [ax]
+
+    # ------------------------------------------------------------------
+    def plot_classes(
+        self,
+        X: Any,
+        y: Any,
+        grid_res: int = 200,
+        contour_levels: Optional[Union[np.ndarray, List[float]]] = None,
+        max_paths: int = 20,
+        show_paths: bool = True,
+    ):
+        self._check_fitted()
+        X_arr = self._as_array(X)
+        if X_arr.shape[1] < 2:
+            raise ValueError("Se requieren al menos dos características para plot_classes")
+        import matplotlib.pyplot as plt  # pragma: no cover - visual helper
+
+        fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+        y_arr = np.asarray(y)
+        sc = ax.scatter(X_arr[:, 0], X_arr[:, 1], c=y_arr, cmap="viridis", s=32, edgecolors="none")
+        ax.set_xlabel(self.feature_names_[0] if self.feature_names_ else "x0")
+        ax.set_ylabel(self.feature_names_[1] if self.feature_names_ else "x1")
+        ax.set_title("ChuchuRegressor - valores objetivo")
+        fig.colorbar(sc, ax=ax, label="y")
+        return fig, [ax]
+
+    # ------------------------------------------------------------------
+    def plot_pair_3d(self, X: Any, dims: Tuple[int, int]):  # pragma: no cover - simple guard
+        raise NotImplementedError("ChuchuRegressor no implementa plot_pair_3d")
+
+
 def normalize_pair_order(records, *, make_copy=True):
     """Ensure ``y0 <= y1`` for each :class:`DeltaRecord`."""
 
@@ -2134,6 +2579,9 @@ __all__ = [
     "Chuchu",
     "ChuchuConfig",
     "ChangePointConfig",
+    "ChuchuClassifier",
+    "ChuchuRegressor",
+    "macro_f1_ignore_rejects",
     "DeltaRecord",
     "DeltaRecordLite",
     "PCA3D",
