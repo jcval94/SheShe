@@ -29,6 +29,117 @@ nav_order: 98
   </tbody>
 </table>
 </div>
+<h2>inside_forest_runtime.csv</h2>
+<p>Runtime comparison between fitting InsideForest with its own RandomForestClassifier
+and reusing a pretrained ensemble. The driver
+<code>experiments/inside_forest_runtime.py</code> now records per-stage timings and
+labels the dominant bottleneck for each dataset/mode pair.</p>
+<div class="scroll-table">
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>dataset</th>
+      <th>mode</th>
+      <th>n_rules</th>
+      <th>n_regions</th>
+      <th>fit_time_s</th>
+      <th>fit_bottleneck</th>
+      <th>fit_bottleneck_time_s</th>
+      <th>fit_cluster_total_s</th>
+      <th>fit_extract_rules_s</th>
+      <th>fit_train_random_forest_s</th>
+      <th>hypotheses_bottleneck</th>
+      <th>hypotheses_bottleneck_time_s</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>iris</td>
+      <td>internal</td>
+      <td>724</td>
+      <td>159</td>
+      <td>5.468</td>
+      <td>cluster_total</td>
+      <td>4.665</td>
+      <td>4.665</td>
+      <td>0.045</td>
+      <td>0.756</td>
+      <td>scan_pairs</td>
+      <td>0.250</td>
+    </tr>
+    <tr>
+      <td>iris</td>
+      <td>external</td>
+      <td>724</td>
+      <td>159</td>
+      <td>4.513</td>
+      <td>cluster_total</td>
+      <td>4.469</td>
+      <td>4.469</td>
+      <td>0.043</td>
+      <td>0.000</td>
+      <td>scan_pairs</td>
+      <td>0.245</td>
+    </tr>
+    <tr>
+      <td>wine</td>
+      <td>internal</td>
+      <td>842</td>
+      <td>214</td>
+      <td>15.028</td>
+      <td>cluster_total</td>
+      <td>14.236</td>
+      <td>14.236</td>
+      <td>0.055</td>
+      <td>0.736</td>
+      <td>scan_pairs</td>
+      <td>1.109</td>
+    </tr>
+    <tr>
+      <td>wine</td>
+      <td>external</td>
+      <td>842</td>
+      <td>214</td>
+      <td>14.044</td>
+      <td>cluster_total</td>
+      <td>13.980</td>
+      <td>13.980</td>
+      <td>0.062</td>
+      <td>0.000</td>
+      <td>scan_pairs</td>
+      <td>0.937</td>
+    </tr>
+    <tr>
+      <td>digits</td>
+      <td>internal</td>
+      <td>8660</td>
+      <td>10</td>
+      <td>2.037</td>
+      <td>train_random_forest</td>
+      <td>0.895</td>
+      <td>0.346</td>
+      <td>0.795</td>
+      <td>0.895</td>
+      <td>scan_pairs</td>
+      <td>0.010</td>
+    </tr>
+    <tr>
+      <td>digits</td>
+      <td>external</td>
+      <td>8660</td>
+      <td>10</td>
+      <td>1.068</td>
+      <td>extract_rules</td>
+      <td>0.779</td>
+      <td>0.287</td>
+      <td>0.779</td>
+      <td>0.000</td>
+      <td>scan_pairs</td>
+      <td>0.010</td>
+    </tr>
+  </tbody>
+</table>
+</div>
 <h2>fit_profile.csv</h2>
 <p>Profiling data for <code>fit</code> performance (script: <code>profile_fit.py</code>).</p>
 <div class="scroll-table">
