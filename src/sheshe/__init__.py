@@ -3,7 +3,13 @@ from .subspace_scout import SubspaceScout
 from .modal_scout_ensemble import ModalScoutEnsemble
 from .region_interpretability import RegionInterpreter
 from .meta_optimization import random_search
-from .inside_forest import InsideForest, Region, Rule
+from .inside_forest import (
+    InsideForest,
+    InsideForestClassifier,
+    InsideForestRegressor,
+    Region,
+    Rule,
+)
 from .shushu import ShuShu
 from .cheche import CheChe
 from .chuchu import (
@@ -42,6 +48,8 @@ __all__ = [
     "ChangePointConfig",
     "DeltaRecord",
     "InsideForest",
+    "InsideForestClassifier",
+    "InsideForestRegressor",
     "Region",
     "Rule",
 ]

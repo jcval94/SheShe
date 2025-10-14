@@ -30,11 +30,70 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.cluster import DBSCAN, KMeans
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.feature_selection import (
+    SelectKBest,
+    mutual_info_classif,
+    mutual_info_regression,
+)
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils.multiclass import type_of_target
 
 
 Number = Union[int, float]
+
+
+def _size_bucket(n: int, d: int) -> str:
+    prod = n * d
+    if prod <= 50_000:
+        return "small"
+    if prod <= 200_000:
+        return "medium"
+    if prod <= 1_000_000:
+        return "large"
+    return "huge"
+
+
+def _choose_k_features(n: int, d: int) -> int:
+    bucket = _size_bucket(n, d)
+    if bucket == "small":
+        k = min(d, 64)
+    elif bucket == "medium":
+        k = min(d, 48)
+    elif bucket == "large":
+        k = min(d, 32)
+    else:
+        k = min(d, 24)
+    return max(8, k)
+
+
+def _choose_fast_params(n: int, d: int) -> Dict[str, Dict[str, Any]]:
+    bucket = _size_bucket(n, d)
+    if bucket == "small":
+        rf_params = dict(n_estimators=80, max_depth=12, min_samples_leaf=3)
+    elif bucket == "medium":
+        rf_params = dict(n_estimators=60, max_depth=10, min_samples_leaf=5)
+    elif bucket == "large":
+        rf_params = dict(n_estimators=40, max_depth=9, min_samples_leaf=8)
+    else:
+        rf_params = dict(n_estimators=30, max_depth=8, min_samples_leaf=10)
+    return {"rf": rf_params}
+
+
+def _merge_dicts(base: Dict[str, Any], override: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not override:
+        return dict(base)
+    merged = dict(base)
+    for key, value in override.items():
+        if (
+            key in merged
+            and isinstance(merged[key], dict)
+            and isinstance(value, dict)
+        ):
+            merged[key] = {**merged[key], **value}
+        else:
+            merged[key] = value
+    return merged
 
 
 @dataclass
@@ -48,10 +107,12 @@ class Rule:
     b: np.ndarray  # upper bounds (float32)
     mask: np.ndarray  # bool mask indicating which dimensions are active
     support: int
-    class_counts: np.ndarray  # int32 counts per class
-    distribution: np.ndarray  # float64 distribution per class
-    weight: float
-    gini: float
+    class_counts: Optional[np.ndarray] = None  # int32 counts per class
+    distribution: Optional[np.ndarray] = None  # float64 distribution per class
+    weight: float = 0.0
+    gini: Optional[float] = None
+    prediction: Optional[float] = None  # regression mean
+    variance: Optional[float] = None  # regression variance (impurity)
 
 
 @dataclass
@@ -64,12 +125,14 @@ class Region:
     b: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=np.float32))
     mask: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=bool))
     support: int = 0
-    class_counts: np.ndarray = field(
+    class_counts: Optional[np.ndarray] = field(
         default_factory=lambda: np.empty(0, dtype=np.int64)
     )
-    distribution: np.ndarray = field(
+    distribution: Optional[np.ndarray] = field(
         default_factory=lambda: np.empty(0, dtype=np.float64)
     )
+    mean: Optional[float] = None
+    variance: Optional[float] = None
     purity: float = 0.0
     lift: float = 0.0
     algo_info: Dict[str, Any] = field(default_factory=dict)
@@ -93,6 +156,7 @@ class InsideForest(BaseEstimator, TransformerMixin):
         self._rules: List[Rule] = []
         self._regions: List[Region] = []
         self._feature_names: Optional[List[str]] = None
+        self._feature_names_all: Optional[List[str]] = None
         self._fitted: bool = False
         self.global_mins_: Optional[np.ndarray] = None
         self.global_maxs_: Optional[np.ndarray] = None
@@ -103,6 +167,9 @@ class InsideForest(BaseEstimator, TransformerMixin):
         )
         self._rf_source: str = "internal"
         self._last_timings: Dict[str, Dict[str, float]] = {}
+        self._feature_mask: Optional[np.ndarray] = None
+        self._fast_params_used: Optional[Dict[str, Any]] = None
+        self._fast_size_bucket: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -126,14 +193,12 @@ class InsideForest(BaseEstimator, TransformerMixin):
             if feature_names is not None:
                 if len(feature_names) != n_features:
                     raise ValueError("feature_names length must match number of features")
-                self._feature_names = list(feature_names)
+                self._feature_names_all = list(feature_names)
             else:
-                self._feature_names = [f"x{i}" for i in range(n_features)]
+                self._feature_names_all = [f"x{i}" for i in range(n_features)]
 
-            self.global_mins_ = X_arr.min(axis=0).astype(np.float32, copy=True)
-            self.global_maxs_ = X_arr.max(axis=0).astype(np.float32, copy=True)
-
-        if random_forest is not None:
+        external_rf = random_forest is not None
+        if external_rf:
             if y is None:
                 raise ValueError(
                     "y must be provided when supplying a pretrained random forest"
@@ -157,15 +222,28 @@ class InsideForest(BaseEstimator, TransformerMixin):
         else:
             if y is None:
                 raise ValueError("y must be provided when training the internal forest")
-            rf = self._make_random_forest()
+            rf = None
             self._rf_source = "internal"
 
         with self._time_block(timings, "fit", "encode_target", verbose):
             y_arr = self._coerce_target(
-                y, rf.classes_ if random_forest is not None else None
+                y, rf.classes_ if external_rf else None
             )
 
-        if random_forest is None:
+        if external_rf:
+            self._feature_mask = None
+            self._feature_names = list(self._feature_names_all or [])
+            self.global_mins_ = X_arr.min(axis=0).astype(np.float32, copy=True)
+            self.global_maxs_ = X_arr.max(axis=0).astype(np.float32, copy=True)
+        else:
+            X_arr = self._maybe_reduce_features(X_arr, y_arr)
+            self.global_mins_ = X_arr.min(axis=0).astype(np.float32, copy=True)
+            self.global_maxs_ = X_arr.max(axis=0).astype(np.float32, copy=True)
+            n_samples, n_features = X_arr.shape
+            self._maybe_apply_fast_preset(n_samples, n_features)
+            rf = self._make_random_forest()
+
+        if not external_rf:
             with self._time_block(timings, "fit", "train_random_forest", verbose):
                 rf.fit(X_arr, y_arr)
         else:
@@ -235,6 +313,7 @@ class InsideForest(BaseEstimator, TransformerMixin):
 
         with self._time_block(timings, "transform", "coerce_features", verbose):
             X_arr = self._coerce_features(X, expect_fit=False)
+            X_arr = self._apply_feature_selection(X_arr)
 
         if not self._regions:
             self._record_duration(
@@ -296,6 +375,7 @@ class InsideForest(BaseEstimator, TransformerMixin):
         if self._rf is None:
             raise RuntimeError("RandomForestClassifier has not been trained")
         X_arr = self._coerce_features(X, expect_fit=False)
+        X_arr = self._apply_feature_selection(X_arr)
         return self._rf.predict_proba(X_arr)
 
     def explain(self, top_k: int = 20, verbose: int = 0) -> List[Dict[str, Any]]:
@@ -351,6 +431,107 @@ class InsideForest(BaseEstimator, TransformerMixin):
 
         self._last_timings["explain"] = timings
         return summaries
+
+
+class InsideForestClassifier(InsideForest):
+    """Classifier-oriented InsideForest estimator (alias for backwards compatibility)."""
+
+    pass
+
+
+class InsideForestRegressor(InsideForest):
+    """InsideForest variant that supports regression targets via random forests."""
+
+    def __init__(
+        self,
+        config: Optional[Dict[str, Any]] = None,
+        n_bins: int = 10,
+    ) -> None:
+        super().__init__(config=config, class_names=None)
+        self.n_bins = max(2, int(n_bins))
+        self._rf_reg: Optional[RandomForestRegressor] = None
+        self._bin_edges_: Optional[np.ndarray] = None
+
+    def _make_random_forest_regressor(self) -> RandomForestRegressor:
+        rf_cfg = self.config["rf"].copy()
+        rf_params = {
+            key: rf_cfg[key]
+            for key in [
+                "n_estimators",
+                "max_depth",
+                "min_samples_leaf",
+                "random_state",
+                "n_jobs",
+            ]
+            if key in rf_cfg
+        }
+        return RandomForestRegressor(**rf_params)
+
+    def fit(
+        self,
+        X: Union[np.ndarray, Sequence[Sequence[Number]]],
+        y: Optional[Union[np.ndarray, Sequence[Number]]],
+        feature_names: Optional[Sequence[str]] = None,
+        random_forest: Optional[RandomForestClassifier] = None,
+        verbose: int = 0,
+    ) -> "InsideForestRegressor":
+        if y is None:
+            raise ValueError("y must be provided when fitting InsideForestRegressor")
+        if random_forest is not None:
+            raise ValueError(
+                "InsideForestRegressor does not support passing a pretrained random forest"
+            )
+        y_arr = np.asarray(y, dtype=float)
+        if y_arr.ndim != 1:
+            raise ValueError("y must be a 1D array-like structure for regression")
+        if y_arr.size == 0:
+            raise ValueError("y must contain at least one sample")
+
+        # Build bins to approximate the continuous target with ordinal classes
+        if np.allclose(y_arr.min(), y_arr.max()):
+            bin_edges = np.array([y_arr.min(), y_arr.max()], dtype=float)
+        else:
+            percentiles = np.linspace(0.0, 100.0, self.n_bins + 1)
+            bin_edges = np.percentile(y_arr, percentiles)
+            bin_edges = np.unique(bin_edges)
+            if bin_edges.size < 2:
+                bin_edges = np.array([y_arr.min(), y_arr.max()], dtype=float)
+
+        if bin_edges.size <= 1:
+            # All values are equal; create a dummy two-edge bin
+            bin_edges = np.array([y_arr[0], y_arr[0] + 1e-9], dtype=float)
+
+        # digitize expects interior bin edges; we use midpoints excluding the first/last
+        interior = bin_edges[1:-1]
+        y_binned = np.digitize(y_arr, interior, right=False)
+
+        # Fit the classification pipeline using the discretised target
+        super().fit(
+            X,
+            y_binned,
+            feature_names=feature_names,
+            random_forest=random_forest,
+            verbose=verbose,
+        )
+
+        # Train an auxiliary RandomForestRegressor on the selected features
+        X_arr = self._coerce_features(X)
+        X_arr = self._apply_feature_selection(X_arr)
+        rf_reg = self._make_random_forest_regressor()
+        rf_reg.fit(X_arr, y_arr)
+        self._rf_reg = rf_reg
+        self._bin_edges_ = bin_edges
+        return self
+
+    def predict(
+        self,
+        X: Union[np.ndarray, Sequence[Sequence[Number]]],
+    ) -> np.ndarray:
+        if self._rf_reg is None:
+            raise RuntimeError("InsideForestRegressor has not been fitted yet")
+        X_arr = self._coerce_features(X, expect_fit=False)
+        X_arr = self._apply_feature_selection(X_arr)
+        return self._rf_reg.predict(X_arr)
 
     def export(self, path: Union[str, Path], format: str = "json") -> None:
         """Serialise the current state to *path* in the requested format."""
@@ -523,6 +704,15 @@ class InsideForest(BaseEstimator, TransformerMixin):
             "performance": {
                 "use_float32": True,
             },
+            "feature_selection": {
+                "auto": False,
+                "explicit_k": None,
+                "min_k": 8,
+            },
+            "fast": {
+                "auto": False,
+                "overrides": {},
+            },
         }
 
         for section, values in user_cfg.items():
@@ -547,6 +737,76 @@ class InsideForest(BaseEstimator, TransformerMixin):
             if key in rf_cfg
         }
         return RandomForestClassifier(**rf_params)
+
+    def _maybe_apply_fast_preset(self, n_samples: int, n_features: int) -> None:
+        fast_cfg = self.config.get("fast", {})
+        if not fast_cfg.get("auto", False):
+            self._fast_params_used = None
+            self._fast_size_bucket = None
+            return
+        preset = _choose_fast_params(n_samples, n_features)
+        overrides = fast_cfg.get("overrides")
+        combined = _merge_dicts(preset, overrides)
+        rf_preset = combined.get("rf", {})
+        self._fast_params_used = rf_preset
+        self._fast_size_bucket = _size_bucket(n_samples, n_features)
+        rf_cfg = self.config.setdefault("rf", {})
+        # Do not overwrite a user-provided random_state if present
+        random_state = rf_cfg.get("random_state")
+        rf_cfg.update({k: v for k, v in rf_preset.items() if k != "random_state"})
+        if random_state is not None:
+            rf_cfg["random_state"] = random_state
+
+    def _maybe_reduce_features(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+        fs_cfg = self.config.get("feature_selection", {})
+        if not fs_cfg.get("auto", False):
+            self._feature_mask = None
+            self._feature_names = list(self._feature_names_all or [])
+            return X
+
+        n_samples, n_features = X.shape
+        k = fs_cfg.get("explicit_k")
+        if k is None:
+            k = _choose_k_features(n_samples, n_features)
+        k = int(max(fs_cfg.get("min_k", 8), min(k, n_features)))
+
+        mask = None
+        ytype: Optional[str]
+        try:
+            ytype = type_of_target(y)
+        except Exception:
+            ytype = None
+
+        if ytype in {"binary", "multiclass"}:
+            selector = SelectKBest(mutual_info_classif, k=k)
+            selector.fit(X, y)
+            mask = selector.get_support()
+        elif ytype in {"continuous", "continuous-multioutput"}:
+            selector = SelectKBest(mutual_info_regression, k=k)
+            selector.fit(X, y)
+            mask = selector.get_support()
+        if mask is None:
+            variances = X.var(axis=0)
+            idx_sorted = np.argsort(-variances)[:k]
+            mask = np.zeros(n_features, dtype=bool)
+            mask[idx_sorted] = True
+
+        self._feature_mask = mask
+        if self._feature_names_all is None:
+            self._feature_names = None
+        else:
+            names = np.asarray(self._feature_names_all)
+            self._feature_names = names[mask].tolist()
+        return X[:, mask]
+
+    def _apply_feature_selection(self, X: np.ndarray) -> np.ndarray:
+        if self._feature_mask is None:
+            return X
+        if X.shape[1] != len(self._feature_mask):
+            raise ValueError(
+                "X has a different number of features than seen during fitting"
+            )
+        return X[:, self._feature_mask]
 
     def _coerce_features(
         self,
@@ -1138,5 +1398,11 @@ class InsideForest(BaseEstimator, TransformerMixin):
         raise KeyError(f"Region with id {region_id} not found")
 
 
-__all__ = ["InsideForest", "Rule", "Region"]
+__all__ = [
+    "InsideForest",
+    "InsideForestClassifier",
+    "InsideForestRegressor",
+    "Rule",
+    "Region",
+]
 
