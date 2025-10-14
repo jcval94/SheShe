@@ -1,0 +1,218 @@
+---
+layout: default
+title: InsideForest
+parent: SheShe
+nav_order: 7
+---
+<link rel="stylesheet" href="style.css">
+<script src="lang.js"></script>
+<div class="lang-switch"><a href="inside_forest.html">EN</a></div>
+
+<h1>InsideForest</h1>
+<p><code>InsideForest</code> agrupa la geometría de decisión de un
+<code>RandomForestClassifier</code> en reglas y regiones legibles. Ahora admite bosques
+entrenados internamente o proporcionados por el usuario, por lo que puedes
+reutilizar ensambles ajustados que ya formen parte de tu pipeline.</p>
+
+<h2>Inicio rápido</h2>
+<pre><code class="language-python">from sklearn.datasets import load_iris
+from sheshe import InsideForest
+
+X, y = load_iris(return_X_y=True)
+explorer = InsideForest()
+explorer.fit(X, y)
+region_labels = explorer.transform(X, mode="best")
+summary = explorer.explain(top_k=5)
+</code></pre>
+
+<h2>Usar un RandomForestClassifier entrenado por el usuario</h2>
+<p>El estimador acepta un bosque previo mediante el argumento <code>random_forest</code> de
+<code>fit</code>. El ejemplo replica el experimento que cronometra el dataset de vino.</p>
+<pre><code class="language-python">from sklearn.datasets import load_wine
+from sklearn.ensemble import RandomForestClassifier
+from sheshe import InsideForest
+
+X, y = load_wine(return_X_y=True)
+bosque_usuario = RandomForestClassifier(
+    n_estimators=200,
+    min_samples_leaf=2,
+    random_state=42,
+    n_jobs=-1,
+).fit(X, y)
+
+explorer = InsideForest()
+explorer.fit(X, y, random_forest=bosque_usuario)
+print(len(explorer.get_rules()), "reglas")
+print(len(explorer.get_regions()), "regiones")
+</code></pre>
+
+<h2>Transformar muestras y listar todas las regiones</h2>
+<p>Los experimentos sobre digits evalúan tanto la mejor región como la lista
+completa de coberturas. El fragmento muestra cómo obtener todas las regiones
+que cubren cada observación.</p>
+<pre><code class="language-python">from sklearn.datasets import load_digits
+from sheshe import InsideForest
+
+X, y = load_digits(return_X_y=True)
+explorer = InsideForest()
+explorer.fit(X, y)
+all_regions = explorer.transform(X, mode="all")
+first_sample_regions = all_regions[0]
+</code></pre>
+
+<h2>Generar hipótesis contrastantes</h2>
+<p>La generación de hipótesis empareja regiones similares con grandes diferencias
+de pureza. El experimento de tiempo mide este paso para cada dataset.</p>
+<pre><code class="language-python">from sklearn.datasets import load_iris
+from sheshe import InsideForest
+
+X, y = load_iris(return_X_y=True)
+explorer = InsideForest()
+explorer.fit(X, y)
+hypotheses = explorer.generate_hypotheses(top_pairs=5)
+for hypothesis in hypotheses:
+    print(hypothesis["pair"], hypothesis["purity_delta"])
+</code></pre>
+
+<h2>Diagnóstico de tiempos</h2>
+<p>Activa el parámetro <code>verbose</code> en <code>fit</code>, <code>transform</code>,
+<code>explain</code> o <code>generate_hypotheses</code> para registrar cuánto tarda cada
+etapa interna. Los valores recientes también quedan disponibles mediante
+<code>get_last_timings()</code>, que alimenta los experimentos descritos abajo.</p>
+<pre><code class="language-python">explorer = InsideForest()
+explorer.fit(X, y, verbose=1)
+explorer.transform(X, mode="best", verbose=1)
+print(explorer.get_last_timings()["fit"])
+</code></pre>
+
+<h2>Experimentos de tiempo</h2>
+<p>El script <code>experiments/inside_forest_runtime.py</code> corre en Iris, Wine y
+Digits para comparar el entrenamiento interno contra la reutilización de un
+bosque ya entrenado. Ahora registra los tiempos por etapa expuestos por
+<code>get_last_timings()</code>, guarda los resultados en
+<code>benchmark/inside_forest_runtime.csv</code> e identifica los cuellos de botella.</p>
+<div class="scroll-table">
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>dataset</th>
+      <th>modo</th>
+      <th>n_rules</th>
+      <th>n_regions</th>
+      <th>fit_time_s</th>
+      <th>fit_bottleneck</th>
+      <th>fit_bottleneck_time_s</th>
+      <th>fit_cluster_total_s</th>
+      <th>fit_extract_rules_s</th>
+      <th>fit_train_random_forest_s</th>
+      <th>transform_bottleneck</th>
+      <th>transform_bottleneck_time_s</th>
+      <th>hypotheses_bottleneck</th>
+      <th>hypotheses_bottleneck_time_s</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>iris</td>
+      <td>interno</td>
+      <td>724</td>
+      <td>159</td>
+      <td>5.47</td>
+      <td>cluster_total</td>
+      <td>4.67</td>
+      <td>4.67</td>
+      <td>0.045</td>
+      <td>0.76</td>
+      <td>select_best_region</td>
+      <td>0.0024</td>
+      <td>scan_pairs</td>
+      <td>0.25</td>
+    </tr>
+    <tr>
+      <td>iris</td>
+      <td>externo</td>
+      <td>724</td>
+      <td>159</td>
+      <td>4.51</td>
+      <td>cluster_total</td>
+      <td>4.47</td>
+      <td>4.47</td>
+      <td>0.043</td>
+      <td>0.00</td>
+      <td>select_best_region</td>
+      <td>0.0025</td>
+      <td>scan_pairs</td>
+      <td>0.24</td>
+    </tr>
+    <tr>
+      <td>wine</td>
+      <td>interno</td>
+      <td>842</td>
+      <td>214</td>
+      <td>15.03</td>
+      <td>cluster_total</td>
+      <td>14.24</td>
+      <td>14.24</td>
+      <td>0.055</td>
+      <td>0.74</td>
+      <td>points_in_regions</td>
+      <td>0.0038</td>
+      <td>scan_pairs</td>
+      <td>1.11</td>
+    </tr>
+    <tr>
+      <td>wine</td>
+      <td>externo</td>
+      <td>842</td>
+      <td>214</td>
+      <td>14.04</td>
+      <td>cluster_total</td>
+      <td>13.98</td>
+      <td>13.98</td>
+      <td>0.062</td>
+      <td>0.00</td>
+      <td>points_in_regions</td>
+      <td>0.0063</td>
+      <td>scan_pairs</td>
+      <td>0.94</td>
+    </tr>
+    <tr>
+      <td>digits</td>
+      <td>interno</td>
+      <td>8660</td>
+      <td>10</td>
+      <td>2.04</td>
+      <td>train_random_forest</td>
+      <td>0.90</td>
+      <td>0.35</td>
+      <td>0.80</td>
+      <td>0.89</td>
+      <td>select_best_region</td>
+      <td>0.026</td>
+      <td>scan_pairs</td>
+      <td>0.010</td>
+    </tr>
+    <tr>
+      <td>digits</td>
+      <td>externo</td>
+      <td>8660</td>
+      <td>10</td>
+      <td>1.07</td>
+      <td>extract_rules</td>
+      <td>0.78</td>
+      <td>0.29</td>
+      <td>0.78</td>
+      <td>0.00</td>
+      <td>select_best_region</td>
+      <td>0.022</td>
+      <td>scan_pairs</td>
+      <td>0.0099</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p>En conjuntos pequeños domina la fase de agrupamiento de reglas, sobre todo el
+cálculo de Jaccard (<code>cluster_total</code>). Con los 8.6&nbsp;mil rules de Digits el
+algoritmo recurre al <em>fallback</em> con KMeans: el modo interno dedica la mayor
+parte del tiempo al entrenamiento del bosque, mientras que el modo externo lo
+invierte en la extracción de reglas.</p>

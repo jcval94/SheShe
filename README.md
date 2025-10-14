@@ -12,6 +12,7 @@ SheShe turns probabilistic models into guided explorers of their decision surfac
 ## Features
 - Supervised clustering for classification and regression
 - Rule extraction and subspace exploration
+- InsideForest for interpretable random-forest rule clustering (reuse pretrained forests and inspect per-stage timings)
 - 2D/3D plotting utilities
 
 ## Mathematical Overview

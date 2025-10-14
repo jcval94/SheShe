@@ -10,6 +10,7 @@ SheShe convierte cualquier modelo probabilístico en un explorador guiado de su 
 ## Características
 - Clustering supervisado para clasificación y regresión
 - Extracción de reglas y exploración de subespacios
+- InsideForest para agrupar reglas de bosques aleatorios (permite reutilizar modelos entrenados por el usuario e inspeccionar tiempos por etapa)
 - Herramientas de graficado 2D/3D
 
 ## Resumen matemático
