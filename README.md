@@ -65,6 +65,33 @@ pip install -e .
 ## Documentation
 See the [documentation](https://jcval94.github.io/SheShe/) for installation, API reference and guides.
 
+## Rule search helpers (`sheshe.combiantions`)
+
+Use `find_comb_dim_spaces` to discover low-dimensional rules from a set of planes, and
+`plot_rule_metrics` to quickly inspect their quality:
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+from sheshe import find_comb_dim_spaces, plot_rule_metrics
+
+# Ejemplo minimalista: supongamos que ya tienes `sel` con `winning_planes`
+X = np.random.randn(200, 4)
+y = (X[:, 0] + 0.3 * X[:, 1] > 0).astype(int)
+
+valuable = find_comb_dim_spaces(
+    sel,  # tu selección de planos
+    X,
+    y,
+    max_planes=3,
+    metric="precision",
+)
+
+# Visualiza precisión vs recall, coloreando por número de dimensiones
+ax = plot_rule_metrics(valuable, target_class=1, metric_x="recall", metric_y="precision")
+plt.show()
+```
+
 ## Contributing
 Set up a virtual environment and install the development dependencies:
 
