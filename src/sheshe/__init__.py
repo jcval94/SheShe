@@ -3,6 +3,7 @@ from .subspace_scout import SubspaceScout
 from .modal_scout_ensemble import ModalScoutEnsemble
 from .region_interpretability import RegionInterpreter
 from .meta_optimization import random_search
+from .combiantions import find_comb_dim_spaces, plot_rule_metrics, select_ruleset_or_greedy
 from .inside_forest import (
     InsideForest,
     InsideForestClassifier,
@@ -52,6 +53,9 @@ __all__ = [
     "InsideForestRegressor",
     "Region",
     "Rule",
+    "find_comb_dim_spaces",
+    "plot_rule_metrics",
+    "select_ruleset_or_greedy",
 ]
 
 __version__ = "0.1.3"
